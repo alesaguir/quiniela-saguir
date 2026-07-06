@@ -539,20 +539,25 @@ async function cargarCabezasReales(fechaStr, sorteoKey) {
   const diaSemana = now.getDay();
   const tm = now.getHours()*60 + now.getMinutes();
 
-  // fechaStr ya apunta al sábado en domingo/lunes temprano
-  // Para cabezas anteriores, necesitamos el día previo a fechaStr
+  // Para cabezas del lunes: los sorteos "anteriores" son del SÁBADO (no del domingo)
+  // Para otros días: son del día anterior
   const partes = fechaStr.split('-');
   const fechaAnterior = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
-  fechaAnterior.setDate(fechaAnterior.getDate() - 1);
+  if (diaSemana === 1) {
+    fechaAnterior.setDate(fechaAnterior.getDate() - 2); // sábado
+  } else if (diaSemana === 0) {
+    fechaAnterior.setDate(fechaAnterior.getDate() - 2); // viernes (domingo → sábado ya es fechaStr)
+  } else {
+    fechaAnterior.setDate(fechaAnterior.getDate() - 1);
+  }
   const fechaAnteriorStr = fechaAnterior.toISOString().split('T')[0];
 
-  // Domingo o lunes antes de 10:15 → todos los sorteos vienen del sábado (= fechaStr)
-  // Domingo O lunes antes de la previa: cabezas del sábado
-  const esDomingoOLunesTemp = (diaSemana === 0) || (diaSemana === 1 && tm < 10*60+15);
+  // Domingo: todos vienen del sábado (fechaStr)
+  const esDomingo = (diaSemana === 0);
 
-  // Sorteos que ya pasaron HOY (solo días normales)
+  // Sorteos que ya pasaron HOY (solo días normales, no domingo)
   const pasadosEnFechaStr = [];
-  if (!esDomingoOLunesTemp) {
+  if (!esDomingo) {
     if (tm >= 10*60+15) pasadosEnFechaStr.push('previa');
     if (tm >= 12*60)    pasadosEnFechaStr.push('primera');
     if (tm >= 15*60)    pasadosEnFechaStr.push('matutina');
@@ -562,10 +567,13 @@ async function cargarCabezasReales(fechaStr, sorteoKey) {
 
   for (const s of sorteoKeys) {
     let fechaBuscar;
-    if (esDomingoOLunesTemp) {
-      // Domingo/lunes temprano: todos los sorteos del sábado (= fechaStr)
+    if (esDomingo) {
+      // Domingo: todos los sorteos del sábado (= fechaStr)
       fechaBuscar = fechaStr;
     } else {
+      // Lunes y resto de días:
+      // Si el sorteo ya pasó hoy y no es el que está en pantalla → buscar en fechaStr (hoy)
+      // Si no pasó hoy → buscar en fechaAnteriorStr (sábado para lunes, ayer para otros días)
       const pasadoHoyNoEnPantalla = pasadosEnFechaStr.includes(s) && s !== sorteoKey;
       fechaBuscar = pasadoHoyNoEnPantalla ? fechaStr : fechaAnteriorStr;
     }
