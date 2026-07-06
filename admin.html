@@ -281,6 +281,125 @@
       </div>
     </div>
 
+    <!-- CONFIGURACIÓN VISUAL — solo superadmin -->
+    <div id="seccion-visual" style="display:none;">
+      <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🎨 Apariencia de la Pantalla</div>
+        <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🎨 Configuración visual</div>
+          <button class="btn btn-ghost" onclick="resetearVisual()" style="font-size:12px;padding:6px 12px;">↺ Restaurar defaults</button>
+        </div>
+        <div class="card-body">
+
+          <!-- SELECTOR DE AGENCIA Y TV -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div>
+              <label class="form-label">Configurar para agencia</label>
+              <select id="visual-agencia-sel" class="form-input" onchange="cargarConfigVisual()">
+                <option value="670-00">670-00 — Agencia principal (mi TV)</option>
+              </select>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Cada agencia tiene su propia configuración</div>
+            </div>
+            <div>
+              <label class="form-label">Tamaño del televisor</label>
+              <select id="visual-tv-size" class="form-input" onchange="aplicarMultiplicadorTV()">
+                <option value="1.35">32" — Chico</option>
+                <option value="1.2">43" — Mediano</option>
+                <option value="1.08">55" — Grande</option>
+                <option value="1.0" selected>65" — Muy grande</option>
+                <option value="0.9">75"+ — Extra grande</option>
+              </select>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Ajusta automáticamente el tamaño base</div>
+            </div>
+          </div>
+
+          <!-- NÚMEROS SORTEO ACTUAL -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Números del sorteo actual</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño del 1° premio y del resto de los números</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <label class="form-label">1° Premio</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-primero" min="20" max="60" value="34"
+                    oninput="actualizarSlider('primero',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-primero" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">34px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-primero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;font-size:34px;">7732</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Resto de números</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-normal" min="14" max="40" value="22"
+                    oninput="actualizarSlider('normal',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-normal" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">22px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-normal" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:22px;">3638</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CABEZAS -->
+          <div style="margin-bottom:24px;padding-top:20px;border-top:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Últimas cabezas</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de los números en la columna izquierda</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <label class="form-label">Números de cabezas</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-cabeza" min="12" max="32" value="18"
+                    oninput="actualizarSlider('cabeza',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-cabeza" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">18px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-cabeza" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:18px;">6772</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Texto de provincia</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-prov" min="10" max="22" value="14"
+                    oninput="actualizarSlider('prov',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-prov" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">14px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-prov" style="font-family:'DM Sans',sans-serif;color:rgba(255,255,255,0.65);font-size:14px;">CHAQUEÑA</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ANCHO COLUMNA CABEZAS -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Ancho de columna "Últimas Cabezas"</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuánto espacio ocupa la columna izquierda</div>
+            <div style="display:flex;align-items:center;gap:12px;max-width:400px;">
+              <input type="range" id="slider-ancho-cabezas" min="150" max="350" value="240"
+                oninput="actualizarSlider('ancho-cabezas',this.value)"
+                style="flex:1;accent-color:var(--gold);">
+              <span id="val-ancho-cabezas" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:60px;text-align:center;">240px</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%" onclick="guardarVisual()">
+            💾 Guardar y aplicar en pantalla
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- CONFIGURACIÓN DE SORTEOS — solo superadmin -->
     <div id="seccion-config" style="display:none;">
       <div style="margin-top:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
@@ -973,20 +1092,123 @@ async function cargarActividad() {
 }
 
 // =====================
+// CONFIGURACIÓN VISUAL
+// =====================
+const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'ancho-cabezas':'240', tv:'1.0' };
+
+function aplicarMultiplicadorTV() {
+  const mult = parseFloat(document.getElementById('visual-tv-size').value);
+  ['primero','normal','cabeza','prov'].forEach(k => {
+    const base = parseInt(DEFAULTS_VISUAL[k]);
+    const nuevo = Math.round(base * mult);
+    const slider = document.getElementById(`slider-${k}`);
+    if (slider) { slider.value = nuevo; actualizarSlider(k, nuevo); }
+  });
+}
+
+async function cargarAgenciasEnSelector() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&activo=eq.true&select=agencia_id,nombre`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    const sel = document.getElementById('visual-agencia-sel');
+    if (!rows || rows.length === 0) return;
+    const agenciasVistas = new Set(['670-00']);
+    rows.forEach(r => {
+      if (!agenciasVistas.has(r.agencia_id)) {
+        agenciasVistas.add(r.agencia_id);
+        const opt = document.createElement('option');
+        opt.value = r.agencia_id;
+        opt.textContent = `${r.agencia_id} — ${r.nombre}`;
+        sel.appendChild(opt);
+      }
+    });
+  } catch(e) { console.error(e); }
+}
+
+function actualizarSlider(tipo, valor) {
+  const valEl = document.getElementById(`val-${tipo}`);
+  if (valEl) valEl.textContent = valor + 'px';
+  const previewEl = document.getElementById(`preview-${tipo}`);
+  if (previewEl) previewEl.style.fontSize = valor + 'px';
+}
+
+async function cargarConfigVisual() {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
+    if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
+    else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
+  });
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return;
+    rows.forEach(r => {
+      if (r.clave === 'tv') {
+        const sel = document.getElementById('visual-tv-size');
+        if (sel) sel.value = r.valor;
+      } else {
+        const slider = document.getElementById(`slider-${r.clave}`);
+        if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
+      }
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function guardarVisual() {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  const claves = ['primero','normal','cabeza','prov','ancho-cabezas'];
+  const rows = claves.map(c => ({
+    agencia_id: agencia, clave: c,
+    valor: document.getElementById(`slider-${c}`).value,
+    actualizado_por: usuarioActual.nombre
+  }));
+  rows.push({ agencia_id: agencia, clave: 'tv',
+    valor: document.getElementById('visual-tv-size').value,
+    actualizado_por: usuarioActual.nombre });
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
+      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify(rows) }
+    );
+    if (res.ok || res.status === 201) { showToast(`✅ Apariencia de ${agencia} guardada`,'ok'); }
+    else { showToast('Error al guardar','err'); }
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+async function resetearVisual() {
+  Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
+    if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
+    else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
+  });
+  await guardarVisual();
+}
+
+// =====================
 // MOSTRAR SECCIÓN CONFIG SOLO A SUPERADMIN
 // =====================
 function verificarSuperadmin() {
   if (usuarioActual && usuarioActual.rol === 'superadmin') {
     document.getElementById('seccion-config').style.display = 'block';
     document.getElementById('seccion-subagencias').style.display = 'block';
+    document.getElementById('seccion-visual').style.display = 'block';
     buildConfigGrids();
     cargarConfiguraciones();
     cargarSubagencias();
     cargarActividad();
+    cargarConfigVisual();
+    cargarAgenciasEnSelector();
   } else {
-    // Asegurarse que NO se muestren aunque haya algún bug
     document.getElementById('seccion-config').style.display = 'none';
     document.getElementById('seccion-subagencias').style.display = 'none';
+    document.getElementById('seccion-visual').style.display = 'none';
   }
 }
 
