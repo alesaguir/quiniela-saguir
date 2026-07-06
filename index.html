@@ -572,6 +572,40 @@ async function cargarNumeroSorteo(fechaStr, sorteoKey) {
 }
 
 // =====================
+// CONFIGURACIÓN VISUAL DINÁMICA
+// =====================
+async function aplicarConfigVisual() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return;
+
+    const cfg = {};
+    rows.forEach(r => {
+      cfg[r.clave] = r.clave === 'tv' ? r.valor : r.valor + 'px';
+    });
+
+    let style = document.getElementById('estilo-dinamico');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'estilo-dinamico';
+      document.head.appendChild(style);
+    }
+
+    style.textContent = `
+      .num-cell { font-size: ${cfg.normal || '22px'} !important; }
+      .num-cell.primero { font-size: ${cfg.primero || '34px'} !important; }
+      .cabeza-num { font-size: ${cfg.cabeza || '18px'} !important; }
+      .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
+      .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
+    `;
+  } catch(e) { console.error('Error config visual:', e); }
+}
+
+// =====================
 // FECHA DE CONSULTA — centralizada
 // =====================
 function getFechaConsulta() {
@@ -610,6 +644,7 @@ async function init() {
   datos[sorteo.key] = await cargarDatosReales(fechaStr, sorteo.key);
   await cargarCabezasReales(fechaStr, sorteo.key);
   await cargarNumeroSorteo(fechaStr, sorteo.key);
+  await aplicarConfigVisual();
   render();
 
   // Actualizar cada 30 segundos
@@ -619,6 +654,7 @@ async function init() {
     datos[s.key] = await cargarDatosReales(fs, s.key);
     await cargarCabezasReales(fs, s.key);
     await cargarNumeroSorteo(fs, s.key);
+    await aplicarConfigVisual();
     render();
   }, 30000);
 }
