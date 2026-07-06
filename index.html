@@ -308,18 +308,6 @@ function getCabezasAMostrar(sorteoKey, totalMin) {
   const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
   const diaAyer = diasNombres[ayer.getDay()];
 
-  // LUNES antes de 10:15: mostrar sorteos del sábado (anteayer)
-  if (diaSemana === 1 && totalMin < 10*60+15) {
-    const sabado = new Date(); sabado.setDate(sabado.getDate()-2);
-    const diaSabado = diasNombres[sabado.getDay()];
-    lista.push({ sorteo:`Previa ${diaSabado}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaSabado}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaSabado}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaSabado}`,   ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaSabado}`,     ...cabezasTodas.nocturna });
-    return lista;
-  }
-
   // DOMINGO: mostrar sorteos del sábado (ayer) como cabezas
   if (diaSemana === 0) {
     lista.push({ sorteo:`Previa ${diaAyer}`,       ...cabezasTodas.previa });
@@ -327,6 +315,54 @@ function getCabezasAMostrar(sorteoKey, totalMin) {
     lista.push({ sorteo:`Matutina ${diaAyer}`,     ...cabezasTodas.matutina });
     lista.push({ sorteo:`Vespertina ${diaAyer}`,   ...cabezasTodas.vespertina });
     lista.push({ sorteo:`Nocturna ${diaAyer}`,     ...cabezasTodas.nocturna });
+    return lista;
+  }
+
+  // LUNES: cabezas del sábado se reemplazan progresivamente con sorteos del lunes
+  if (diaSemana === 1) {
+    const sabado = new Date(); sabado.setDate(sabado.getDate()-2);
+    const diaSabado = diasNombres[sabado.getDay()];
+
+    // Previa en pantalla (10:15-12:00): Primera/Matutina/Vespertina/Nocturna del sábado
+    if (sorteoKey === 'previa') {
+      lista.push({ sorteo:`Primera ${diaSabado}`,    ...cabezasTodas.primera });
+      lista.push({ sorteo:`Matutina ${diaSabado}`,   ...cabezasTodas.matutina });
+      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
+      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
+      return lista;
+    }
+    // Primera en pantalla: Previa Lunes + Matutina/Vespertina/Nocturna sábado
+    if (sorteoKey === 'primera') {
+      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
+      lista.push({ sorteo:`Matutina ${diaSabado}`,   ...cabezasTodas.matutina });
+      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
+      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
+      return lista;
+    }
+    // Matutina en pantalla: Previa/Primera Lunes + Vespertina/Nocturna sábado
+    if (sorteoKey === 'matutina') {
+      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
+      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
+      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
+      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
+      return lista;
+    }
+    // Vespertina en pantalla: Previa/Primera/Matutina Lunes + Nocturna sábado
+    if (sorteoKey === 'vespertina') {
+      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
+      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
+      lista.push({ sorteo:`Matutina ${diaHoy}`,      ...cabezasTodas.matutina });
+      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
+      return lista;
+    }
+    // Nocturna en pantalla: todos los sorteos del lunes
+    if (sorteoKey === 'nocturna') {
+      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
+      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
+      lista.push({ sorteo:`Matutina ${diaHoy}`,      ...cabezasTodas.matutina });
+      lista.push({ sorteo:`Vespertina ${diaHoy}`,    ...cabezasTodas.vespertina });
+      return lista;
+    }
     return lista;
   }
 
@@ -511,6 +547,7 @@ async function cargarCabezasReales(fechaStr, sorteoKey) {
   const fechaAnteriorStr = fechaAnterior.toISOString().split('T')[0];
 
   // Domingo o lunes antes de 10:15 → todos los sorteos vienen del sábado (= fechaStr)
+  // Domingo O lunes antes de la previa: cabezas del sábado
   const esDomingoOLunesTemp = (diaSemana === 0) || (diaSemana === 1 && tm < 10*60+15);
 
   // Sorteos que ya pasaron HOY (solo días normales)
@@ -620,13 +657,7 @@ function getFechaConsulta() {
     return fecha.toISOString().split('T')[0];
   }
 
-  // Lunes antes de 10:15: mostrar nocturna del sábado (domingo no tuvo sorteos)
-  if (diaSemana === 1 && tm < 10*60+15) {
-    fecha.setDate(fecha.getDate() - 2);
-    return fecha.toISOString().split('T')[0];
-  }
-
-  // Antes de las 10:15 cualquier otro día: nocturna del día anterior
+  // Antes de las 10:15 cualquier día: nocturna del día anterior
   if (tm < 10*60+15) {
     fecha.setDate(fecha.getDate() - 1);
     return fecha.toISOString().split('T')[0];
