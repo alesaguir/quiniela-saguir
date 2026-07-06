@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<title>Resultados Quiniela — Agencia 670</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #1a0a00;
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(90deg, #8B0000, #cc0000, #8B0000);
+    padding: 2px 12px;
+    display: grid;
+    grid-template-columns: 190px 1fr 100px;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 3px solid #ffd700;
+    flex-shrink: 0;
+  }
+
+  .marca-box { text-align:left; }
+  .marca-principal {
+    font-family:'Bebas Neue', sans-serif;
+    font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1;
+  }
+  .marca-frase, .marca-agencia, .marca-ciudad {
+    font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase;
+  }
+
+  .sorteo-badge {
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    height: 44px;
+    padding: 0 20px;
+    background: rgba(0,0,0,.30);
+    border: 1px solid rgba(255,215,0,.40);
+    border-radius: 6px;
+  }
+  .sorteo-badge.finalizado {
+    background: linear-gradient(90deg, rgba(140,55,0,.95), rgba(210,105,0,.95), rgba(140,55,0,.95));
+  }
+  .sorteo-badge.sorteando {
+    background: linear-gradient(90deg, rgba(0,80,0,.95), rgba(0,140,0,.90), rgba(0,80,0,.95));
+  }
+
+  /* NOMBRE SORTEO — más chico para dar espacio a números */
+  .sorteo-badge-name {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #ffd700;
+    line-height: 1;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .sorteo-fecha { font-size:20px; color:#fff; white-space:nowrap; }
+
+  .live-label {
+    font-size: 20px; color: #44ff88; font-weight: 900;
+    letter-spacing: 1px; white-space: nowrap;
+  }
+  .done-label {
+    font-size: 20px; color: #ffd700; font-weight: 900;
+    letter-spacing: 1px; white-space: nowrap;
+  }
+
+  /* FECHA — sin hora */
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  .fecha-txt {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: #ffd700;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  /* MAIN */
+  .main { flex:1; display:flex; overflow:hidden; }
+
+  /* CABEZAS */
+  .col-cabezas {
+    width: 240px;
+    background: #0d0500;
+    border-right: 2px solid #ffd700;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .cabezas-header {
+    background: #ffd700; color:#000; text-align:center;
+    padding:6px 4px;
+    font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px;
+    flex-shrink:0;
+  }
+  .cabezas-section { border-bottom:1px solid rgba(255,215,0,0.25); flex-shrink:0; }
+  .cabezas-section-title {
+    background: rgba(255,215,0,0.1);
+    padding: 2px 10px;
+    font-size: 12px; color: #ffd700;
+    letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
+  }
+  .cabeza-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px; min-height: 25px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .cabeza-prov {
+    font-size: 16px; color: rgba(255,255,255,0.65);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .cabeza-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px; font-weight: 700; color: #fff;
+  }
+
+  /* TABLA */
+  .col-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  .provincias-header {
+    display: grid;
+    grid-template-columns: 70px repeat(5,1fr);
+    background: #8B0000;
+    border-bottom: 1px solid #ffd700;
+    flex-shrink: 0;
+  }
+  .prov-cell {
+    padding: 5px 4px; text-align: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px;
+    color: #ffd700; border-right: 1px solid rgba(255,255,255,0.15);
+  }
+  .prov-cell:last-child { border-right: none; }
+  .prov-cell.label {
+    color: rgba(255,255,255,0.4); font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* NÚMEROS */
+  .numeros-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .numeros-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 70px repeat(5,1fr);
+  }
+  .pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
+  .pos-label {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: rgba(255,255,255,0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.04); letter-spacing: 1px;
+  }
+  .pos-label:last-child { border-bottom: none; }
+
+  .num-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,0.07); }
+  .num-col:last-child { border-right: none; }
+
+  /* Oswald Bold — 0 oval claramente distinto del 8 redondeado */
+  .num-cell {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(24px, 2.3vw, 34px);
+    font-weight: 700; color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    letter-spacing: 1px;
+  }
+  .num-cell:last-child { border-bottom: none; }
+  .num-cell.primero {
+    color: #ffd700;
+    font-size: clamp(24px, 2.3vw, 34px);
+    font-weight: 700;
+  }
+  .num-cell.empty { color: rgba(255,255,255,0.2); font-size: 14px; letter-spacing: 2px; }
+  .num-cell.live-num { color: #44ff88; }
+
+  /* FOOTER */
+  .footer {
+    background: #0d0500; border-top: 1px solid rgba(255,215,0,0.25);
+    padding: 4px 16px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .aviso-legal {
+    font-size: 11px; color: #ffd700; letter-spacing: 1px;
+    font-weight: 600; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="marca-box">
+    <div class="marca-principal">QUINIELA SAGUIR</div>
+    <div class="marca-frase">Para Saguir Ganando</div>
+  </div>
+
+  <div class="sorteo-badge" id="sorteo-badge">
+    <div class="sorteo-badge-name" id="badge-name">PRIMERA</div>
+    <div id="badge-fecha" class="sorteo-fecha"></div>
+    <div id="badge-nsorteo" style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:2px;white-space:nowrap;"></div>
+    <div id="badge-label" class="done-label">SORTEANDO</div>
+  </div>
+
+  <div class="header-right">
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="col-cabezas">
+    <div class="cabezas-header">ÚLTIMAS CABEZAS</div>
+    <div id="cabezas-content"></div>
+  </div>
+
+  <div class="col-tabla">
+    <div class="provincias-header">
+      <div class="prov-cell label">N°</div>
+      <div class="prov-cell">CHAQUEÑA</div>
+      <div class="prov-cell">CIUDAD</div>
+      <div class="prov-cell">PROVINCIA</div>
+      <div class="prov-cell">CORRIENTES</div>
+      <div class="prov-cell">CÓRDOBA</div>
+    </div>
+    <div class="numeros-wrap">
+      <div class="numeros-grid" id="numeros-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="aviso-legal">
+    Los resultados son de carácter informativo. No son un Extracto Oficial.
+  </div>
+</div>
+
+<script>
+// =====================
+// DATOS — vacíos por defecto (se llenan desde Supabase)
+// =====================
+const datos = {};
+const sorteoKeys = ['previa','primera','matutina','vespertina','nocturna'];
+const provKeys   = ['chaquena','ciudad','provincia','corrientes','cordoba'];
+
+sorteoKeys.forEach(s => {
+  datos[s] = {};
+  provKeys.forEach(p => { datos[s][p] = Array(20).fill('----'); });
+});
+
+const cabezasTodas = {
+  previa:     { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
+  primera:    { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
+  matutina:   { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
+  vespertina: { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
+  nocturna:   { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
+};
+
+// =====================
+// LÓGICA HORARIA
+// =====================
+function getSorteoActual() {
+  const now = new Date();
+  const totalMin = now.getHours() * 60 + now.getMinutes();
+
+  // Domingo: mostrar nocturna del sábado
+  if (now.getDay() === 0) return { key:'nocturna', label:'NOCTURNA', live:false };
+  // Lunes antes de 10:15: nocturna del sábado
+  if (now.getDay() === 1 && totalMin < 10*60+15) return { key:'nocturna', label:'NOCTURNA', live:false };
+
+  if (totalMin < 10*60+15) return { key:'nocturna',    label:'NOCTURNA',    live:false };
+  if (totalMin < 12*60)    return { key:'previa',      label:'PREVIA',      live: totalMin < 10*60+30 };
+  if (totalMin < 15*60)    return { key:'primera',     label:'PRIMERA',     live: totalMin < 12*60+15 };
+  if (totalMin < 18*60)    return { key:'matutina',    label:'MATUTINA',    live: totalMin < 15*60+15 };
+  if (totalMin < 21*60)    return { key:'vespertina',  label:'VESPERTINA',  live: totalMin < 18*60+15 };
+  return                          { key:'nocturna',    label:'NOCTURNA',    live: totalMin < 21*60+15 };
+}
+
+// =====================
+// CABEZAS
+// =====================
+function getCabezasAMostrar(sorteoKey, totalMin) {
+  const lista = [];
+  const now = new Date();
+  const diaSemana = now.getDay();
+  const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+  // Nombre del día de hoy y de ayer
+  const diaHoy = diasNombres[now.getDay()];
+  const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
+  const diaAyer = diasNombres[ayer.getDay()];
+
+  // LUNES antes de 10:15: mostrar sorteos del sábado (anteayer)
+  if (diaSemana === 1 && totalMin < 10*60+15) {
+    const sabado = new Date(); sabado.setDate(sabado.getDate()-2);
+    const diaSabado = diasNombres[sabado.getDay()];
+    lista.push({ sorteo:`Previa ${diaSabado}`,       ...cabezasTodas.previa });
+    lista.push({ sorteo:`Primera ${diaSabado}`,      ...cabezasTodas.primera });
+    lista.push({ sorteo:`Matutina ${diaSabado}`,     ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Vespertina ${diaSabado}`,   ...cabezasTodas.vespertina });
+    lista.push({ sorteo:`Nocturna ${diaSabado}`,     ...cabezasTodas.nocturna });
+    return lista;
+  }
+
+  // DOMINGO: mostrar sorteos del sábado (ayer) como cabezas
+  if (diaSemana === 0) {
+    lista.push({ sorteo:`Previa ${diaAyer}`,       ...cabezasTodas.previa });
+    lista.push({ sorteo:`Primera ${diaAyer}`,      ...cabezasTodas.primera });
+    lista.push({ sorteo:`Matutina ${diaAyer}`,     ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Vespertina ${diaAyer}`,   ...cabezasTodas.vespertina });
+    lista.push({ sorteo:`Nocturna ${diaAyer}`,     ...cabezasTodas.nocturna });
+    return lista;
+  }
+
+  if (totalMin < 10*60+15) {
+    lista.push({ sorteo:`Previa ${diaAyer}`,      ...cabezasTodas.previa });
+    lista.push({ sorteo:`Primera ${diaAyer}`,     ...cabezasTodas.primera });
+    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
+    return lista;
+  }
+  if (sorteoKey === 'previa') {
+    lista.push({ sorteo:`Primera ${diaAyer}`,     ...cabezasTodas.primera });
+    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
+    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
+    return lista;
+  }
+  if (sorteoKey === 'primera') {
+    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
+    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
+    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
+    return lista;
+  }
+  if (sorteoKey === 'matutina') {
+    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
+    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
+    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
+    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
+    return lista;
+  }
+  if (sorteoKey === 'vespertina') {
+    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
+    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
+    lista.push({ sorteo:`Matutina ${diaHoy}`,     ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
+    return lista;
+  }
+  if (sorteoKey === 'nocturna' && totalMin >= 21*60) {
+    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
+    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
+    lista.push({ sorteo:`Matutina ${diaHoy}`,     ...cabezasTodas.matutina });
+    lista.push({ sorteo:`Vespertina ${diaHoy}`,   ...cabezasTodas.vespertina });
+    return lista;
+  }
+  return lista;
+}
+
+// =====================
+// RENDER
+// =====================
+function render() {
+  const sorteo = getSorteoActual();
+  const d = datos[sorteo.key];
+
+  // Badge nombre
+  document.getElementById('badge-name').textContent = sorteo.label;
+
+  // Fecha del sorteo — usar getFechaConsulta para consistencia
+  const fechaStr2 = getFechaConsulta();
+  // Parsear fecha evitando problemas de zona horaria
+  const partes = fechaStr2.split('-');
+  const fechaSorteo = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  const diasNombre  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const mesesNombre = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('badge-fecha').textContent =
+    `${diasNombre[fechaSorteo.getDay()]}, ${fechaSorteo.getDate()} de ${mesesNombre[fechaSorteo.getMonth()]}`;
+
+  // Determinar si hay números cargados
+  const hayNumeros = provKeys.some(p => d[p].some(n => n !== '----' && n !== '——'));
+  const badge = document.getElementById('sorteo-badge');
+  const label = document.getElementById('badge-label');
+  const esDomingo = new Date().getDay() === 0;
+
+  if (esDomingo || hayNumeros) {
+    // Domingo siempre FINALIZADO. Con datos también FINALIZADO.
+    badge.className = 'sorteo-badge finalizado';
+    label.textContent = '✓ FINALIZADO';
+    label.className = 'done-label';
+  } else if (sorteo.live) {
+    // En vivo — SORTEANDO
+    badge.className = 'sorteo-badge sorteando';
+    label.textContent = 'SORTEANDO';
+    label.className = 'live-label';
+  } else {
+    // Sin datos y no en vivo — PENDIENTE
+    badge.className = 'sorteo-badge';
+    label.textContent = 'PENDIENTE';
+    label.className = 'done-label';
+  }
+
+  // Números
+  const grid = document.getElementById('numeros-grid');
+  let html = '<div class="pos-col">';
+  for (let i=1; i<=20; i++) html += `<div class="pos-label">${String(i).padStart(2,'0')}°</div>`;
+  html += '</div>';
+
+  provKeys.forEach(p => {
+    html += '<div class="num-col">';
+    d[p].forEach((num, idx) => {
+      const isEmpty = num === '----' || num === '——';
+      const isFirst = idx === 0 && !isEmpty;
+      let cls = 'num-cell';
+      if (isEmpty) cls += ' empty';
+      else if (isFirst) cls += ' primero';
+      else if (sorteo.live && !isEmpty) cls += ' live-num';
+      html += `<div class="${cls}">${num}</div>`;
+    });
+    html += '</div>';
+  });
+  grid.innerHTML = html;
+
+  // Cabezas
+  const now2 = new Date();
+  const totalMin2 = now2.getHours()*60 + now2.getMinutes();
+  const cabezasAMostrar = getCabezasAMostrar(sorteo.key, totalMin2);
+  let cabHtml = '';
+  cabezasAMostrar.forEach(s => {
+    cabHtml += `<div class="cabezas-section">
+      <div class="cabezas-section-title">${s.sorteo}</div>
+      <div class="cabeza-row"><div class="cabeza-prov">Chaqueña</div><div class="cabeza-num">${s.chaquena}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">Ciudad</div><div class="cabeza-num">${s.ciudad}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">Provincia</div><div class="cabeza-num">${s.provincia}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">Corrientes</div><div class="cabeza-num">${s.corrientes}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">Córdoba</div><div class="cabeza-num">${s.cordoba}</div></div>
+    </div>`;
+  });
+  document.getElementById('cabezas-content').innerHTML = cabHtml;
+}
+
+// =====================
+// FECHA (sin hora)
+// =====================
+// =====================
+// SUPABASE
+// =====================
+// Leer agencia de la URL (?agencia=670-15) o usar la principal por defecto
+const URL_AGENCIA_ID = new URLSearchParams(window.location.search).get('agencia') || '670-00';
+const URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+async function cargarDatosReales(fechaStr, sorteoKey) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+
+    // Armar mapa siempre — con ---- si no hay dato
+    const provMap = {};
+    provKeys.forEach(p => { provMap[p] = Array(20).fill('----'); });
+
+    if (rows && rows.length > 0) {
+      rows.forEach(r => {
+        if (provMap[r.provincia] && r.posicion >= 1 && r.posicion <= 20) {
+          provMap[r.provincia][r.posicion - 1] = r.numero;
+        }
+      });
+    }
+    return provMap;
+  } catch(e) {
+    console.error('Error Supabase:', e);
+    const vacio = {};
+    provKeys.forEach(p => { vacio[p] = Array(20).fill('----'); });
+    return vacio;
+  }
+}
+
+async function cargarCabezasReales(fechaStr, sorteoKey) {
+  const now = new Date();
+  const diaSemana = now.getDay();
+  const tm = now.getHours()*60 + now.getMinutes();
+
+  // fechaStr ya apunta al sábado en domingo/lunes temprano
+  // Para cabezas anteriores, necesitamos el día previo a fechaStr
+  const partes = fechaStr.split('-');
+  const fechaAnterior = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  fechaAnterior.setDate(fechaAnterior.getDate() - 1);
+  const fechaAnteriorStr = fechaAnterior.toISOString().split('T')[0];
+
+  // Domingo o lunes antes de 10:15 → todos los sorteos vienen del sábado (= fechaStr)
+  const esDomingoOLunesTemp = (diaSemana === 0) || (diaSemana === 1 && tm < 10*60+15);
+
+  // Sorteos que ya pasaron HOY (solo días normales)
+  const pasadosEnFechaStr = [];
+  if (!esDomingoOLunesTemp) {
+    if (tm >= 10*60+15) pasadosEnFechaStr.push('previa');
+    if (tm >= 12*60)    pasadosEnFechaStr.push('primera');
+    if (tm >= 15*60)    pasadosEnFechaStr.push('matutina');
+    if (tm >= 18*60)    pasadosEnFechaStr.push('vespertina');
+    if (tm >= 21*60)    pasadosEnFechaStr.push('nocturna');
+  }
+
+  for (const s of sorteoKeys) {
+    let fechaBuscar;
+    if (esDomingoOLunesTemp) {
+      // Domingo/lunes temprano: todos los sorteos del sábado (= fechaStr)
+      fechaBuscar = fechaStr;
+    } else {
+      const pasadoHoyNoEnPantalla = pasadosEnFechaStr.includes(s) && s !== sorteoKey;
+      fechaBuscar = pasadoHoyNoEnPantalla ? fechaStr : fechaAnteriorStr;
+    }
+
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaBuscar}&sorteo=eq.${s}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      );
+      const rows = await res.json();
+      if (rows && rows.length > 0) {
+        const entrada = {};
+        rows.forEach(r => { entrada[r.provincia] = r.numero; });
+        cabezasTodas[s] = {
+          chaquena:    entrada.chaquena    || '----',
+          ciudad:      entrada.ciudad      || '----',
+          provincia:   entrada.provincia   || '----',
+          corrientes:  entrada.corrientes  || '----',
+          cordoba:     entrada.cordoba     || '----',
+        };
+      }
+    } catch(e) { console.error('Error cabeza', s, e); }
+  }
+}
+
+// =====================
+async function cargarNumeroSorteo(fechaStr, sorteoKey) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    const el = document.getElementById('badge-nsorteo');
+    if (rows && rows.length > 0 && rows[0].numero_sorteo) {
+      el.textContent = `SORTEO N° ${rows[0].numero_sorteo}`;
+    } else {
+      el.textContent = '';
+    }
+  } catch(e) { console.error('Error nro sorteo:', e); }
+}
+
+// =====================
+// FECHA DE CONSULTA — centralizada
+// =====================
+function getFechaConsulta() {
+  const now = new Date();
+  const diaSemana = now.getDay(); // 0=domingo
+  const tm = now.getHours()*60 + now.getMinutes();
+  const fecha = new Date();
+
+  // Domingo: mostrar nocturna del sábado
+  if (diaSemana === 0) {
+    fecha.setDate(fecha.getDate() - 1);
+    return fecha.toISOString().split('T')[0];
+  }
+
+  // Lunes antes de 10:15: mostrar nocturna del sábado (domingo no tuvo sorteos)
+  if (diaSemana === 1 && tm < 10*60+15) {
+    fecha.setDate(fecha.getDate() - 2);
+    return fecha.toISOString().split('T')[0];
+  }
+
+  // Antes de las 10:15 cualquier otro día: nocturna del día anterior
+  if (tm < 10*60+15) {
+    fecha.setDate(fecha.getDate() - 1);
+    return fecha.toISOString().split('T')[0];
+  }
+
+  return fecha.toISOString().split('T')[0];
+}
+
+// INIT
+// =====================
+async function init() {
+  const sorteo = getSorteoActual();
+  const fechaStr = getFechaConsulta();
+  
+  datos[sorteo.key] = await cargarDatosReales(fechaStr, sorteo.key);
+  await cargarCabezasReales(fechaStr, sorteo.key);
+  await cargarNumeroSorteo(fechaStr, sorteo.key);
+  render();
+
+  // Actualizar cada 30 segundos
+  setInterval(async () => {
+    const s = getSorteoActual();
+    const fs = getFechaConsulta();
+    datos[s.key] = await cargarDatosReales(fs, s.key);
+    await cargarCabezasReales(fs, s.key);
+    await cargarNumeroSorteo(fs, s.key);
+    render();
+  }, 30000);
+}
+
+init();
+</script>
+</body>
+</html>
