@@ -393,17 +393,96 @@
             </div>
           </div>
 
-          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA -->
+          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA (por sorteo) -->
           <div style="margin-bottom:24px;padding-bottom:20px;padding-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Cantidad de números por provincia</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuántos números se cargan en admin y se muestran en la TV, para la agencia seleccionada arriba</div>
-            <div id="grid-cantidad-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;"></div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuántos números se cargan en admin y se muestran en la TV. Se configura sorteo por sorteo, para la agencia seleccionada arriba.</div>
+
+            <div class="tabs" id="tabs-sorteo-numeros" style="margin-bottom:16px;">
+              <div class="tab active" onclick="setTabNumeros('previa',this)">Previa</div>
+              <div class="tab" onclick="setTabNumeros('primera',this)">Primera</div>
+              <div class="tab" onclick="setTabNumeros('matutina',this)">Matutina</div>
+              <div class="tab" onclick="setTabNumeros('vespertina',this)">Vespertina</div>
+              <div class="tab" onclick="setTabNumeros('nocturna',this)">Nocturna</div>
+            </div>
+
+            <div id="grid-cantidad-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:14px;"></div>
+
+            <button class="btn btn-ghost" style="font-size:12px;" onclick="copiarCantidadATodosLosSorteos()">
+              📋 Copiar estos valores a los 5 sorteos
+            </button>
           </div>
 
           <button class="btn btn-primary" style="width:100%" onclick="guardarVisual()">
             💾 Guardar y aplicar en pantalla
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- PROGRAMACIONES DE CANTIDAD DE NÚMEROS — solo superadmin -->
+    <div id="seccion-programaciones" style="display:none;">
+      <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📅 Programar Cambios de Cantidad</div>
+        <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Programá un cambio de cantidad de números para una fecha futura. Si le ponés fecha de fin, al terminar ese rango el sistema vuelve solo a usar la configuración de siempre.
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><div class="card-title">➕ Nueva programación</div></div>
+        <div class="card-body">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div>
+              <label class="form-label">Agencia</label>
+              <select id="prog-agencia-sel" class="form-input">
+                <option value="670-00">670-00 — Agencia principal (mi TV)</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Sorteo</label>
+              <select id="prog-sorteo-sel" class="form-input">
+                <option value="previa">Previa</option>
+                <option value="primera">Primera</option>
+                <option value="matutina">Matutina</option>
+                <option value="vespertina">Vespertina</option>
+                <option value="nocturna">Nocturna</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-label" style="margin-bottom:8px;">Cantidad de números por provincia durante la programación</div>
+          <div id="grid-prog-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:20px;"></div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
+            <div>
+              <label class="form-label">Desde</label>
+              <input type="date" class="form-input" id="prog-fecha-desde">
+            </div>
+            <div>
+              <label class="form-label">Hasta</label>
+              <input type="date" class="form-input" id="prog-fecha-hasta" disabled style="opacity:0.4;">
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:20px;cursor:pointer;">
+            <input type="checkbox" id="prog-para-siempre" checked
+              onchange="document.getElementById('prog-fecha-hasta').disabled=this.checked; document.getElementById('prog-fecha-hasta').style.opacity=this.checked?0.4:1;"
+              style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;">
+            <span style="font-size:13px;">Para siempre (sin fecha de fin — no vuelve atrás sola)</span>
+          </label>
+
+          <button class="btn btn-primary" style="width:100%" onclick="programarCambio()">💾 Programar cambio</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📋 Programaciones guardadas</div>
+          <button class="btn btn-ghost" onclick="cargarProgramaciones()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div id="lista-programaciones" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
     </div>
 
@@ -526,18 +605,43 @@ let sorteoActual = 'nocturna';
 let usuarioActual = null;
 let numerosPorProvincia = {}; // ej: { chaquena:20, ciudad:10, ... } — se completa según la agencia logueada
 
-async function cargarNumerosPorProvincia() {
-  numerosPorProvincia = {};
+function hoyStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Resuelve la cantidad por provincia para una agencia+sorteo: primero busca si hay
+// una PROGRAMACIÓN activa hoy (fecha_desde <= hoy <= fecha_hasta, o sin fecha_hasta = para siempre);
+// si no hay ninguna, usa la configuración base de ese sorteo.
+async function resolverCantidadPorProvincia(agenciaId, sorteo, token) {
+  const hoy = hoyStr();
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.numeros_provincia&select=numeros_por_provincia`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    const resProg = await fetch(
+      `${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${encodeURIComponent(agenciaId)}&sorteo=eq.${sorteo}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
     );
-    const rows = await res.json();
-    if (rows && rows[0] && rows[0].numeros_por_provincia) {
-      numerosPorProvincia = rows[0].numeros_por_provincia;
+    const prog = await resProg.json();
+    if (prog && prog[0] && prog[0].numeros_por_provincia) {
+      return prog[0].numeros_por_provincia;
     }
   } catch(e) { console.error(e); }
+
+  try {
+    const resBase = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaId)}&clave=eq.numeros_${sorteo}&select=numeros_por_provincia`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
+    );
+    const base = await resBase.json();
+    if (base && base[0] && base[0].numeros_por_provincia) {
+      return base[0].numeros_por_provincia;
+    }
+  } catch(e) { console.error(e); }
+
+  return {};
+}
+
+async function cargarNumerosPorProvincia() {
+  numerosPorProvincia = await resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteoActual, usuarioActual.token);
 }
 
 function cantidadProvincia(key) {
@@ -713,12 +817,13 @@ async function initApp() {
   cargarExistentes();
 }
 
-function setTab(sorteo, el) {
+async function setTab(sorteo, el) {
   sorteoActual = sorteo;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   // Limpiar número de sorteo al cambiar de tab
   document.getElementById('num-sorteo').value = '';
+  await cargarNumerosPorProvincia(); // la cantidad puede variar de un sorteo a otro
   buildForm();
   actualizarTitulos();
   cargarExistentes();
@@ -1181,6 +1286,7 @@ async function cargarAgenciasEnSelector() {
     );
     const rows = await res.json();
     const sel = document.getElementById('visual-agencia-sel');
+    const selProg = document.getElementById('prog-agencia-sel');
     if (!rows || rows.length === 0) return;
     const agenciasVistas = new Set(['670-00']);
     rows.forEach(r => {
@@ -1190,6 +1296,7 @@ async function cargarAgenciasEnSelector() {
         opt.value = r.agencia_id;
         opt.textContent = `${r.agencia_id} — ${r.nombre}`;
         sel.appendChild(opt);
+        if (selProg) selProg.appendChild(opt.cloneNode(true));
       }
     });
   } catch(e) { console.error(e); }
@@ -1213,36 +1320,83 @@ function buildCantidadProvinciasGrid() {
   `).join('');
 }
 
+function buildProgProvinciasGrid() {
+  const cont = document.getElementById('grid-prog-provincias');
+  if (!cont) return;
+  cont.innerHTML = PROVINCIAS.map(p => `
+    <div>
+      <label class="form-label">${p.label}</label>
+      <input type="number" min="1" max="20" class="form-input" id="prog_${p.key}" value="20">
+    </div>
+  `).join('');
+}
+
+let sorteoNumerosSeleccionado = 'previa';
+
+function setTabNumeros(sorteo, el) {
+  sorteoNumerosSeleccionado = sorteo;
+  document.querySelectorAll('#tabs-sorteo-numeros .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  cargarCantidadesSorteo();
+}
+
+// Trae SOLO la cantidad por provincia del sorteo seleccionado (independiente de los sliders)
+async function cargarCantidadesSorteo() {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}&clave=eq.numeros_${sorteoNumerosSeleccionado}&select=numeros_por_provincia`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows[0] && rows[0].numeros_por_provincia) {
+      Object.entries(rows[0].numeros_por_provincia).forEach(([k, v]) => {
+        const el = document.getElementById(`cant_${k}`);
+        if (el) el.value = v;
+      });
+    }
+  } catch(e) { console.error(e); }
+}
+
 async function cargarConfigVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
   Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
     else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
   });
-  // Reset cantidades por provincia a 20 antes de traer lo guardado
-  PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
-    if (!rows || rows.length === 0) return;
-    rows.forEach(r => {
-      if (r.clave === 'tv') {
-        const sel = document.getElementById('visual-tv-size');
-        if (sel) sel.value = r.valor;
-      } else if (r.clave === 'numeros_provincia' && r.numeros_por_provincia) {
-        Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
-          const el = document.getElementById(`cant_${k}`);
-          if (el) el.value = v;
-        });
-      } else {
-        const slider = document.getElementById(`slider-${r.clave}`);
-        if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
-      }
-    });
+    if (rows && rows.length > 0) {
+      rows.forEach(r => {
+        if (r.clave === 'tv') {
+          const sel = document.getElementById('visual-tv-size');
+          if (sel) sel.value = r.valor;
+        } else if (!r.clave.startsWith('numeros_')) {
+          const slider = document.getElementById(`slider-${r.clave}`);
+          if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
+        }
+      });
+    }
   } catch(e) { console.error(e); }
+  // La cantidad por provincia vive aparte, por sorteo
+  await cargarCantidadesSorteo();
+}
+
+function leerCantidadesDeLosInputs() {
+  const obj = {};
+  PROVINCIAS.forEach(p => {
+    const el = document.getElementById(`cant_${p.key}`);
+    let v = parseInt(el?.value, 10);
+    if (isNaN(v)) v = 20;
+    v = Math.min(20, Math.max(1, v));
+    obj[p.key] = v;
+  });
+  return obj;
 }
 
 async function guardarVisual() {
@@ -1259,19 +1413,11 @@ async function guardarVisual() {
     numeros_por_provincia: null,
     actualizado_por: usuarioActual.nombre });
 
-  // Cantidad de números por provincia (se guarda como jsonb en una fila dedicada)
-  const nuevaCantidadPorProvincia = {};
-  PROVINCIAS.forEach(p => {
-    const el = document.getElementById(`cant_${p.key}`);
-    let v = parseInt(el?.value, 10);
-    if (isNaN(v)) v = 20;
-    v = Math.min(20, Math.max(1, v));
-    nuevaCantidadPorProvincia[p.key] = v;
-  });
+  // Cantidad de números por provincia — solo del sorteo seleccionado en las tabs
   rows.push({
-    agencia_id: agencia, clave: 'numeros_provincia',
+    agencia_id: agencia, clave: `numeros_${sorteoNumerosSeleccionado}`,
     valor: '1',
-    numeros_por_provincia: nuevaCantidadPorProvincia,
+    numeros_por_provincia: leerCantidadesDeLosInputs(),
     actualizado_por: usuarioActual.nombre
   });
 
@@ -1282,8 +1428,45 @@ async function guardarVisual() {
         'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
         body: JSON.stringify(rows) }
     );
-    if (res.ok || res.status === 201) { showToast(`✅ Apariencia de ${agencia} guardada`,'ok'); }
+    if (res.ok || res.status === 201) {
+      showToast(`✅ Apariencia de ${agencia} guardada`,'ok');
+      // Si la agencia configurada es la misma del usuario logueado, refrescamos
+      // la cantidad de números y reconstruimos el formulario de carga al instante
+      if (usuarioActual && agencia === usuarioActual.agencia_id) {
+        await cargarNumerosPorProvincia();
+        buildForm();
+        cargarExistentes();
+      }
+    }
     else { showToast('Error al guardar','err'); }
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+// Copia los valores actuales de los inputs a los 5 sorteos de una sola vez
+async function copiarCantidadATodosLosSorteos() {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  const valores = leerCantidadesDeLosInputs();
+  const rows = SORTEOS.map(s => ({
+    agencia_id: agencia, clave: `numeros_${s}`,
+    valor: '1',
+    numeros_por_provincia: valores,
+    actualizado_por: usuarioActual.nombre
+  }));
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
+      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify(rows) }
+    );
+    if (res.ok || res.status === 201) {
+      showToast(`✅ Copiado a los 5 sorteos de ${agencia}`,'ok');
+      if (usuarioActual && agencia === usuarioActual.agencia_id) {
+        await cargarNumerosPorProvincia();
+        buildForm();
+        cargarExistentes();
+      }
+    } else { showToast('Error al copiar','err'); }
   } catch(e) { showToast('Error de conexión','err'); }
 }
 
@@ -1296,6 +1479,110 @@ async function resetearVisual() {
 }
 
 // =====================
+// PROGRAMACIONES DE CANTIDAD (con fecha)
+// =====================
+async function programarCambio() {
+  const agencia = document.getElementById('prog-agencia-sel').value;
+  const sorteo = document.getElementById('prog-sorteo-sel').value;
+  const fechaDesde = document.getElementById('prog-fecha-desde').value;
+  const paraSiempre = document.getElementById('prog-para-siempre').checked;
+  const fechaHasta = paraSiempre ? null : document.getElementById('prog-fecha-hasta').value;
+
+  if (!fechaDesde) { showToast('Elegí una fecha de inicio','err'); return; }
+  if (!paraSiempre && !fechaHasta) { showToast('Elegí una fecha de fin, o marcá "Para siempre"','err'); return; }
+  if (!paraSiempre && fechaHasta < fechaDesde) { showToast('La fecha de fin no puede ser anterior a la de inicio','err'); return; }
+
+  const numerosPorProvinciaProg = {};
+  PROVINCIAS.forEach(p => {
+    const el = document.getElementById(`prog_${p.key}`);
+    let v = parseInt(el?.value, 10);
+    if (isNaN(v)) v = 20;
+    v = Math.min(20, Math.max(1, v));
+    numerosPorProvinciaProg[p.key] = v;
+  });
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/programaciones_numeros`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify([{
+        agencia_id: agencia,
+        sorteo: sorteo,
+        numeros_por_provincia: numerosPorProvinciaProg,
+        fecha_desde: fechaDesde,
+        fecha_hasta: fechaHasta,
+        creado_por: usuarioActual.nombre
+      }])
+    });
+    if (res.ok || res.status === 201) {
+      showToast('✅ Programación guardada','ok');
+      cargarProgramaciones();
+    } else {
+      const err = await res.text();
+      console.error(err);
+      showToast('Error al programar','err');
+    }
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+async function cargarProgramaciones() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/programaciones_numeros?order=fecha_desde.desc&limit=100`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    const lista = document.getElementById('lista-programaciones');
+    if (!rows || rows.length === 0) {
+      lista.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay programaciones guardadas.</div>';
+      return;
+    }
+    const hoy = hoyStr();
+    const nombresSorteo = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
+    lista.innerHTML = rows.map(r => {
+      const activa = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      const vencida = r.fecha_hasta && r.fecha_hasta < hoy;
+      const estado = activa ? 'ACTIVA AHORA' : vencida ? 'Vencida' : 'Programada a futuro';
+      const colorEstado = activa ? 'var(--green)' : vencida ? 'var(--muted)' : 'var(--gold)';
+      const rango = r.fecha_hasta ? `${r.fecha_desde} → ${r.fecha_hasta}` : `${r.fecha_desde} → para siempre`;
+      const numeros = Object.entries(r.numeros_por_provincia || {}).map(([k,v]) => `${k}: ${v}`).join(' · ');
+      return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:14px;">${r.agencia_id} — ${nombresSorteo[r.sorteo] || r.sorteo}</div>
+            <span style="padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;color:${colorEstado};background:rgba(255,255,255,0.06);">${estado}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${rango} · Creado por ${r.creado_por || '—'}</div>
+          <div style="font-size:12px;color:var(--text);margin-bottom:10px;">${numeros}</div>
+          <button onclick="eliminarProgramacion(${r.id})"
+            style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);color:#e63946;
+            border-radius:8px;padding:5px 12px;cursor:pointer;font-size:12px;">
+            🗑 Eliminar
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function eliminarProgramacion(id) {
+  if (!confirm('¿Eliminar esta programación? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/programaciones_numeros?id=eq.${id}`,
+      { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    if (res.ok) {
+      showToast('✅ Programación eliminada','ok');
+      cargarProgramaciones();
+    }
+  } catch(e) { showToast('Error al eliminar','err'); }
+}
+
+// =====================
 // MOSTRAR SECCIÓN CONFIG SOLO A SUPERADMIN
 // =====================
 function verificarSuperadmin() {
@@ -1303,17 +1590,21 @@ function verificarSuperadmin() {
     document.getElementById('seccion-config').style.display = 'block';
     document.getElementById('seccion-subagencias').style.display = 'block';
     document.getElementById('seccion-visual').style.display = 'block';
+    document.getElementById('seccion-programaciones').style.display = 'block';
     buildConfigGrids();
     buildCantidadProvinciasGrid();
+    buildProgProvinciasGrid();
     cargarConfiguraciones();
     cargarSubagencias();
     cargarActividad();
     cargarConfigVisual();
     cargarAgenciasEnSelector();
+    cargarProgramaciones();
   } else {
     document.getElementById('seccion-config').style.display = 'none';
     document.getElementById('seccion-subagencias').style.display = 'none';
     document.getElementById('seccion-visual').style.display = 'none';
+    document.getElementById('seccion-programaciones').style.display = 'none';
   }
 }
 
