@@ -272,13 +272,91 @@ sorteoKeys.forEach(s => {
   provKeys.forEach(p => { datos[s][p] = Array(20).fill('----'); });
 });
 
-const cabezasTodas = {
-  previa:     { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  primera:    { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  matutina:   { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  vespertina: { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  nocturna:   { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-};
+// cabezasParaMostrar: lista de hasta 4 sorteos anteriores (ya resueltos, saltando feriados),
+// en orden cronológico (el más viejo primero, el más reciente último)
+let cabezasParaMostrar = [];
+
+// Cuál es el sorteo/fecha que REALMENTE se está mostrando ahora (después de aplicar feriados)
+let slotEfectivo = { fecha: null, key: null, label: null, live: false };
+
+// mapaSorteosActivos['2026-07-09']['previa'] = false  → construido desde configuracion_sorteos
+let mapaSorteosActivos = {};
+
+const LABELS_SORTEO = { previa:'PREVIA', primera:'PRIMERA', matutina:'MATUTINA', vespertina:'VESPERTINA', nocturna:'NOCTURNA' };
+
+// =====================
+// RESOLUCIÓN DE FERIADOS — camina hacia atrás sorteo por sorteo hasta encontrar uno activo
+// =====================
+
+// El sorteo inmediatamente anterior en la secuencia (cruza de un día al anterior en 'previa')
+function sorteoAnterior(fecha, sorteoKey) {
+  const idx = sorteoKeys.indexOf(sorteoKey);
+  if (idx > 0) return { fecha, sorteoKey: sorteoKeys[idx - 1] };
+  const partes = fecha.split('-');
+  const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  d.setDate(d.getDate() - 1);
+  return { fecha: fechaLocalStr(d), sorteoKey: 'nocturna' };
+}
+
+// Trae de Supabase la configuración de "fecha especial" de los últimos ~30 días
+// (ventana de sobra para poder caminar hacia atrás varios feriados seguidos)
+async function cargarMapaSorteosActivos(hastaFecha) {
+  mapaSorteosActivos = {};
+  const partes = hastaFecha.split('-');
+  const desde = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  desde.setDate(desde.getDate() - 30);
+  const desdeStr = fechaLocalStr(desde);
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${desdeStr}&fecha_especial=lte.${hastaFecha}&select=fecha_especial,sorteo,activo`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    (rows || []).forEach(r => {
+      if (!mapaSorteosActivos[r.fecha_especial]) mapaSorteosActivos[r.fecha_especial] = {};
+      mapaSorteosActivos[r.fecha_especial][r.sorteo] = r.activo;
+    });
+  } catch(e) { console.error('Error cargando fechas especiales:', e); }
+}
+
+// ¿Ese sorteo, en esa fecha, está activo? Domingo es SIEMPRE inactivo (regla estructural,
+// no depende de ninguna configuración). El resto depende de si hay una fila en configuracion_sorteos;
+// si no hay ninguna fila para esa fecha+sorteo, se considera un día normal (activo).
+function activoEn(fecha, sorteoKey) {
+  const partes = fecha.split('-');
+  const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  if (d.getDay() === 0) return false;
+  if (mapaSorteosActivos[fecha] && mapaSorteosActivos[fecha][sorteoKey] !== undefined) {
+    return mapaSorteosActivos[fecha][sorteoKey];
+  }
+  return true;
+}
+
+// A partir del slot "natural" (el que tocaría por horario), camina hacia atrás
+// hasta encontrar el último sorteo realmente activo.
+function resolverSlotEfectivo(fechaNatural, sorteoKeyNatural) {
+  let actual = { fecha: fechaNatural, sorteoKey: sorteoKeyNatural };
+  let vueltas = 0;
+  while (!activoEn(actual.fecha, actual.sorteoKey) && vueltas < 200) {
+    actual = sorteoAnterior(actual.fecha, actual.sorteoKey);
+    vueltas++;
+  }
+  return actual;
+}
+
+// Los N sorteos activos anteriores a un slot dado (sin incluirlo), en orden
+// del más reciente al más viejo (se invierte después, para mostrarlos en pantalla).
+function previosActivos(fecha, sorteoKey, cantidad) {
+  const lista = [];
+  let actual = { fecha, sorteoKey };
+  let vueltas = 0;
+  while (lista.length < cantidad && vueltas < 200) {
+    actual = sorteoAnterior(actual.fecha, actual.sorteoKey);
+    vueltas++;
+    if (activoEn(actual.fecha, actual.sorteoKey)) lista.push({ ...actual });
+  }
+  return lista;
+}
 
 // =====================
 // LÓGICA HORARIA
@@ -300,137 +378,19 @@ function getSorteoActual() {
   return                          { key:'nocturna',    label:'NOCTURNA',    live: totalMin < 21*60+15 };
 }
 
-// =====================
-// CABEZAS
-// =====================
-function getCabezasAMostrar(sorteoKey, totalMin) {
-  const lista = [];
-  const now = new Date();
-  const diaSemana = now.getDay();
-  const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-
-  // Nombre del día de hoy y de ayer
-  const diaHoy = diasNombres[now.getDay()];
-  const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
-  const diaAyer = diasNombres[ayer.getDay()];
-
-  // DOMINGO: mostrar sorteos del sábado (ayer) como cabezas
-  if (diaSemana === 0) {
-    lista.push({ sorteo:`Previa ${diaAyer}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaAyer}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,   ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,     ...cabezasTodas.nocturna });
-    return lista;
-  }
-
-  // LUNES: cabezas del sábado se reemplazan progresivamente con sorteos del lunes
-  if (diaSemana === 1) {
-    const sabado = new Date(); sabado.setDate(sabado.getDate()-2);
-    const diaSabado = diasNombres[sabado.getDay()];
-
-    // Previa en pantalla (10:15-12:00): Primera/Matutina/Vespertina/Nocturna del sábado
-    if (sorteoKey === 'previa') {
-      lista.push({ sorteo:`Primera ${diaSabado}`,    ...cabezasTodas.primera });
-      lista.push({ sorteo:`Matutina ${diaSabado}`,   ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Primera en pantalla: Previa Lunes + Matutina/Vespertina/Nocturna sábado
-    if (sorteoKey === 'primera') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Matutina ${diaSabado}`,   ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Matutina en pantalla: Previa/Primera Lunes + Vespertina/Nocturna sábado
-    if (sorteoKey === 'matutina') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
-      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Vespertina en pantalla: Previa/Primera/Matutina Lunes + Nocturna sábado
-    if (sorteoKey === 'vespertina') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
-      lista.push({ sorteo:`Matutina ${diaHoy}`,      ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Nocturna en pantalla: todos los sorteos del lunes
-    if (sorteoKey === 'nocturna') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
-      lista.push({ sorteo:`Matutina ${diaHoy}`,      ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Vespertina ${diaHoy}`,    ...cabezasTodas.vespertina });
-      return lista;
-    }
-    return lista;
-  }
-
-  if (totalMin < 10*60+15) {
-    lista.push({ sorteo:`Previa ${diaAyer}`,      ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaAyer}`,     ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    return lista;
-  }
-  if (sorteoKey === 'previa') {
-    lista.push({ sorteo:`Primera ${diaAyer}`,     ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'primera') {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'matutina') {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'vespertina') {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaHoy}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'nocturna' && totalMin >= 21*60) {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaHoy}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaHoy}`,   ...cabezasTodas.vespertina });
-    return lista;
-  }
-  return lista;
-}
 
 // =====================
 // RENDER
 // =====================
 function render() {
-  const sorteo = getSorteoActual();
+  const sorteo = slotEfectivo; // ya resuelto (considerando feriados) en el ciclo de carga
   const d = datos[sorteo.key];
 
   // Badge nombre
   document.getElementById('badge-name').textContent = sorteo.label;
 
-  // Fecha del sorteo — usar getFechaConsulta para consistencia
-  const fechaStr2 = getFechaConsulta();
-  // Parsear fecha evitando problemas de zona horaria
-  const partes = fechaStr2.split('-');
+  // Fecha del sorteo — la del slot YA resuelto, para que coincida con los números que se ven
+  const partes = sorteo.fecha.split('-');
   const fechaSorteo = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
   const diasNombre  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const mesesNombre = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -441,10 +401,11 @@ function render() {
   const hayNumeros = provKeys.some(p => d[p].some(n => n !== '----' && n !== '——'));
   const badge = document.getElementById('sorteo-badge');
   const label = document.getElementById('badge-label');
-  const esDomingo = new Date().getDay() === 0;
+  const esDomingo = fechaSorteo.getDay() === 0; // no debería pasar nunca (domingo siempre se salta), queda como resguardo
 
   if (esDomingo || hayNumeros) {
-    // Domingo siempre FINALIZADO. Con datos también FINALIZADO.
+    // Domingo siempre FINALIZADO. Con datos también FINALIZADO (incluye feriados: al mostrar
+    // el último sorteo real, ya tiene números cargados, así que cae acá directamente).
     badge.className = 'sorteo-badge finalizado';
     label.textContent = '✓ FINALIZADO';
     label.className = 'done-label';
@@ -490,12 +451,9 @@ function render() {
   });
   grid.innerHTML = html;
 
-  // Cabezas
-  const now2 = new Date();
-  const totalMin2 = now2.getHours()*60 + now2.getMinutes();
-  const cabezasAMostrar = getCabezasAMostrar(sorteo.key, totalMin2);
+  // Cabezas — ya vienen resueltas (cargarCabezasReales las dejó en cabezasParaMostrar)
   let cabHtml = '';
-  cabezasAMostrar.forEach(s => {
+  cabezasParaMostrar.forEach(s => {
     cabHtml += `<div class="cabezas-section">
       <div class="cabezas-section-title">${s.sorteo}</div>
       <div class="cabeza-row"><div class="cabeza-prov">Chaqueña</div><div class="cabeza-num">${s.chaquena}</div></div>
@@ -549,69 +507,43 @@ async function cargarDatosReales(fechaStr, sorteoKey) {
   }
 }
 
-async function cargarCabezasReales(fechaStr, sorteoKey) {
-  const now = new Date();
-  const diaSemana = now.getDay();
-  const tm = now.getHours()*60 + now.getMinutes();
+async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
+  const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  // Los hasta-4 sorteos activos anteriores al que se está mostrando, más reciente primero
+  const anteriores = previosActivos(fechaEfectiva, sorteoEfectivo, 4);
 
-  // Para cabezas del lunes: los sorteos "anteriores" son del SÁBADO (no del domingo)
-  // Para otros días: son del día anterior
-  const partes = fechaStr.split('-');
-  const fechaAnterior = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
-  if (diaSemana === 1) {
-    fechaAnterior.setDate(fechaAnterior.getDate() - 2); // sábado
-  } else if (diaSemana === 0) {
-    fechaAnterior.setDate(fechaAnterior.getDate() - 2); // viernes (domingo → sábado ya es fechaStr)
-  } else {
-    fechaAnterior.setDate(fechaAnterior.getDate() - 1);
-  }
-  const fechaAnteriorStr = fechaLocalStr(fechaAnterior);
-
-  // Domingo: todos vienen del sábado (fechaStr)
-  const esDomingo = (diaSemana === 0);
-
-  // Sorteos que ya pasaron HOY (solo días normales, no domingo)
-  const pasadosEnFechaStr = [];
-  if (!esDomingo) {
-    if (tm >= 10*60+15) pasadosEnFechaStr.push('previa');
-    if (tm >= 12*60)    pasadosEnFechaStr.push('primera');
-    if (tm >= 15*60)    pasadosEnFechaStr.push('matutina');
-    if (tm >= 18*60)    pasadosEnFechaStr.push('vespertina');
-    if (tm >= 21*60)    pasadosEnFechaStr.push('nocturna');
-  }
-
-  for (const s of sorteoKeys) {
-    let fechaBuscar;
-    if (esDomingo) {
-      // Domingo: todos los sorteos del sábado (= fechaStr)
-      fechaBuscar = fechaStr;
-    } else {
-      // Lunes y resto de días:
-      // Si el sorteo ya pasó hoy y no es el que está en pantalla → buscar en fechaStr (hoy)
-      // Si no pasó hoy → buscar en fechaAnteriorStr (sábado para lunes, ayer para otros días)
-      const pasadoHoyNoEnPantalla = pasadosEnFechaStr.includes(s) && s !== sorteoKey;
-      fechaBuscar = pasadoHoyNoEnPantalla ? fechaStr : fechaAnteriorStr;
-    }
-
+  const datosPorSlot = [];
+  for (const slot of anteriores) {
+    let entrada = { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaBuscar}&sorteo=eq.${s}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
+        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${slot.fecha}&sorteo=eq.${slot.sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await res.json();
       if (rows && rows.length > 0) {
-        const entrada = {};
-        rows.forEach(r => { entrada[r.provincia] = r.numero; });
-        cabezasTodas[s] = {
-          chaquena:    entrada.chaquena    || '----',
-          ciudad:      entrada.ciudad      || '----',
-          provincia:   entrada.provincia   || '----',
-          corrientes:  entrada.corrientes  || '----',
-          cordoba:     entrada.cordoba     || '----',
+        const traido = {};
+        rows.forEach(r => { traido[r.provincia] = r.numero; });
+        entrada = {
+          chaquena:   traido.chaquena   || '----',
+          ciudad:     traido.ciudad     || '----',
+          provincia:  traido.provincia  || '----',
+          corrientes: traido.corrientes || '----',
+          cordoba:    traido.cordoba    || '----',
         };
       }
-    } catch(e) { console.error('Error cabeza', s, e); }
+    } catch(e) { console.error('Error cabeza', slot, e); }
+
+    const partes = slot.fecha.split('-');
+    const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+    const nombreDia = diasNombres[d.getDay()];
+    const labelSorteo = LABELS_SORTEO[slot.sorteoKey];
+    const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
+    datosPorSlot.push({ sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada });
   }
+
+  // Se juntaron del más reciente al más viejo; se muestran en orden cronológico (más viejo primero)
+  cabezasParaMostrar = datosPorSlot.reverse();
 }
 
 // =====================
@@ -737,26 +669,40 @@ function getFechaConsulta() {
 
 // INIT
 // =====================
+async function calcularYCargarSlotEfectivo() {
+  const natural = getSorteoActual();
+  const fechaNatural = getFechaConsulta();
+
+  await cargarMapaSorteosActivos(fechaLocalStr(new Date()));
+  const resuelto = resolverSlotEfectivo(fechaNatural, natural.key);
+  const huboFeriado = (resuelto.fecha !== fechaNatural || resuelto.sorteoKey !== natural.key);
+
+  slotEfectivo = {
+    fecha: resuelto.fecha,
+    key: resuelto.sorteoKey,
+    label: LABELS_SORTEO[resuelto.sorteoKey],
+    live: huboFeriado ? false : natural.live
+  };
+}
+
 async function init() {
-  const sorteo = getSorteoActual();
-  const fechaStr = getFechaConsulta();
-  
-  datos[sorteo.key] = await cargarDatosReales(fechaStr, sorteo.key);
-  await cargarCabezasReales(fechaStr, sorteo.key);
-  await cargarNumeroSorteo(fechaStr, sorteo.key);
+  await calcularYCargarSlotEfectivo();
+
+  datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+  await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
+  await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
   await aplicarConfigVisual();
-  await cargarCantidadTV(sorteo.key);
+  await cargarCantidadTV(slotEfectivo.key);
   render();
 
   // Actualizar cada 30 segundos
   setInterval(async () => {
-    const s = getSorteoActual();
-    const fs = getFechaConsulta();
-    datos[s.key] = await cargarDatosReales(fs, s.key);
-    await cargarCabezasReales(fs, s.key);
-    await cargarNumeroSorteo(fs, s.key);
+    await calcularYCargarSlotEfectivo();
+    datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+    await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
+    await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
     await aplicarConfigVisual();
-    await cargarCantidadTV(s.key);
+    await cargarCantidadTV(slotEfectivo.key);
     render();
   }, 30000);
 }
