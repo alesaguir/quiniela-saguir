@@ -344,18 +344,27 @@ function resolverSlotEfectivo(fechaNatural, sorteoKeyNatural) {
   return actual;
 }
 
-// Los N sorteos activos anteriores a un slot dado (sin incluirlo), en orden
-// del más reciente al más viejo (se invierte después, para mostrarlos en pantalla).
-function previosActivos(fecha, sorteoKey, cantidad) {
-  const lista = [];
-  let actual = { fecha, sorteoKey };
+// Un día calendario antes (no confundir con sorteoAnterior, que además puede cambiar de sorteo)
+function diaAnterior(fechaStr) {
+  const partes = fechaStr.split('-');
+  const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  d.setDate(d.getDate() - 1);
+  return fechaLocalStr(d);
+}
+
+// Para un SORTEO FIJO (ej. 'previa'), busca la última fecha en la que ya se completó,
+// respecto de la fecha/sorteo que se está mostrando como "sorteo actual". Si ese sorteo
+// ocurre más temprano en el día que el que está en pantalla, ya pasó HOY; si no, hay que
+// ir al día anterior. Si ese día está inactivo (feriado), sigue retrocediendo día por día.
+function fechaMasRecienteParaSlot(slotKey, fechaEfectiva, keyEfectivo) {
+  const esAnteriorEnElDia = sorteoKeys.indexOf(slotKey) < sorteoKeys.indexOf(keyEfectivo);
+  let fecha = esAnteriorEnElDia ? fechaEfectiva : diaAnterior(fechaEfectiva);
   let vueltas = 0;
-  while (lista.length < cantidad && vueltas < 200) {
-    actual = sorteoAnterior(actual.fecha, actual.sorteoKey);
+  while (!activoEn(fecha, slotKey) && vueltas < 60) {
+    fecha = diaAnterior(fecha);
     vueltas++;
-    if (activoEn(actual.fecha, actual.sorteoKey)) lista.push({ ...actual });
   }
-  return lista;
+  return fecha;
 }
 
 // =====================
@@ -509,15 +518,17 @@ async function cargarDatosReales(fechaStr, sorteoKey) {
 
 async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  // Los hasta-4 sorteos activos anteriores al que se está mostrando, más reciente primero
-  const anteriores = previosActivos(fechaEfectiva, sorteoEfectivo, 4);
+  // Posiciones FIJAS: siempre Previa, Primera, Matutina, Vespertina, Nocturna en ese orden,
+  // salvo el que está en pantalla ahora mismo (ese se saca de la lista, no se repite)
+  const slotsAMostrar = sorteoKeys.filter(s => s !== sorteoEfectivo);
 
   const datosPorSlot = [];
-  for (const slot of anteriores) {
+  for (const slot of slotsAMostrar) {
+    const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
     let entrada = { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${slot.fecha}&sorteo=eq.${slot.sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
+        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${slot}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await res.json();
@@ -534,16 +545,16 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
       }
     } catch(e) { console.error('Error cabeza', slot, e); }
 
-    const partes = slot.fecha.split('-');
+    const partes = fecha.split('-');
     const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
     const nombreDia = diasNombres[d.getDay()];
-    const labelSorteo = LABELS_SORTEO[slot.sorteoKey];
+    const labelSorteo = LABELS_SORTEO[slot];
     const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
     datosPorSlot.push({ sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada });
   }
 
-  // Se juntaron del más reciente al más viejo; se muestran en orden cronológico (más viejo primero)
-  cabezasParaMostrar = datosPorSlot.reverse();
+  // Ya vienen en el orden fijo correcto (Previa→Primera→Matutina→Vespertina→Nocturna, sin el actual)
+  cabezasParaMostrar = datosPorSlot;
 }
 
 // =====================
