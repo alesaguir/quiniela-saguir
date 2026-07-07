@@ -1251,10 +1251,12 @@ async function guardarVisual() {
   const rows = claves.map(c => ({
     agencia_id: agencia, clave: c,
     valor: document.getElementById(`slider-${c}`).value,
+    numeros_por_provincia: null,
     actualizado_por: usuarioActual.nombre
   }));
   rows.push({ agencia_id: agencia, clave: 'tv',
     valor: document.getElementById('visual-tv-size').value,
+    numeros_por_provincia: null,
     actualizado_por: usuarioActual.nombre });
 
   // Cantidad de números por provincia (se guarda como jsonb en una fila dedicada)
