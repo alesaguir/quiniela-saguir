@@ -393,6 +393,13 @@
             </div>
           </div>
 
+          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA -->
+          <div style="margin-bottom:24px;padding-bottom:20px;padding-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Cantidad de números por provincia</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuántos números se cargan en admin y se muestran en la TV, para la agencia seleccionada arriba</div>
+            <div id="grid-cantidad-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;"></div>
+          </div>
+
           <button class="btn btn-primary" style="width:100%" onclick="guardarVisual()">
             💾 Guardar y aplicar en pantalla
           </button>
@@ -517,6 +524,25 @@ const PROVINCIAS = [
 const SORTEOS = ['previa','primera','matutina','vespertina','nocturna'];
 let sorteoActual = 'nocturna';
 let usuarioActual = null;
+let numerosPorProvincia = {}; // ej: { chaquena:20, ciudad:10, ... } — se completa según la agencia logueada
+
+async function cargarNumerosPorProvincia() {
+  numerosPorProvincia = {};
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.numeros_provincia&select=numeros_por_provincia`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows[0] && rows[0].numeros_por_provincia) {
+      numerosPorProvincia = rows[0].numeros_por_provincia;
+    }
+  } catch(e) { console.error(e); }
+}
+
+function cantidadProvincia(key) {
+  return numerosPorProvincia[key] || 20; // 20 = default si el superadmin nunca configuró nada
+}
 
 // =====================
 // LOGIN
@@ -626,7 +652,7 @@ async function login() {
     document.getElementById('chip-user').textContent = usuarioActual.nombre + (usuarioActual.rol==='superadmin'?' ⬟':'');
     document.getElementById('login-error').style.display = 'none';
     document.getElementById('login-error').textContent = 'Usuario o contraseña incorrectos';
-    initApp();
+    await initApp();
     verificarSuperadmin();
     registrarActividad('Inicio de sesión', `${usuarioActual.nombre} inició sesión`);
   } catch(e) {
@@ -658,7 +684,7 @@ async function logout() {
 // =====================
 // INIT APP
 // =====================
-function initApp() {
+async function initApp() {
   // Fecha de hoy
   const now = new Date();
   const hoy = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -680,6 +706,7 @@ function initApp() {
   const idx = SORTEOS.indexOf(sorteoActual);
   if (tabs[idx]) tabs[idx].classList.add('active');
 
+  await cargarNumerosPorProvincia(); // hay que tenerlo ANTES de armar el formulario
   buildForm();
   actualizarTitulos();
   actualizarEstadoDia();
@@ -718,7 +745,7 @@ function buildForm() {
     html += `<div class="prov-section">
       <div class="prov-title">${p.label}</div>
       <div class="num-grid">`;
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= cantidadProvincia(p.key); i++) {
       html += `<div class="num-group">
         <div class="num-label">${i}°</div>
         <input class="num-input" id="n_${p.key}_${i}" type="text" maxlength="4" placeholder="----"
@@ -752,7 +779,7 @@ function onInput(el) {
 
 function limpiarTodo() {
   PROVINCIAS.forEach(p => {
-    for (let i=1;i<=20;i++) {
+    for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
       if (el) { el.value=''; el.classList.remove('filled'); }
     }
@@ -774,7 +801,7 @@ async function guardarTodo() {
 
   const rows = [];
   PROVINCIAS.forEach(p => {
-    for (let i=1;i<=20;i++) {
+    for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
       if (el && el.value.length === 4) {
         rows.push({
@@ -1175,12 +1202,25 @@ function actualizarSlider(tipo, valor) {
   if (previewEl) previewEl.style.fontSize = valor + 'px';
 }
 
+function buildCantidadProvinciasGrid() {
+  const cont = document.getElementById('grid-cantidad-provincias');
+  if (!cont) return;
+  cont.innerHTML = PROVINCIAS.map(p => `
+    <div>
+      <label class="form-label">${p.label}</label>
+      <input type="number" min="1" max="20" class="form-input" id="cant_${p.key}" value="20">
+    </div>
+  `).join('');
+}
+
 async function cargarConfigVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
   Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
     else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
   });
+  // Reset cantidades por provincia a 20 antes de traer lo guardado
+  PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
@@ -1192,6 +1232,11 @@ async function cargarConfigVisual() {
       if (r.clave === 'tv') {
         const sel = document.getElementById('visual-tv-size');
         if (sel) sel.value = r.valor;
+      } else if (r.clave === 'numeros_provincia' && r.numeros_por_provincia) {
+        Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
+          const el = document.getElementById(`cant_${k}`);
+          if (el) el.value = v;
+        });
       } else {
         const slider = document.getElementById(`slider-${r.clave}`);
         if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
@@ -1211,6 +1256,23 @@ async function guardarVisual() {
   rows.push({ agencia_id: agencia, clave: 'tv',
     valor: document.getElementById('visual-tv-size').value,
     actualizado_por: usuarioActual.nombre });
+
+  // Cantidad de números por provincia (se guarda como jsonb en una fila dedicada)
+  const nuevaCantidadPorProvincia = {};
+  PROVINCIAS.forEach(p => {
+    const el = document.getElementById(`cant_${p.key}`);
+    let v = parseInt(el?.value, 10);
+    if (isNaN(v)) v = 20;
+    v = Math.min(20, Math.max(1, v));
+    nuevaCantidadPorProvincia[p.key] = v;
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'numeros_provincia',
+    valor: '1',
+    numeros_por_provincia: nuevaCantidadPorProvincia,
+    actualizado_por: usuarioActual.nombre
+  });
+
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
@@ -1240,6 +1302,7 @@ function verificarSuperadmin() {
     document.getElementById('seccion-subagencias').style.display = 'block';
     document.getElementById('seccion-visual').style.display = 'block';
     buildConfigGrids();
+    buildCantidadProvinciasGrid();
     cargarConfiguraciones();
     cargarSubagencias();
     cargarActividad();
