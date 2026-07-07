@@ -197,6 +197,33 @@
       <div class="estado-grid" id="estado-dia"></div>
     </div>
 
+    <!-- CARTELES — visible para cualquiera logueado (nivel 1, 2 y superadmin) -->
+    <div style="margin-top:32px;margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🖼️ Carteles de la Pantalla</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">
+        Se muestran en bloque, uno atrás del otro, tapando el sorteo actual por unos segundos. Se saltea si justo coincide con un sorteo en vivo.
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">⏱️ Frecuencia del bloque</div></div>
+      <div class="card-body">
+        <label class="form-label">Cada cuántos minutos aparece el bloque completo</label>
+        <div style="display:flex;gap:10px;align-items:center;max-width:300px;">
+          <input type="number" class="form-input" id="carteles-frecuencia" min="5" max="720" value="60">
+          <button class="btn btn-primary" onclick="guardarFrecuenciaCarteles()" style="white-space:nowrap;">💾 Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div class="card-title">📋 Mis carteles</div>
+        <button class="btn btn-primary" onclick="crearCartel()" style="font-size:13px;">➕ Nuevo cartel</button>
+      </div>
+      <div id="lista-carteles" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+    </div>
+
     <!-- GESTIÓN DE SUBAGENCIAS — solo superadmin -->
     <div id="seccion-subagencias" style="display:none;" data-rol="superadmin">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
@@ -649,6 +676,234 @@ function cantidadProvincia(key) {
 }
 
 // =====================
+// CARTELES
+// =====================
+const FUENTES_CARTEL = ['Bebas Neue', 'DM Sans', 'JetBrains Mono'];
+let cartelesActuales = []; // cache de la última carga, para poder reordenar sin volver a pedir todo
+
+async function cargarFrecuenciaCarteles() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.carteles_frecuencia&select=valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows[0] && rows[0].valor) {
+      document.getElementById('carteles-frecuencia').value = rows[0].valor;
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function guardarFrecuenciaCarteles() {
+  const minutos = parseInt(document.getElementById('carteles-frecuencia').value, 10) || 60;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
+      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify([{
+          agencia_id: usuarioActual.agencia_id, clave: 'carteles_frecuencia',
+          valor: String(minutos), numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+        }]) }
+    );
+    if (res.ok || res.status === 201) showToast('✅ Frecuencia guardada','ok');
+    else showToast('Error al guardar','err');
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+async function cargarCarteles() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&order=posicion.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    cartelesActuales = await res.json() || [];
+    renderListaCarteles();
+  } catch(e) { console.error(e); document.getElementById('lista-carteles').innerHTML = '<div style="color:var(--red);">Error al cargar carteles.</div>'; }
+}
+
+function renderListaCarteles() {
+  const cont = document.getElementById('lista-carteles');
+  if (cartelesActuales.length === 0) {
+    cont.innerHTML = '<div style="color:var(--muted);">Todavía no creaste ningún cartel. Usá "➕ Nuevo cartel" para empezar.</div>';
+    return;
+  }
+  cont.innerHTML = cartelesActuales.map((c, idx) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},-1)" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},1)" ${idx===cartelesActuales.length-1?'disabled':''}>▼</button>
+          <span style="font-size:12px;color:var(--muted);margin-left:6px;">Posición ${idx+1}</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="cartel_activo_${c.id}" ${c.activo?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);">
+          Activo
+        </label>
+      </div>
+
+      <label class="form-label">Texto</label>
+      <textarea id="cartel_texto_${c.id}" oninput="actualizarPreviewCartel(${c.id})"
+        style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:14px;min-height:60px;margin-bottom:14px;resize:vertical;">${c.texto || ''}</textarea>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:14px;">
+        <div>
+          <label class="form-label">Duración (seg)</label>
+          <input type="number" min="1" max="60" class="form-input" id="cartel_duracion_${c.id}" value="${c.duracion_segundos||5}">
+        </div>
+        <div>
+          <label class="form-label">Tamaño letra</label>
+          <input type="number" min="12" max="120" class="form-input" id="cartel_tamano_${c.id}" value="${c.tamano_fuente||48}" oninput="actualizarPreviewCartel(${c.id})">
+        </div>
+        <div>
+          <label class="form-label">Tipografía</label>
+          <select class="form-input" id="cartel_fuente_${c.id}" onchange="actualizarPreviewCartel(${c.id})">
+            ${FUENTES_CARTEL.map(f => `<option value="${f}" ${c.fuente===f?'selected':''}>${f}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Color de fondo</label>
+          <input type="color" class="form-input" id="cartel_color_fondo_${c.id}" value="${c.color_fondo||'#1a1a2e'}" style="height:42px;padding:4px;" oninput="actualizarPreviewCartel(${c.id})">
+        </div>
+        <div>
+          <label class="form-label">Color de texto</label>
+          <input type="color" class="form-input" id="cartel_color_texto_${c.id}" value="${c.color_texto||'#ffffff'}" style="height:42px;padding:4px;" oninput="actualizarPreviewCartel(${c.id})">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="cartel_negrita_${c.id}" ${c.negrita?'checked':''} onchange="actualizarPreviewCartel(${c.id})" style="width:16px;height:16px;accent-color:var(--gold);"> Negrita
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="cartel_cursiva_${c.id}" ${c.cursiva?'checked':''} onchange="actualizarPreviewCartel(${c.id})" style="width:16px;height:16px;accent-color:var(--gold);"> Cursiva
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="cartel_subrayado_${c.id}" ${c.subrayado?'checked':''} onchange="actualizarPreviewCartel(${c.id})" style="width:16px;height:16px;accent-color:var(--gold);"> Subrayado
+        </label>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa</div>
+      <div id="cartel_preview_${c.id}" style="border-radius:10px;padding:24px;text-align:center;margin-bottom:14px;min-height:60px;display:flex;align-items:center;justify-content:center;"></div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" style="flex:1" onclick="guardarCartel(${c.id})">💾 Guardar</button>
+        <button class="btn btn-danger" onclick="eliminarCartel(${c.id})">🗑 Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+
+  cartelesActuales.forEach(c => actualizarPreviewCartel(c.id));
+}
+
+function actualizarPreviewCartel(id) {
+  const preview = document.getElementById(`cartel_preview_${id}`);
+  if (!preview) return;
+  const texto = document.getElementById(`cartel_texto_${id}`)?.value || '';
+  const tamano = document.getElementById(`cartel_tamano_${id}`)?.value || 48;
+  const fuente = document.getElementById(`cartel_fuente_${id}`)?.value || 'Bebas Neue';
+  const colorFondo = document.getElementById(`cartel_color_fondo_${id}`)?.value || '#1a1a2e';
+  const colorTexto = document.getElementById(`cartel_color_texto_${id}`)?.value || '#ffffff';
+  const negrita = document.getElementById(`cartel_negrita_${id}`)?.checked;
+  const cursiva = document.getElementById(`cartel_cursiva_${id}`)?.checked;
+  const subrayado = document.getElementById(`cartel_subrayado_${id}`)?.checked;
+
+  preview.style.background = colorFondo;
+  preview.style.color = colorTexto;
+  preview.style.fontFamily = `'${fuente}', sans-serif`;
+  preview.style.fontSize = `${Math.min(parseInt(tamano)||48, 32)}px`; // recortado para que entre en la vista previa chica
+  preview.style.fontWeight = negrita ? '700' : '400';
+  preview.style.fontStyle = cursiva ? 'italic' : 'normal';
+  preview.style.textDecoration = subrayado ? 'underline' : 'none';
+  preview.textContent = texto || '(sin texto — este cartel no aparece en la pantalla)';
+}
+
+async function crearCartel() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify([{
+        agencia_id: usuarioActual.agencia_id,
+        texto: '',
+        posicion: cartelesActuales.length,
+        creado_por: usuarioActual.nombre
+      }])
+    });
+    if (res.ok || res.status === 201) {
+      showToast('✅ Cartel creado','ok');
+      cargarCarteles();
+    } else showToast('Error al crear el cartel','err');
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+async function guardarCartel(id) {
+  const datos = {
+    texto: document.getElementById(`cartel_texto_${id}`).value,
+    duracion_segundos: parseInt(document.getElementById(`cartel_duracion_${id}`).value, 10) || 5,
+    activo: document.getElementById(`cartel_activo_${id}`).checked,
+    color_fondo: document.getElementById(`cartel_color_fondo_${id}`).value,
+    color_texto: document.getElementById(`cartel_color_texto_${id}`).value,
+    tamano_fuente: parseInt(document.getElementById(`cartel_tamano_${id}`).value, 10) || 48,
+    fuente: document.getElementById(`cartel_fuente_${id}`).value,
+    negrita: document.getElementById(`cartel_negrita_${id}`).checked,
+    cursiva: document.getElementById(`cartel_cursiva_${id}`).checked,
+    subrayado: document.getElementById(`cartel_subrayado_${id}`).checked,
+  };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(datos)
+    });
+    if (res.ok || res.status === 204) showToast('✅ Cartel guardado','ok');
+    else showToast('Error al guardar el cartel','err');
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+async function eliminarCartel(id) {
+  if (!confirm('¿Eliminar este cartel? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    });
+    if (res.ok) { showToast('✅ Cartel eliminado','ok'); cargarCarteles(); }
+  } catch(e) { showToast('Error al eliminar','err'); }
+}
+
+async function moverCartel(id, direccion) {
+  const idx = cartelesActuales.findIndex(c => c.id === id);
+  const idxVecino = idx + direccion;
+  if (idx === -1 || idxVecino < 0 || idxVecino >= cartelesActuales.length) return;
+
+  const actual = cartelesActuales[idx];
+  const vecino = cartelesActuales[idxVecino];
+  const posActual = actual.posicion;
+  const posVecino = vecino.posicion;
+
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${actual.id}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ posicion: posVecino })
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${vecino.id}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ posicion: posActual })
+    });
+    cargarCarteles();
+  } catch(e) { showToast('Error al reordenar','err'); }
+}
+
+// =====================
 // LOGIN
 // =====================
 function mostrarReset() {
@@ -815,6 +1070,8 @@ async function initApp() {
   actualizarTitulos();
   actualizarEstadoDia();
   cargarExistentes();
+  cargarFrecuenciaCarteles();
+  cargarCarteles();
 }
 
 async function setTab(sorteo, el) {
