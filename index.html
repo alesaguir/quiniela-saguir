@@ -2,711 +2,1492 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1920, initial-scale=1.0">
-<title>Resultados Quiniela — Agencia 670</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0b429">
+<link rel="manifest" href="/quiniela-saguir/manifest.json">
+<title>Panel Admin — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    background: #1a0a00;
-    color: #fff;
-    font-family: 'DM Sans', sans-serif;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --red:#e63946;
+    --green:#2ec4b6; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
   }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
 
-  /* HEADER */
-  .header {
-    background: linear-gradient(90deg, #8B0000, #cc0000, #8B0000);
-    padding: 2px 12px;
-    display: grid;
-    grid-template-columns: 190px 1fr 100px;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 3px solid #ffd700;
-    flex-shrink: 0;
-  }
+  /* LOGIN */
+  .login-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;}
+  .login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
+  .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
+  .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
+  .btn-primary:hover{background:#ffd166;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--gold);}
+  .btn-danger{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid rgba(230,57,70,0.3);}
+  .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
 
-  .marca-box { text-align:left; }
-  .marca-principal {
-    font-family:'Bebas Neue', sans-serif;
-    font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1;
-  }
-  .marca-frase, .marca-agencia, .marca-ciudad {
-    font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase;
-  }
+  /* APP */
+  .app{display:none;flex-direction:column;min-height:100vh;}
 
-  .sorteo-badge {
-    display: grid;
-    grid-template-columns: auto auto auto auto;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    height: 44px;
-    padding: 0 20px;
-    background: rgba(0,0,0,.30);
-    border: 1px solid rgba(255,215,0,.40);
-    border-radius: 6px;
-  }
-  .sorteo-badge.finalizado {
-    background: linear-gradient(90deg, rgba(140,55,0,.95), rgba(210,105,0,.95), rgba(140,55,0,.95));
-  }
-  .sorteo-badge.sorteando {
-    background: linear-gradient(90deg, rgba(0,80,0,.95), rgba(0,140,0,.90), rgba(0,80,0,.95));
-  }
+  /* TOPBAR */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-logo span{color:var(--text);}
+  .topbar-right{display:flex;align-items:center;gap:12px;}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
 
-  /* NOMBRE SORTEO — más chico para dar espacio a números */
-  .sorteo-badge-name {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 26px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    color: #ffd700;
-    line-height: 1;
-    white-space: nowrap;
-    text-transform: uppercase;
-  }
+  /* CONTENT */
+  .content{padding:28px;max-width:900px;margin:0 auto;width:100%;}
 
-  .sorteo-fecha { font-size:20px; color:#fff; white-space:nowrap; }
+  /* TABS */
+  .tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+  .tab{padding:8px 20px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.2s;}
+  .tab:hover{border-color:var(--gold);color:var(--text);}
+  .tab.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700;}
 
-  .live-label {
-    font-size: 20px; color: #44ff88; font-weight: 900;
-    letter-spacing: 1px; white-space: nowrap;
-  }
-  .done-label {
-    font-size: 20px; color: #ffd700; font-weight: 900;
-    letter-spacing: 1px; white-space: nowrap;
-  }
+  /* CARD */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+  .card-body{padding:20px;}
 
-  /* FECHA — sin hora */
-  .header-right {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end;
-  }
-  .fecha-txt {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 32px;
-    color: #ffd700;
-    letter-spacing: 1px;
-    line-height: 1;
-  }
+  /* INPUTS NÚMEROS */
+  .num-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+  .num-group{display:flex;flex-direction:column;gap:5px;}
+  .num-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;text-align:center;}
+  .num-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 6px;font-family:'Bebas Neue',sans-serif;font-size:26px;text-align:center;width:100%;outline:none;letter-spacing:2px;transition:all 0.2s;}
+  .num-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
+  .num-input.filled{border-color:rgba(240,180,41,0.4);color:var(--gold);}
+  .num-input::placeholder{color:rgba(255,255,255,0.1);}
 
-  /* MAIN */
-  .main { flex:1; display:flex; overflow:hidden; }
+  /* PROVINCIA SECTIONS */
+  .prov-section{margin-bottom:24px;}
+  .prov-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--gold);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 
-  /* CABEZAS */
-  .col-cabezas {
-    width: 240px;
-    background: #0d0500;
-    border-right: 2px solid #ffd700;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .cabezas-header {
-    background: #ffd700; color:#000; text-align:center;
-    padding:6px 4px;
-    font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px;
-    flex-shrink:0;
-  }
-  .cabezas-section { border-bottom:1px solid rgba(255,215,0,0.25); flex-shrink:0; }
-  .cabezas-section-title {
-    background: rgba(255,215,0,0.1);
-    padding: 2px 10px;
-    font-size: 12px; color: #ffd700;
-    letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
-  }
-  .cabeza-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 10px; min-height: 25px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-  .cabeza-prov {
-    font-size: 16px; color: rgba(255,255,255,0.65);
-    text-transform: uppercase; letter-spacing: 1px;
-  }
-  .cabeza-num {
-    font-family: 'Oswald', sans-serif;
-    font-size: 18px; font-weight: 700; color: #fff;
-  }
+  /* ESTADO DÍA */
+  .estado-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);}
+  .estado-cell{background:var(--surface);padding:12px;text-align:center;}
+  .estado-nombre{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;}
+  .pill-green{background:rgba(46,196,182,0.12);color:var(--green);}
+  .pill-red{background:rgba(230,57,70,0.12);color:var(--red);}
+  .pill-gray{background:rgba(255,255,255,0.06);color:var(--muted);}
 
-  /* TABLA */
-  .col-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast-ok{background:var(--surface);border-color:var(--green);color:var(--green);}
+  .toast-err{background:var(--surface);border-color:var(--red);color:var(--red);}
 
-  .provincias-header {
-    display: grid;
-    grid-template-columns: 70px repeat(5,1fr);
-    background: #8B0000;
-    border-bottom: 1px solid #ffd700;
-    flex-shrink: 0;
-  }
-  .prov-cell {
-    padding: 5px 4px; text-align: center;
-    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px;
-    color: #ffd700; border-right: 1px solid rgba(255,255,255,0.15);
-  }
-  .prov-cell:last-child { border-right: none; }
-  .prov-cell.label {
-    color: rgba(255,255,255,0.4); font-size: 11px;
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  /* NÚMEROS */
-  .numeros-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-  .numeros-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 70px repeat(5,1fr);
-  }
-  .pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
-  .pos-label {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    font-size: 12px; color: rgba(255,255,255,0.45);
-    border-bottom: 1px solid rgba(255,255,255,0.04); letter-spacing: 1px;
-  }
-  .pos-label:last-child { border-bottom: none; }
-
-  .num-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,0.07); }
-  .num-col:last-child { border-right: none; }
-
-  /* Oswald Bold — 0 oval claramente distinto del 8 redondeado */
-  .num-cell {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    font-family: 'Oswald', sans-serif;
-    font-size: clamp(24px, 2.3vw, 34px);
-    font-weight: 700; color: #fff;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    letter-spacing: 1px;
-  }
-  .num-cell:last-child { border-bottom: none; }
-  .num-cell.primero {
-    color: #ffd700;
-    font-size: clamp(24px, 2.3vw, 34px);
-    font-weight: 700;
-  }
-  .num-cell.empty { color: rgba(255,255,255,0.2); font-size: 14px; letter-spacing: 2px; }
-  .num-cell.live-num { color: #44ff88; }
-
-  /* FOOTER */
-  .footer {
-    background: #0d0500; border-top: 1px solid rgba(255,215,0,0.25);
-    padding: 4px 16px; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .aviso-legal {
-    font-size: 11px; color: #ffd700; letter-spacing: 1px;
-    font-weight: 600; text-align: center;
-  }
+  /* LOADING */
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<div class="header">
-  <div class="marca-box">
-    <div class="marca-principal">QUINIELA SAGUIR</div>
-    <div class="marca-frase">Para Saguir Ganando</div>
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-title">Panel Admin</div>
+    <div class="login-sub">Quiniela Agencia N° 670 · Sáenz Peña</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="inp-user" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos</div>
+    <br>
+    <button class="btn btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <span onclick="mostrarReset()" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;">¿Olvidaste tu contraseña?</span>
+    </div>
   </div>
 
-  <div class="sorteo-badge" id="sorteo-badge">
-    <div class="sorteo-badge-name" id="badge-name">PRIMERA</div>
-    <div id="badge-fecha" class="sorteo-fecha"></div>
-    <div id="badge-nsorteo" style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:2px;white-space:nowrap;"></div>
-    <div id="badge-label" class="done-label">SORTEANDO</div>
-  </div>
-
-  <div class="header-right">
+  <!-- PANEL RESET CONTRASEÑA -->
+  <div class="login-box" id="reset-box" style="display:none;">
+    <div class="login-title">Recuperar acceso</div>
+    <div class="login-sub">Te enviamos un link a tu email para restablecer tu contraseña.</div>
+    <div class="form-group">
+      <label class="form-label">Tu email</label>
+      <input class="form-input" id="reset-email" type="email" placeholder="tu@email.com"
+        onkeydown="if(event.key==='Enter')enviarReset()">
+    </div>
+    <div class="error-msg" id="reset-error">Ocurrió un error. Intentá de nuevo.</div>
+    <div id="reset-ok" style="display:none;background:rgba(46,196,182,0.12);border:1px solid var(--green);color:var(--green);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:12px;">
+      ✅ Email enviado. Revisá tu bandeja de entrada.
+    </div>
+    <br>
+    <button class="btn btn-primary" onclick="enviarReset()" id="btn-reset">Enviar link</button>
+    <div style="text-align:center;margin-top:16px;">
+      <span onclick="volverLogin()" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;">← Volver al login</span>
+    </div>
   </div>
 </div>
 
-<!-- MAIN -->
-<div class="main">
-  <div class="col-cabezas">
-    <div class="cabezas-header">ÚLTIMAS CABEZAS</div>
-    <div id="cabezas-content"></div>
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Quiniela<span>Saguir</span> — Admin</div>
+    <div class="topbar-right">
+      <span class="user-chip" id="chip-user">—</span>
+      <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
+    </div>
   </div>
 
-  <div class="col-tabla">
-    <div class="provincias-header">
-      <div class="prov-cell label">N°</div>
-      <div class="prov-cell">CHAQUEÑA</div>
-      <div class="prov-cell">CIUDAD</div>
-      <div class="prov-cell">PROVINCIA</div>
-      <div class="prov-cell">CORRIENTES</div>
-      <div class="prov-cell">CÓRDOBA</div>
+  <div class="content">
+
+    <!-- FECHA Y SORTEO -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;" id="titulo-sorteo">MATUTINA</div>
+        <div style="font-size:13px;color:var(--muted);" id="subtitulo-fecha"></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <label class="form-label" style="font-size:10px;">N° de Sorteo</label>
+          <input type="text" id="num-sorteo" maxlength="5" placeholder="00000"
+            class="form-input" style="width:120px;font-family:'JetBrains Mono',monospace;font-size:18px;text-align:center;letter-spacing:2px;"
+            oninput="this.value=this.value.replace(/\D/g,'')">
+        </div>
+        <input type="date" class="form-input" id="fecha-sel" style="width:auto;">
+        <button class="btn btn-ghost" onclick="cargarExistentes()" style="font-size:13px;">🔄 Cargar existentes</button>
+      </div>
     </div>
-    <div class="numeros-wrap">
-      <div class="numeros-grid" id="numeros-grid"></div>
+
+    <!-- TABS SORTEO -->
+    <div class="tabs" id="tabs-sorteo">
+      <div class="tab" onclick="setTab('previa',this)">Previa</div>
+      <div class="tab" onclick="setTab('primera',this)">Primera</div>
+      <div class="tab" onclick="setTab('matutina',this)">Matutina</div>
+      <div class="tab" onclick="setTab('vespertina',this)">Vespertina</div>
+      <div class="tab active" onclick="setTab('nocturna',this)">Nocturna</div>
     </div>
+
+    <!-- FORMULARIO POR PROVINCIA -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" id="card-titulo">📝 Ingreso de Números</div>
+        <button class="btn btn-ghost" onclick="limpiarTodo()" style="font-size:12px;padding:6px 14px;">🗑 Limpiar</button>
+      </div>
+      <div class="card-body" id="form-provincias"></div>
+      <div style="padding:0 20px 20px;display:flex;gap:10px;">
+        <button class="btn btn-primary" style="flex:1" onclick="guardarTodo()" id="btn-guardar">
+          💾 Guardar y publicar en pantalla
+        </button>
+      </div>
+    </div>
+
+    <!-- ESTADO DEL DÍA -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Estado del día</div></div>
+      <div class="estado-grid" id="estado-dia"></div>
+    </div>
+
+    <!-- GESTIÓN DE SUBAGENCIAS — solo superadmin -->
+    <div id="seccion-subagencias" style="display:none;" data-rol="superadmin">
+      <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🏪 Gestión de Subagencias</div>
+          <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
+        </div>
+        <button class="btn btn-primary" onclick="mostrarFormNuevaAgencia()" style="font-size:13px;">➕ Nueva subagencia</button>
+      </div>
+
+      <!-- FORM NUEVA SUBAGENCIA -->
+      <div class="card" id="form-nueva-agencia" style="display:none;margin-bottom:16px;">
+        <div class="card-header"><div class="card-title" id="form-agencia-titulo">➕ Nuevo Usuario</div></div>
+        <div class="card-body">
+          <!-- NIVEL -->
+          <div style="margin-bottom:20px;">
+            <label class="form-label">Nivel de acceso</label>
+            <div style="display:flex;gap:10px;margin-top:8px;">
+              <label style="flex:1;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;text-align:center;transition:all 0.2s;" id="nivel-2-card" onclick="seleccionarNivel(2)">
+                <input type="radio" name="nivel" value="2" style="display:none;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);letter-spacing:2px;">NIVEL 2</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Empleado agencia</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;">Carga números · Estadísticas (futuro)</div>
+              </label>
+              <label style="flex:1;background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;text-align:center;transition:all 0.2s;" id="nivel-1-card" onclick="seleccionarNivel(1)">
+                <input type="radio" name="nivel" value="1" style="display:none;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--blue);letter-spacing:2px;">NIVEL 1</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Subagencia</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;">Solo carga en su propio index</div>
+              </label>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <label class="form-label">Nombre completo</label>
+              <input type="text" class="form-input" id="nueva-agencia-nombre" placeholder="Ej: María González">
+            </div>
+            <div>
+              <label class="form-label">Email de acceso</label>
+              <input type="email" class="form-input" id="nueva-agencia-email" placeholder="usuario@email.com">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <label class="form-label">Contraseña inicial</label>
+              <input type="text" class="form-input" id="nueva-agencia-pass" placeholder="Mínimo 6 caracteres">
+            </div>
+            <div id="campo-agencia-id" style="display:none;">
+              <label class="form-label">Código de subagencia</label>
+              <input type="text" class="form-input" id="nueva-agencia-id" placeholder="Ej: 670-15" maxlength="10"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div id="campo-retencion" style="display:none;">
+              <label class="form-label">Retención de datos (días)</label>
+              <input type="number" class="form-input" id="nueva-agencia-retencion" value="2" min="1" max="30">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" style="flex:1" onclick="crearSubagencia()">💾 Crear usuario</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('form-nueva-agencia').style.display='none'">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LISTA DE SUBAGENCIAS -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📋 Subagencias activas</div>
+          <button class="btn btn-ghost" onclick="cargarSubagencias()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div id="lista-subagencias" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+      </div>
+
+      <!-- REGISTRO DE ACTIVIDAD -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📋 Registro de actividad</div>
+          <button class="btn btn-ghost" onclick="cargarActividad()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div id="lista-actividad" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- CONFIGURACIÓN VISUAL — solo superadmin -->
+    <div id="seccion-visual" style="display:none;">
+      <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🎨 Apariencia de la Pantalla</div>
+        <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🎨 Configuración visual</div>
+          <button class="btn btn-ghost" onclick="resetearVisual()" style="font-size:12px;padding:6px 12px;">↺ Restaurar defaults</button>
+        </div>
+        <div class="card-body">
+
+          <!-- SELECTOR DE AGENCIA Y TV -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div>
+              <label class="form-label">Configurar para agencia</label>
+              <select id="visual-agencia-sel" class="form-input" onchange="cargarConfigVisual()">
+                <option value="670-00">670-00 — Agencia principal (mi TV)</option>
+              </select>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Cada agencia tiene su propia configuración</div>
+            </div>
+            <div>
+              <label class="form-label">Tamaño del televisor</label>
+              <select id="visual-tv-size" class="form-input" onchange="aplicarMultiplicadorTV()">
+                <option value="1.35">32" — Chico</option>
+                <option value="1.2">43" — Mediano</option>
+                <option value="1.08">55" — Grande</option>
+                <option value="1.0" selected>65" — Muy grande</option>
+                <option value="0.9">75"+ — Extra grande</option>
+              </select>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Ajusta automáticamente el tamaño base</div>
+            </div>
+          </div>
+
+          <!-- NÚMEROS SORTEO ACTUAL -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Números del sorteo actual</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño del 1° premio y del resto de los números</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <label class="form-label">1° Premio</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-primero" min="20" max="60" value="34"
+                    oninput="actualizarSlider('primero',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-primero" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">34px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-primero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;font-size:34px;">7732</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Resto de números</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-normal" min="14" max="40" value="22"
+                    oninput="actualizarSlider('normal',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-normal" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">22px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-normal" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:22px;">3638</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CABEZAS -->
+          <div style="margin-bottom:24px;padding-top:20px;border-top:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Últimas cabezas</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de los números en la columna izquierda</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <label class="form-label">Números de cabezas</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-cabeza" min="12" max="32" value="18"
+                    oninput="actualizarSlider('cabeza',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-cabeza" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">18px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-cabeza" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:18px;">6772</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Texto de provincia</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-prov" min="10" max="22" value="14"
+                    oninput="actualizarSlider('prov',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-prov" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">14px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                  <span id="preview-prov" style="font-family:'DM Sans',sans-serif;color:rgba(255,255,255,0.65);font-size:14px;">CHAQUEÑA</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ANCHO COLUMNA CABEZAS -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Ancho de columna "Últimas Cabezas"</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuánto espacio ocupa la columna izquierda</div>
+            <div style="display:flex;align-items:center;gap:12px;max-width:400px;">
+              <input type="range" id="slider-ancho-cabezas" min="150" max="350" value="240"
+                oninput="actualizarSlider('ancho-cabezas',this.value)"
+                style="flex:1;accent-color:var(--gold);">
+              <span id="val-ancho-cabezas" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:60px;text-align:center;">240px</span>
+            </div>
+          </div>
+
+          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA -->
+          <div style="margin-bottom:24px;padding-bottom:20px;padding-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Cantidad de números por provincia</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuántos números se cargan en admin y se muestran en la TV, para la agencia seleccionada arriba</div>
+            <div id="grid-cantidad-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;"></div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%" onclick="guardarVisual()">
+            💾 Guardar y aplicar en pantalla
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIGURACIÓN DE SORTEOS — solo superadmin -->
+    <div id="seccion-config" style="display:none;">
+      <div style="margin-top:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">⚙️ Configuración de Sorteos</div>
+        <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
+      </div>
+
+      <!-- AVISO -->
+      <div style="background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="font-size:20px;flex-shrink:0;">⚠️</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">
+          Esta sección afecta qué sorteos se muestran en la pantalla del Smart TV y a qué hora. Cualquier cambio requiere confirmación explícita. Usala solo cuando Lotería Chaqueña comunique cambios oficiales en el calendario de sorteos.
+        </div>
+      </div>
+
+      <!-- CONFIGURACIÓN DE FECHA ESPECIAL -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📅 Fecha especial</div>
+          <span style="font-size:12px;color:var(--muted)">Ej: feriados, navidad, fin de año</span>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div>
+              <label class="form-label">Fecha del evento</label>
+              <input type="date" class="form-input" id="cfg-fecha">
+            </div>
+            <div>
+              <label class="form-label">Descripción</label>
+              <input type="text" class="form-input" id="cfg-descripcion" placeholder="Ej: Navidad 2026">
+            </div>
+          </div>
+
+          <!-- SORTEOS ACTIVOS -->
+          <div class="form-label" style="margin-bottom:12px;">Sorteos activos ese día</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;" id="cfg-sorteos-grid"></div>
+
+          <!-- HORARIOS -->
+          <div class="form-label" style="margin-bottom:12px;">Horarios de inicio</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;" id="cfg-horarios-grid"></div>
+
+          <!-- CONFIRMACIÓN -->
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Para confirmar, escribí la palabra <strong style="color:var(--gold)">CONFIRMAR</strong> y luego guardá:</div>
+            <input type="text" class="form-input" id="cfg-confirmacion" placeholder="Escribí CONFIRMAR" style="text-transform:uppercase;letter-spacing:2px;">
+          </div>
+
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" style="flex:1" onclick="guardarConfiguracion()">💾 Guardar configuración</button>
+            <button class="btn btn-ghost" onclick="limpiarConfiguracion()">🗑 Limpiar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONFIGURACIONES GUARDADAS -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📋 Configuraciones guardadas</div>
+          <button class="btn btn-ghost" onclick="cargarConfiguraciones()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div id="cfg-lista" style="padding:16px;font-size:13px;color:var(--muted);">Cargando...</div>
+      </div>
+
+      <!-- HORARIOS ESTÁNDAR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🕐 Horarios estándar actuales</div>
+          <span style="font-size:12px;color:var(--muted)">Solo informativo</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+          <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">PREVIA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">10:15</div></div>
+          <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">PRIMERA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">12:00</div></div>
+          <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">MATUTINA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">15:00</div></div>
+          <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">VESPERTINA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">18:00</div></div>
+          <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">NOCTURNA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">21:00</div></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
-<!-- FOOTER -->
-<div class="footer">
-  <div class="aviso-legal">
-    Los resultados son de carácter informativo. No son un Extracto Oficial.
+<div class="toast" id="toast"></div>
+
+<!-- MODAL SQL INSTRUCCIONES -->
+<div id="modal-sql" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:600px;width:100%;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:8px;">📋 Crear usuario en Supabase</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Seguí estos pasos para crear el usuario:</div>
+    <pre id="modal-sql-content" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:12px;color:var(--text);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;"></pre>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary" style="flex:1" onclick="navigator.clipboard.writeText(document.getElementById('modal-sql-content').textContent).then(()=>showToast('📋 Copiado','ok'))">📋 Copiar instrucciones</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-sql').style.display='none'">Cerrar</button>
+    </div>
   </div>
 </div>
 
 <script>
 // =====================
-// DATOS — vacíos por defecto (se llenan desde Supabase)
+// CONFIG
 // =====================
-const datos = {};
-const sorteoKeys = ['previa','primera','matutina','vespertina','nocturna'];
-const provKeys   = ['chaquena','ciudad','provincia','corrientes','cordoba'];
-
-sorteoKeys.forEach(s => {
-  datos[s] = {};
-  provKeys.forEach(p => { datos[s][p] = Array(20).fill('----'); });
-});
-
-const cabezasTodas = {
-  previa:     { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  primera:    { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  matutina:   { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  vespertina: { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-  nocturna:   { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' },
-};
-
-// =====================
-// LÓGICA HORARIA
-// =====================
-function getSorteoActual() {
-  const now = new Date();
-  const totalMin = now.getHours() * 60 + now.getMinutes();
-
-  // Domingo: mostrar nocturna del sábado
-  if (now.getDay() === 0) return { key:'nocturna', label:'NOCTURNA', live:false };
-  // Lunes antes de 10:15: nocturna del sábado
-  if (now.getDay() === 1 && totalMin < 10*60+15) return { key:'nocturna', label:'NOCTURNA', live:false };
-
-  if (totalMin < 10*60+15) return { key:'nocturna',    label:'NOCTURNA',    live:false };
-  if (totalMin < 12*60)    return { key:'previa',      label:'PREVIA',      live: totalMin < 10*60+30 };
-  if (totalMin < 15*60)    return { key:'primera',     label:'PRIMERA',     live: totalMin < 12*60+15 };
-  if (totalMin < 18*60)    return { key:'matutina',    label:'MATUTINA',    live: totalMin < 15*60+15 };
-  if (totalMin < 21*60)    return { key:'vespertina',  label:'VESPERTINA',  live: totalMin < 18*60+15 };
-  return                          { key:'nocturna',    label:'NOCTURNA',    live: totalMin < 21*60+15 };
-}
-
-// =====================
-// CABEZAS
-// =====================
-function getCabezasAMostrar(sorteoKey, totalMin) {
-  const lista = [];
-  const now = new Date();
-  const diaSemana = now.getDay();
-  const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-
-  // Nombre del día de hoy y de ayer
-  const diaHoy = diasNombres[now.getDay()];
-  const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
-  const diaAyer = diasNombres[ayer.getDay()];
-
-  // DOMINGO: mostrar sorteos del sábado (ayer) como cabezas
-  if (diaSemana === 0) {
-    lista.push({ sorteo:`Previa ${diaAyer}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaAyer}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,   ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,     ...cabezasTodas.nocturna });
-    return lista;
-  }
-
-  // LUNES: cabezas del sábado se reemplazan progresivamente con sorteos del lunes
-  if (diaSemana === 1) {
-    const sabado = new Date(); sabado.setDate(sabado.getDate()-2);
-    const diaSabado = diasNombres[sabado.getDay()];
-
-    // Previa en pantalla (10:15-12:00): Primera/Matutina/Vespertina/Nocturna del sábado
-    if (sorteoKey === 'previa') {
-      lista.push({ sorteo:`Primera ${diaSabado}`,    ...cabezasTodas.primera });
-      lista.push({ sorteo:`Matutina ${diaSabado}`,   ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Primera en pantalla: Previa Lunes + Matutina/Vespertina/Nocturna sábado
-    if (sorteoKey === 'primera') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Matutina ${diaSabado}`,   ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Matutina en pantalla: Previa/Primera Lunes + Vespertina/Nocturna sábado
-    if (sorteoKey === 'matutina') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
-      lista.push({ sorteo:`Vespertina ${diaSabado}`, ...cabezasTodas.vespertina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Vespertina en pantalla: Previa/Primera/Matutina Lunes + Nocturna sábado
-    if (sorteoKey === 'vespertina') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
-      lista.push({ sorteo:`Matutina ${diaHoy}`,      ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Nocturna ${diaSabado}`,   ...cabezasTodas.nocturna });
-      return lista;
-    }
-    // Nocturna en pantalla: todos los sorteos del lunes
-    if (sorteoKey === 'nocturna') {
-      lista.push({ sorteo:`Previa ${diaHoy}`,        ...cabezasTodas.previa });
-      lista.push({ sorteo:`Primera ${diaHoy}`,       ...cabezasTodas.primera });
-      lista.push({ sorteo:`Matutina ${diaHoy}`,      ...cabezasTodas.matutina });
-      lista.push({ sorteo:`Vespertina ${diaHoy}`,    ...cabezasTodas.vespertina });
-      return lista;
-    }
-    return lista;
-  }
-
-  if (totalMin < 10*60+15) {
-    lista.push({ sorteo:`Previa ${diaAyer}`,      ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaAyer}`,     ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    return lista;
-  }
-  if (sorteoKey === 'previa') {
-    lista.push({ sorteo:`Primera ${diaAyer}`,     ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'primera') {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Matutina ${diaAyer}`,    ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'matutina') {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Vespertina ${diaAyer}`,  ...cabezasTodas.vespertina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'vespertina') {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaHoy}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Nocturna ${diaAyer}`,    ...cabezasTodas.nocturna });
-    return lista;
-  }
-  if (sorteoKey === 'nocturna' && totalMin >= 21*60) {
-    lista.push({ sorteo:`Previa ${diaHoy}`,       ...cabezasTodas.previa });
-    lista.push({ sorteo:`Primera ${diaHoy}`,      ...cabezasTodas.primera });
-    lista.push({ sorteo:`Matutina ${diaHoy}`,     ...cabezasTodas.matutina });
-    lista.push({ sorteo:`Vespertina ${diaHoy}`,   ...cabezasTodas.vespertina });
-    return lista;
-  }
-  return lista;
-}
-
-// =====================
-// RENDER
-// =====================
-function render() {
-  const sorteo = getSorteoActual();
-  const d = datos[sorteo.key];
-
-  // Badge nombre
-  document.getElementById('badge-name').textContent = sorteo.label;
-
-  // Fecha del sorteo — usar getFechaConsulta para consistencia
-  const fechaStr2 = getFechaConsulta();
-  // Parsear fecha evitando problemas de zona horaria
-  const partes = fechaStr2.split('-');
-  const fechaSorteo = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
-  const diasNombre  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const mesesNombre = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  document.getElementById('badge-fecha').textContent =
-    `${diasNombre[fechaSorteo.getDay()]}, ${fechaSorteo.getDate()} de ${mesesNombre[fechaSorteo.getMonth()]}`;
-
-  // Determinar si hay números cargados
-  const hayNumeros = provKeys.some(p => d[p].some(n => n !== '----' && n !== '——'));
-  const badge = document.getElementById('sorteo-badge');
-  const label = document.getElementById('badge-label');
-  const esDomingo = new Date().getDay() === 0;
-
-  if (esDomingo || hayNumeros) {
-    // Domingo siempre FINALIZADO. Con datos también FINALIZADO.
-    badge.className = 'sorteo-badge finalizado';
-    label.textContent = '✓ FINALIZADO';
-    label.className = 'done-label';
-  } else if (sorteo.live) {
-    // En vivo — SORTEANDO
-    badge.className = 'sorteo-badge sorteando';
-    label.textContent = 'SORTEANDO';
-    label.className = 'live-label';
-  } else {
-    // Sin datos y no en vivo — PENDIENTE
-    badge.className = 'sorteo-badge';
-    label.textContent = 'PENDIENTE';
-    label.className = 'done-label';
-  }
-
-  // Números
-  const grid = document.getElementById('numeros-grid');
-  let html = '<div class="pos-col">';
-  for (let i=1; i<=20; i++) html += `<div class="pos-label">${String(i).padStart(2,'0')}°</div>`;
-  html += '</div>';
-
-  provKeys.forEach(p => {
-    html += '<div class="num-col">';
-    d[p].forEach((num, idx) => {
-      const isEmpty = num === '----' || num === '——';
-      const isFirst = idx === 0 && !isEmpty;
-      let cls = 'num-cell';
-      if (isEmpty) cls += ' empty';
-      else if (isFirst) cls += ' primero';
-      else if (sorteo.live && !isEmpty) cls += ' live-num';
-      html += `<div class="${cls}">${num}</div>`;
-    });
-    html += '</div>';
-  });
-  grid.innerHTML = html;
-
-  // Cabezas
-  const now2 = new Date();
-  const totalMin2 = now2.getHours()*60 + now2.getMinutes();
-  const cabezasAMostrar = getCabezasAMostrar(sorteo.key, totalMin2);
-  let cabHtml = '';
-  cabezasAMostrar.forEach(s => {
-    cabHtml += `<div class="cabezas-section">
-      <div class="cabezas-section-title">${s.sorteo}</div>
-      <div class="cabeza-row"><div class="cabeza-prov">Chaqueña</div><div class="cabeza-num">${s.chaquena}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Ciudad</div><div class="cabeza-num">${s.ciudad}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Provincia</div><div class="cabeza-num">${s.provincia}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Corrientes</div><div class="cabeza-num">${s.corrientes}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Córdoba</div><div class="cabeza-num">${s.cordoba}</div></div>
-    </div>`;
-  });
-  document.getElementById('cabezas-content').innerHTML = cabHtml;
-}
-
-// =====================
-// FECHA (sin hora)
-// =====================
-// =====================
-// SUPABASE
-// =====================
-// Leer agencia de la URL (?agencia=670-15) o usar la principal por defecto
-const URL_AGENCIA_ID = new URLSearchParams(window.location.search).get('agencia') || '670-00';
-const URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
-
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 
-async function cargarDatosReales(fechaStr, sorteoKey) {
+// Auth via Supabase
+
+const PROVINCIAS = [
+  { key:'provincia',  label:'Provincia' },
+  { key:'ciudad',     label:'Ciudad' },
+  { key:'chaquena',   label:'Chaqueña' },
+  { key:'corrientes', label:'Corrientes' },
+  { key:'cordoba',    label:'Córdoba' },
+];
+
+const SORTEOS = ['previa','primera','matutina','vespertina','nocturna'];
+let sorteoActual = 'nocturna';
+let usuarioActual = null;
+let numerosPorProvincia = {}; // ej: { chaquena:20, ciudad:10, ... } — se completa según la agencia logueada
+
+async function cargarNumerosPorProvincia() {
+  numerosPorProvincia = {};
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.numeros_provincia&select=numeros_por_provincia`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const rows = await res.json();
-
-    // Armar mapa siempre — con ---- si no hay dato
-    const provMap = {};
-    provKeys.forEach(p => { provMap[p] = Array(20).fill('----'); });
-
-    if (rows && rows.length > 0) {
-      rows.forEach(r => {
-        if (provMap[r.provincia] && r.posicion >= 1 && r.posicion <= 20) {
-          provMap[r.provincia][r.posicion - 1] = r.numero;
-        }
-      });
+    if (rows && rows[0] && rows[0].numeros_por_provincia) {
+      numerosPorProvincia = rows[0].numeros_por_provincia;
     }
-    return provMap;
+  } catch(e) { console.error(e); }
+}
+
+function cantidadProvincia(key) {
+  return numerosPorProvincia[key] || 20; // 20 = default si el superadmin nunca configuró nada
+}
+
+// =====================
+// LOGIN
+// =====================
+function mostrarReset() {
+  document.querySelector('.login-box').style.display = 'none';
+  document.getElementById('reset-box').style.display = 'block';
+  document.getElementById('reset-email').value = '';
+  document.getElementById('reset-error').style.display = 'none';
+  document.getElementById('reset-ok').style.display = 'none';
+}
+
+function volverLogin() {
+  document.querySelector('.login-box').style.display = 'block';
+  document.getElementById('reset-box').style.display = 'none';
+}
+
+async function enviarReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) { 
+    document.getElementById('reset-error').style.display = 'block';
+    return; 
+  }
+  const btn = document.getElementById('btn-reset');
+  btn.innerHTML = '<div class="loading"></div> Enviando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 
+        'apikey': SUPABASE_KEY, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({ 
+        email,
+        redirect_to: 'https://alesaguir.github.io/quiniela-saguir/admin.html'
+      })
+    });
+    if (res.ok) {
+      document.getElementById('reset-ok').style.display = 'block';
+      document.getElementById('reset-error').style.display = 'none';
+    } else {
+      document.getElementById('reset-error').style.display = 'block';
+    }
   } catch(e) {
-    console.error('Error Supabase:', e);
-    const vacio = {};
-    provKeys.forEach(p => { vacio[p] = Array(20).fill('----'); });
-    return vacio;
+    document.getElementById('reset-error').style.display = 'block';
   }
+  btn.innerHTML = 'Enviar link';
+  btn.disabled = false;
 }
 
-async function cargarCabezasReales(fechaStr, sorteoKey) {
-  const now = new Date();
-  const diaSemana = now.getDay();
-  const tm = now.getHours()*60 + now.getMinutes();
+async function login() {
+  const email = document.getElementById('inp-user').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<div class="loading"></div> Ingresando...';
+  btn.disabled = true;
 
-  // Para cabezas del lunes: los sorteos "anteriores" son del SÁBADO (no del domingo)
-  // Para otros días: son del día anterior
-  const partes = fechaStr.split('-');
-  const fechaAnterior = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
-  if (diaSemana === 1) {
-    fechaAnterior.setDate(fechaAnterior.getDate() - 2); // sábado
-  } else if (diaSemana === 0) {
-    fechaAnterior.setDate(fechaAnterior.getDate() - 2); // viernes (domingo → sábado ya es fechaStr)
-  } else {
-    fechaAnterior.setDate(fechaAnterior.getDate() - 1);
-  }
-  const fechaAnteriorStr = fechaLocalStr(fechaAnterior);
+  try {
+    // 1. Autenticar con Supabase Auth
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
 
-  // Domingo: todos vienen del sábado (fechaStr)
-  const esDomingo = (diaSemana === 0);
-
-  // Sorteos que ya pasaron HOY (solo días normales, no domingo)
-  const pasadosEnFechaStr = [];
-  if (!esDomingo) {
-    if (tm >= 10*60+15) pasadosEnFechaStr.push('previa');
-    if (tm >= 12*60)    pasadosEnFechaStr.push('primera');
-    if (tm >= 15*60)    pasadosEnFechaStr.push('matutina');
-    if (tm >= 18*60)    pasadosEnFechaStr.push('vespertina');
-    if (tm >= 21*60)    pasadosEnFechaStr.push('nocturna');
-  }
-
-  for (const s of sorteoKeys) {
-    let fechaBuscar;
-    if (esDomingo) {
-      // Domingo: todos los sorteos del sábado (= fechaStr)
-      fechaBuscar = fechaStr;
-    } else {
-      // Lunes y resto de días:
-      // Si el sorteo ya pasó hoy y no es el que está en pantalla → buscar en fechaStr (hoy)
-      // Si no pasó hoy → buscar en fechaAnteriorStr (sábado para lunes, ayer para otros días)
-      const pasadoHoyNoEnPantalla = pasadosEnFechaStr.includes(s) && s !== sorteoKey;
-      fechaBuscar = pasadoHoyNoEnPantalla ? fechaStr : fechaAnteriorStr;
+    if (!res.ok || !data.access_token) {
+      document.getElementById('login-error').style.display = 'block';
+      btn.innerHTML = 'Ingresar';
+      btn.disabled = false;
+      return;
     }
 
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaBuscar}&sorteo=eq.${s}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      );
-      const rows = await res.json();
-      if (rows && rows.length > 0) {
-        const entrada = {};
-        rows.forEach(r => { entrada[r.provincia] = r.numero; });
-        cabezasTodas[s] = {
-          chaquena:    entrada.chaquena    || '----',
-          ciudad:      entrada.ciudad      || '----',
-          provincia:   entrada.provincia   || '----',
-          corrientes:  entrada.corrientes  || '----',
-          cordoba:     entrada.cordoba     || '----',
-        };
+    // 2. Obtener rol del usuario
+    const rolRes = await fetch(`${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,retencion_dias`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${data.access_token}`
       }
-    } catch(e) { console.error('Error cabeza', s, e); }
+    });
+    const rolData = await rolRes.json();
+
+    if (!rolData || rolData.length === 0 || !rolData[0].activo) {
+      document.getElementById('login-error').textContent = 'Usuario sin acceso al sistema.';
+      document.getElementById('login-error').style.display = 'block';
+      btn.innerHTML = 'Ingresar';
+      btn.disabled = false;
+      return;
+    }
+
+    usuarioActual = {
+      nombre: rolData[0].nombre,
+      rol: rolData[0].rol,
+      agencia_id: rolData[0].agencia_id || '670-00',
+      retencion_dias: rolData[0].retencion_dias || 365,
+      email: email,
+      token: data.access_token
+    };
+
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('chip-user').textContent = usuarioActual.nombre + (usuarioActual.rol==='superadmin'?' ⬟':'');
+    document.getElementById('login-error').style.display = 'none';
+    document.getElementById('login-error').textContent = 'Usuario o contraseña incorrectos';
+    await initApp();
+    verificarSuperadmin();
+    registrarActividad('Inicio de sesión', `${usuarioActual.nombre} inició sesión`);
+  } catch(e) {
+    console.error(e);
+    document.getElementById('login-error').style.display = 'block';
+  }
+  btn.innerHTML = 'Ingresar';
+  btn.disabled = false;
+}
+
+async function logout() {
+  // Cerrar sesión en Supabase
+  if (usuarioActual && usuarioActual.token) {
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    }).catch(()=>{});
+  }
+  usuarioActual = null;
+  registrarActividad('Cierre de sesión', `${usuarioActual?.nombre} cerró sesión`);
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('inp-pass').value = '';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('seccion-config').style.display = 'none';
+}
+
+// =====================
+// INIT APP
+// =====================
+async function initApp() {
+  // Fecha de hoy
+  const now = new Date();
+  const hoy = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  document.getElementById('fecha-sel').value = hoy;
+
+  // Detectar sorteo actual por hora
+  const nowTime = new Date();
+  const tm = nowTime.getHours()*60+nowTime.getMinutes();
+  if      (tm < 10*60+15) sorteoActual = 'nocturna';
+  else if (tm < 12*60)    sorteoActual = 'previa';
+  else if (tm < 15*60)    sorteoActual = 'primera';
+  else if (tm < 18*60)    sorteoActual = 'matutina';
+  else if (tm < 21*60)    sorteoActual = 'vespertina';
+  else                    sorteoActual = 'nocturna';
+
+  // Activar tab correcto
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tabs = document.querySelectorAll('.tab');
+  const idx = SORTEOS.indexOf(sorteoActual);
+  if (tabs[idx]) tabs[idx].classList.add('active');
+
+  await cargarNumerosPorProvincia(); // hay que tenerlo ANTES de armar el formulario
+  buildForm();
+  actualizarTitulos();
+  actualizarEstadoDia();
+  cargarExistentes();
+}
+
+function setTab(sorteo, el) {
+  sorteoActual = sorteo;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  // Limpiar número de sorteo al cambiar de tab
+  document.getElementById('num-sorteo').value = '';
+  buildForm();
+  actualizarTitulos();
+  cargarExistentes();
+}
+
+function actualizarTitulos() {
+  const nombres = {previa:'PREVIA',primera:'PRIMERA',matutina:'MATUTINA',vespertina:'VESPERTINA',nocturna:'NOCTURNA'};
+  document.getElementById('titulo-sorteo').textContent = nombres[sorteoActual];
+  document.getElementById('card-titulo').textContent = `📝 ${nombres[sorteoActual]} — Ingreso de Números`;
+  const fecha = new Date(document.getElementById('fecha-sel').value + 'T12:00:00');
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('subtitulo-fecha').textContent =
+    `${dias[fecha.getDay()]} ${fecha.getDate()} de ${meses[fecha.getMonth()]} de ${fecha.getFullYear()}`;
+}
+
+// =====================
+// BUILD FORM
+// =====================
+function buildForm() {
+  const container = document.getElementById('form-provincias');
+  let html = '';
+  PROVINCIAS.forEach(p => {
+    html += `<div class="prov-section">
+      <div class="prov-title">${p.label}</div>
+      <div class="num-grid">`;
+    for (let i = 1; i <= cantidadProvincia(p.key); i++) {
+      html += `<div class="num-group">
+        <div class="num-label">${i}°</div>
+        <input class="num-input" id="n_${p.key}_${i}" type="text" maxlength="4" placeholder="----"
+          oninput="onInput(this)" data-prov="${p.key}" data-pos="${i}">
+      </div>`;
+    }
+    html += `</div></div>`;
+  });
+  container.innerHTML = html;
+}
+
+function onInput(el) {
+  el.value = el.value.replace(/\D/g,'');
+  el.classList.toggle('filled', el.value.length > 0);
+  // Auto avanzar al siguiente campo
+  if (el.value.length === 4) {
+    const prov = el.dataset.prov;
+    const pos = parseInt(el.dataset.pos);
+    const next = document.getElementById(`n_${prov}_${pos+1}`);
+    if (next) next.focus();
+    else {
+      // Siguiente provincia
+      const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
+      if (provIdx < PROVINCIAS.length-1) {
+        const np = document.getElementById(`n_${PROVINCIAS[provIdx+1].key}_1`);
+        if (np) np.focus();
+      }
+    }
   }
 }
 
-// =====================
-async function cargarNumeroSorteo(fechaStr, sorteoKey) {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-    const el = document.getElementById('badge-nsorteo');
-    if (rows && rows.length > 0 && rows[0].numero_sorteo) {
-      el.textContent = `SORTEO N° ${rows[0].numero_sorteo}`;
-    } else {
-      el.textContent = '';
+function limpiarTodo() {
+  PROVINCIAS.forEach(p => {
+    for (let i=1;i<=cantidadProvincia(p.key);i++) {
+      const el = document.getElementById(`n_${p.key}_${i}`);
+      if (el) { el.value=''; el.classList.remove('filled'); }
     }
-  } catch(e) { console.error('Error nro sorteo:', e); }
+  });
 }
 
 // =====================
-// CONFIGURACIÓN VISUAL DINÁMICA
+// GUARDAR EN SUPABASE
 // =====================
-async function aplicarConfigVisual() {
+async function guardarTodo() {
+  const fecha = document.getElementById('fecha-sel').value;
+  const numSorteo = document.getElementById('num-sorteo').value;
+  if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
+  if (!numSorteo || numSorteo.length !== 5) { showToast('Ingresá el número de sorteo (5 cifras)','err'); return; }
+
+  const btn = document.getElementById('btn-guardar');
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+  btn.disabled = true;
+
+  const rows = [];
+  PROVINCIAS.forEach(p => {
+    for (let i=1;i<=cantidadProvincia(p.key);i++) {
+      const el = document.getElementById(`n_${p.key}_${i}`);
+      if (el && el.value.length === 4) {
+        rows.push({
+          fecha,
+          sorteo: sorteoActual,
+          provincia: p.key,
+          posicion: i,
+          numero: el.value,
+          agencia_id: usuarioActual.agencia_id
+        });
+      }
+    }
+  });
+
+  if (rows.length === 0) {
+    showToast('No hay números para guardar','err');
+    btn.innerHTML = '💾 Guardar y publicar en pantalla';
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    // Upsert — actualiza si ya existe, inserta si no
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/resultados?on_conflict=fecha,sorteo,provincia,posicion,agencia_id`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify(rows)
+    });
+
+    if (res.ok || res.status === 201) {
+      // Guardar número de sorteo
+      await fetch(`${SUPABASE_URL}/rest/v1/sorteos_info?on_conflict=fecha,sorteo,agencia_id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify([{ fecha, sorteo: sorteoActual, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
+      });
+      const nombreSorteo = sorteoActual.charAt(0).toUpperCase() + sorteoActual.slice(1);
+      showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
+      registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
+      actualizarEstadoDia();
+    } else {
+      const err = await res.text();
+      console.error(err);
+      showToast('Error al guardar. Revisá la consola.','err');
+    }
+  } catch(e) {
+    showToast('Error de conexión','err');
+    console.error(e);
+  }
+
+  btn.innerHTML = '💾 Guardar y publicar en pantalla';
+  btn.disabled = false;
+}
+
+// =====================
+// CARGAR EXISTENTES
+// =====================
+async function cargarExistentes() {
+  const fecha = document.getElementById('fecha-sel').value;
+  if (!fecha) return;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`,
+      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&order=posicion.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
     if (!rows || rows.length === 0) return;
-
-    const cfg = {};
     rows.forEach(r => {
-      cfg[r.clave] = r.clave === 'tv' ? r.valor : r.valor + 'px';
+      const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
+      if (el) { el.value = r.numero; el.classList.add('filled'); }
     });
+    // Cargar número de sorteo si existe
+    const resSorteo = await fetch(
+      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const sorteoInfo = await resSorteo.json();
+    if (sorteoInfo && sorteoInfo.length > 0) {
+      document.getElementById('num-sorteo').value = sorteoInfo[0].numero_sorteo;
+    }
+    showToast(`📋 Datos existentes cargados`,'ok');
+  } catch(e) { console.error(e); }
+}
 
-    let style = document.getElementById('estilo-dinamico');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'estilo-dinamico';
-      document.head.appendChild(style);
+// =====================
+// ESTADO DEL DÍA
+// =====================
+async function actualizarEstadoDia() {
+  const fecha = document.getElementById('fecha-sel').value;
+  if (!fecha) return;
+  const nombres = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
+  const container = document.getElementById('estado-dia');
+  let html = '';
+  for (const s of SORTEOS) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${s}&agencia_id=eq.${usuarioActual.agencia_id}&select=count`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer':'count=exact' } }
+      );
+      const count = parseInt(res.headers.get('content-range')?.split('/')[1] || '0');
+      const tieneDatos = count > 0;
+      html += `<div class="estado-cell">
+        <div class="estado-nombre">${nombres[s]}</div>
+        <span class="pill ${tieneDatos?'pill-green':'pill-gray'}">${tieneDatos?'✓ Cargado':'Pendiente'}</span>
+      </div>`;
+    } catch(e) {
+      html += `<div class="estado-cell"><div class="estado-nombre">${nombres[s]}</div><span class="pill pill-gray">—</span></div>`;
+    }
+  }
+  container.innerHTML = html;
+}
+
+// =====================
+// REGISTRO DE ACTIVIDAD
+// =====================
+async function registrarActividad(accion, detalle) {
+  try {
+    const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
+    await fetch(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual?.token || SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{
+        user_id: null,
+        email: usuarioActual?.email || '',
+        nombre: usuarioActual?.nombre || '',
+        accion,
+        detalle,
+        dispositivo
+      }])
+    });
+  } catch(e) { console.error('Error log:', e); }
+}
+
+// =====================
+// GESTIÓN DE SUBAGENCIAS
+// =====================
+let nivelSeleccionado = null;
+
+function seleccionarNivel(nivel) {
+  nivelSeleccionado = nivel;
+  document.getElementById('nivel-1-card').style.border = nivel === 1 ? '2px solid var(--blue)' : '2px solid var(--border)';
+  document.getElementById('nivel-2-card').style.border = nivel === 2 ? '2px solid var(--gold)' : '2px solid var(--border)';
+  document.getElementById('campo-agencia-id').style.display = nivel === 1 ? 'block' : 'none';
+  document.getElementById('campo-retencion').style.display = nivel === 1 ? 'block' : 'none';
+}
+
+function mostrarFormNuevaAgencia() {
+  nivelSeleccionado = null;
+  document.getElementById('nivel-1-card').style.border = '2px solid var(--border)';
+  document.getElementById('nivel-2-card').style.border = '2px solid var(--border)';
+  document.getElementById('campo-agencia-id').style.display = 'none';
+  document.getElementById('campo-retencion').style.display = 'none';
+  ['nueva-agencia-nombre','nueva-agencia-email','nueva-agencia-pass','nueva-agencia-id'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('nueva-agencia-retencion').value = '2';
+  const f = document.getElementById('form-nueva-agencia');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function crearSubagencia() {
+  if (!nivelSeleccionado) { showToast('Seleccioná un nivel de acceso','err'); return; }
+
+  const nombre     = document.getElementById('nueva-agencia-nombre').value.trim();
+  const email      = document.getElementById('nueva-agencia-email').value.trim();
+  const pass       = document.getElementById('nueva-agencia-pass').value.trim();
+  const agencia_id = nivelSeleccionado === 1
+    ? document.getElementById('nueva-agencia-id').value.trim().toUpperCase()
+    : '670-00';
+  const retencion  = nivelSeleccionado === 1
+    ? parseInt(document.getElementById('nueva-agencia-retencion').value) || 2
+    : 365;
+
+  if (!nombre || !email || !pass) { showToast('Completá todos los campos','err'); return; }
+  if (pass.length < 6) { showToast('La contraseña debe tener al menos 6 caracteres','err'); return; }
+  if (nivelSeleccionado === 1 && !agencia_id) { showToast('Ingresá el código de subagencia','err'); return; }
+
+  const rol = nivelSeleccionado === 1 ? 'subagente' : 'admin';
+
+  // Generar SQL para ejecutar en Supabase
+  const sql = `-- 1. Ejecutar en Supabase SQL Editor:\n-- Crear usuario en Auth (reemplazá la contraseña):\nSELECT id FROM auth.users WHERE email = '${email}';\n\n-- Si no existe, crealo desde Authentication > Users > Add user\n-- Email: ${email}\n-- Password: ${pass}\n\n-- 2. Luego ejecutar esto con el UUID del usuario creado:\nINSERT INTO usuarios_roles (user_id, email, nombre, rol, agencia_id, retencion_dias, activo)\nVALUES ('[UUID-DEL-USUARIO]', '${email}', '${nombre}', '${rol}', '${agencia_id}', ${retencion}, true);`;
+
+  // Mostrar modal con instrucciones
+  document.getElementById('modal-sql').style.display = 'flex';
+  document.getElementById('modal-sql-content').textContent = 
+    `Para crear este usuario, seguí estos pasos:\n\n` +
+    `1. Abrí Supabase → Authentication → Users → Add user\n` +
+    `   Email: ${email}\n   Password: ${pass}\n\n` +
+    `2. Copiá el UUID del usuario creado\n\n` +
+    `3. Ejecutá este SQL en Supabase → SQL Editor:\n\n` +
+    `INSERT INTO usuarios_roles (user_id, email, nombre, rol, agencia_id, retencion_dias, activo)\n` +
+    `VALUES ('[UUID]', '${email}', '${nombre}', '${rol}', '${agencia_id}', ${retencion}, true);`;
+}
+
+async function cargarSubagencias() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=neq.superadmin&order=rol.desc,agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    const lista = document.getElementById('lista-subagencias');
+
+    if (!rows || rows.length === 0) {
+      lista.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay subagencias creadas todavía.</div>';
+      return;
     }
 
-    style.textContent = `
-      .num-cell { font-size: ${cfg.normal || '22px'} !important; }
-      .num-cell.primero { font-size: ${cfg.primero || '34px'} !important; }
-      .cabeza-num { font-size: ${cfg.cabeza || '18px'} !important; }
-      .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
-      .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
+    lista.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Agencia</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Nombre</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Email</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Nivel</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Retención</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Estado</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">URL Smart TV</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+              <td style="padding:12px 10px;font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);">${r.agencia_id}</td>
+              <td style="padding:12px 10px;font-size:14px;">${r.nombre}</td>
+              <td style="padding:12px 10px;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;">${r.email}</td>
+              <td style="padding:12px 10px;font-size:13px;">${r.retencion_dias} días</td>
+              <td style="padding:12px 10px;">
+                <span style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;
+                  background:${r.rol==='admin' ? 'rgba(240,180,41,0.12)' : 'rgba(67,97,238,0.12)'};
+                  color:${r.rol==='admin' ? 'var(--gold)' : 'var(--blue)'};">
+                  ${r.rol==='admin' ? 'Nivel 2 — Admin' : 'Nivel 1 — Subagente'}
+                </span>
+              </td>
+              <td style="padding:12px 10px;">
+                <span style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;
+                  background:${r.activo ? 'rgba(46,196,182,0.12)' : 'rgba(230,57,70,0.12)'};
+                  color:${r.activo ? '#2ec4b6' : '#e63946'};">
+                  ${r.activo ? '✓ Activo' : '✗ Suspendido'}
+                </span>
+              </td>
+              <td style="padding:12px 10px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;">
+                    .../?agencia=${r.agencia_id}
+                  </span>
+                  <button onclick="copiarURL('${r.agencia_id}')"
+                    style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;">
+                    📋
+                  </button>
+                </div>
+              </td>
+              <td style="padding:12px 10px;">
+                <div style="display:flex;gap:6px;">
+                  <button onclick="toggleAgencia('${r.user_id}', ${r.activo})"
+                    style="background:${r.activo ? 'rgba(230,57,70,0.1)' : 'rgba(46,196,182,0.1)'};
+                    border:1px solid ${r.activo ? 'rgba(230,57,70,0.3)' : 'rgba(46,196,182,0.3)'};
+                    color:${r.activo ? '#e63946' : '#2ec4b6'};
+                    border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;">
+                    ${r.activo ? '🚫 Suspender' : '✅ Activar'}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
     `;
-  } catch(e) { console.error('Error config visual:', e); }
+  } catch(e) { console.error(e); }
+}
+
+function copiarURL(agencia_id) {
+  const url = `https://alesaguir.github.io/quiniela-saguir/?agencia=${agencia_id}`;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast(`📋 URL copiada: ${url}`,'ok');
+  });
+}
+
+async function toggleAgencia(user_id, activo) {
+  const nuevoEstado = !activo;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ activo: nuevoEstado })
+      }
+    );
+    if (res.ok) {
+      showToast(nuevoEstado ? '✅ Subagencia activada' : '🚫 Subagencia suspendida','ok');
+      cargarSubagencias();
+    }
+  } catch(e) { showToast('Error','err'); }
+}
+
+async function cargarActividad() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/actividad_log?order=creado_en.desc&limit=50`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    const lista = document.getElementById('lista-actividad');
+
+    if (!rows || rows.length === 0) {
+      lista.innerHTML = '<div style="color:var(--muted);font-size:13px;">Sin actividad registrada.</div>';
+      return;
+    }
+
+    lista.innerHTML = rows.map(r => {
+      const fecha = new Date(r.creado_en);
+      const fechaStr = `${String(fecha.getDate()).padStart(2,'0')}/${String(fecha.getMonth()+1).padStart(2,'0')} ${String(fecha.getHours()).padStart(2,'0')}:${String(fecha.getMinutes()).padStart(2,'0')}`;
+      const iconos = {
+        'Inicio de sesión': '🟢',
+        'Cierre de sesión': '🔴',
+        'Carga de números': '📝'
+      };
+      const icono = iconos[r.accion] || '📋';
+      const colorAccion = r.accion === 'Inicio de sesión' ? 'var(--green)'
+        : r.accion === 'Cierre de sesión' ? 'var(--red)'
+        : 'var(--gold)';
+      return `
+        <div style="display:grid;grid-template-columns:80px 20px 120px 1fr auto;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;">${fechaStr}</div>
+          <div style="font-size:16px;">${icono}</div>
+          <div style="font-size:13px;font-weight:600;color:${colorAccion};">${r.accion}</div>
+          <div style="font-size:12px;color:var(--text);">${r.detalle}</div>
+          <div style="font-size:10px;color:var(--muted);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.dispositivo || ''}">${(r.dispositivo || '').split('—')[0].trim()}</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) { console.error(e); }
 }
 
 // =====================
-// FECHA DE CONSULTA — centralizada
+// CONFIGURACIÓN VISUAL
 // =====================
-function fechaLocalStr(d) {
-  // Usa fecha LOCAL (Argentina) en lugar de UTC para evitar desfase horario
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  return `${yyyy}-${mm}-${dd}`;
+const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'ancho-cabezas':'240', tv:'1.0' };
+
+function aplicarMultiplicadorTV() {
+  const mult = parseFloat(document.getElementById('visual-tv-size').value);
+  ['primero','normal','cabeza','prov'].forEach(k => {
+    const base = parseInt(DEFAULTS_VISUAL[k]);
+    const nuevo = Math.round(base * mult);
+    const slider = document.getElementById(`slider-${k}`);
+    if (slider) { slider.value = nuevo; actualizarSlider(k, nuevo); }
+  });
 }
 
-function getFechaConsulta() {
-  const now = new Date();
-  const diaSemana = now.getDay(); // 0=domingo
-  const tm = now.getHours()*60 + now.getMinutes();
-  const fecha = new Date();
+async function cargarAgenciasEnSelector() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&activo=eq.true&select=agencia_id,nombre`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    const sel = document.getElementById('visual-agencia-sel');
+    if (!rows || rows.length === 0) return;
+    const agenciasVistas = new Set(['670-00']);
+    rows.forEach(r => {
+      if (!agenciasVistas.has(r.agencia_id)) {
+        agenciasVistas.add(r.agencia_id);
+        const opt = document.createElement('option');
+        opt.value = r.agencia_id;
+        opt.textContent = `${r.agencia_id} — ${r.nombre}`;
+        sel.appendChild(opt);
+      }
+    });
+  } catch(e) { console.error(e); }
+}
 
-  // Domingo: mostrar nocturna del sábado
-  if (diaSemana === 0) {
-    fecha.setDate(fecha.getDate() - 1);
-    return fechaLocalStr(fecha);
+function actualizarSlider(tipo, valor) {
+  const valEl = document.getElementById(`val-${tipo}`);
+  if (valEl) valEl.textContent = valor + 'px';
+  const previewEl = document.getElementById(`preview-${tipo}`);
+  if (previewEl) previewEl.style.fontSize = valor + 'px';
+}
+
+function buildCantidadProvinciasGrid() {
+  const cont = document.getElementById('grid-cantidad-provincias');
+  if (!cont) return;
+  cont.innerHTML = PROVINCIAS.map(p => `
+    <div>
+      <label class="form-label">${p.label}</label>
+      <input type="number" min="1" max="20" class="form-input" id="cant_${p.key}" value="20">
+    </div>
+  `).join('');
+}
+
+async function cargarConfigVisual() {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
+    if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
+    else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
+  });
+  // Reset cantidades por provincia a 20 antes de traer lo guardado
+  PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return;
+    rows.forEach(r => {
+      if (r.clave === 'tv') {
+        const sel = document.getElementById('visual-tv-size');
+        if (sel) sel.value = r.valor;
+      } else if (r.clave === 'numeros_provincia' && r.numeros_por_provincia) {
+        Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
+          const el = document.getElementById(`cant_${k}`);
+          if (el) el.value = v;
+        });
+      } else {
+        const slider = document.getElementById(`slider-${r.clave}`);
+        if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
+      }
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function guardarVisual() {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  const claves = ['primero','normal','cabeza','prov','ancho-cabezas'];
+  const rows = claves.map(c => ({
+    agencia_id: agencia, clave: c,
+    valor: document.getElementById(`slider-${c}`).value,
+    actualizado_por: usuarioActual.nombre
+  }));
+  rows.push({ agencia_id: agencia, clave: 'tv',
+    valor: document.getElementById('visual-tv-size').value,
+    actualizado_por: usuarioActual.nombre });
+
+  // Cantidad de números por provincia (se guarda como jsonb en una fila dedicada)
+  const nuevaCantidadPorProvincia = {};
+  PROVINCIAS.forEach(p => {
+    const el = document.getElementById(`cant_${p.key}`);
+    let v = parseInt(el?.value, 10);
+    if (isNaN(v)) v = 20;
+    v = Math.min(20, Math.max(1, v));
+    nuevaCantidadPorProvincia[p.key] = v;
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'numeros_provincia',
+    valor: '1',
+    numeros_por_provincia: nuevaCantidadPorProvincia,
+    actualizado_por: usuarioActual.nombre
+  });
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
+      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify(rows) }
+    );
+    if (res.ok || res.status === 201) { showToast(`✅ Apariencia de ${agencia} guardada`,'ok'); }
+    else { showToast('Error al guardar','err'); }
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+async function resetearVisual() {
+  Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
+    if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
+    else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
+  });
+  await guardarVisual();
+}
+
+// =====================
+// MOSTRAR SECCIÓN CONFIG SOLO A SUPERADMIN
+// =====================
+function verificarSuperadmin() {
+  if (usuarioActual && usuarioActual.rol === 'superadmin') {
+    document.getElementById('seccion-config').style.display = 'block';
+    document.getElementById('seccion-subagencias').style.display = 'block';
+    document.getElementById('seccion-visual').style.display = 'block';
+    buildConfigGrids();
+    buildCantidadProvinciasGrid();
+    cargarConfiguraciones();
+    cargarSubagencias();
+    cargarActividad();
+    cargarConfigVisual();
+    cargarAgenciasEnSelector();
+  } else {
+    document.getElementById('seccion-config').style.display = 'none';
+    document.getElementById('seccion-subagencias').style.display = 'none';
+    document.getElementById('seccion-visual').style.display = 'none';
+  }
+}
+
+const SORTEOS_CONFIG = [
+  { key:'previa',     label:'Previa',     hora:'10:15' },
+  { key:'primera',    label:'Primera',    hora:'12:00' },
+  { key:'matutina',   label:'Matutina',   hora:'15:00' },
+  { key:'vespertina', label:'Vespertina', hora:'18:00' },
+  { key:'nocturna',   label:'Nocturna',   hora:'21:00' },
+];
+
+function buildConfigGrids() {
+  // Grid de sorteos activos
+  const gridSorteos = document.getElementById('cfg-sorteos-grid');
+  gridSorteos.innerHTML = SORTEOS_CONFIG.map(s => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${s.label}</div>
+      <label style="display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="cfg-activo-${s.key}" checked
+          style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;">
+        <span style="font-size:12px;color:var(--text)">Activo</span>
+      </label>
+    </div>
+  `).join('');
+
+  // Grid de horarios
+  const gridHorarios = document.getElementById('cfg-horarios-grid');
+  gridHorarios.innerHTML = SORTEOS_CONFIG.map(s => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${s.label}</div>
+      <input type="time" id="cfg-hora-${s.key}" value="${s.hora}"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--gold);border-radius:8px;padding:6px 8px;font-family:'Bebas Neue',sans-serif;font-size:18px;text-align:center;width:100%;outline:none;">
+    </div>
+  `).join('');
+}
+
+async function guardarConfiguracion() {
+  const confirmacion = document.getElementById('cfg-confirmacion').value.trim().toUpperCase();
+  if (confirmacion !== 'CONFIRMAR') {
+    showToast('Escribí CONFIRMAR para guardar','err');
+    return;
   }
 
-  // Antes de las 10:15 cualquier día: nocturna del día anterior
-  if (tm < 10*60+15) {
-    fecha.setDate(fecha.getDate() - 1);
-    return fechaLocalStr(fecha);
+  const fecha = document.getElementById('cfg-fecha').value;
+  const descripcion = document.getElementById('cfg-descripcion').value.trim();
+  if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
+  if (!descripcion) { showToast('Agregá una descripción','err'); return; }
+
+  const rows = SORTEOS_CONFIG.map(s => ({
+    fecha_especial: fecha,
+    sorteo: s.key,
+    activo: document.getElementById(`cfg-activo-${s.key}`).checked,
+    hora_inicio: document.getElementById(`cfg-hora-${s.key}`).value,
+    descripcion: descripcion,
+    creado_por: usuarioActual.nombre
+  }));
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?on_conflict=fecha_especial,sorteo`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(rows)
+      }
+    );
+    if (res.ok || res.status === 201) {
+      showToast('✅ Configuración guardada correctamente','ok');
+      document.getElementById('cfg-confirmacion').value = '';
+      cargarConfiguraciones();
+    } else {
+      showToast('Error al guardar','err');
+    }
+  } catch(e) {
+    showToast('Error de conexión','err');
+    console.error(e);
   }
-
-  return fechaLocalStr(fecha);
 }
 
-// INIT
-// =====================
-async function init() {
-  const sorteo = getSorteoActual();
-  const fechaStr = getFechaConsulta();
-  
-  datos[sorteo.key] = await cargarDatosReales(fechaStr, sorteo.key);
-  await cargarCabezasReales(fechaStr, sorteo.key);
-  await cargarNumeroSorteo(fechaStr, sorteo.key);
-  await aplicarConfigVisual();
-  render();
+async function cargarConfiguraciones() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?order=fecha_especial.desc&limit=50`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    const lista = document.getElementById('cfg-lista');
 
-  // Actualizar cada 30 segundos
-  setInterval(async () => {
-    const s = getSorteoActual();
-    const fs = getFechaConsulta();
-    datos[s.key] = await cargarDatosReales(fs, s.key);
-    await cargarCabezasReales(fs, s.key);
-    await cargarNumeroSorteo(fs, s.key);
-    await aplicarConfigVisual();
-    render();
-  }, 30000);
+    if (!rows || rows.length === 0) {
+      lista.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay configuraciones guardadas.</div>';
+      return;
+    }
+
+    // Agrupar por fecha y descripción
+    const grupos = {};
+    rows.forEach(r => {
+      const key = `${r.fecha_especial}___${r.descripcion}`;
+      if (!grupos[key]) grupos[key] = { fecha: r.fecha_especial, descripcion: r.descripcion, creado_por: r.creado_por, sorteos: [] };
+      grupos[key].sorteos.push(r);
+    });
+
+    lista.innerHTML = Object.values(grupos).map(g => {
+      const fecha = new Date(g.fecha + 'T12:00:00');
+      const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const fechaStr = `${dias[fecha.getDay()]} ${fecha.getDate()} de ${meses[fecha.getMonth()]}`;
+
+      const sorteosBadges = g.sorteos.map(s => `
+        <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;
+          background:${s.activo ? 'rgba(46,196,182,0.12)' : 'rgba(230,57,70,0.12)'};
+          color:${s.activo ? '#2ec4b6' : '#e63946'};">
+          ${s.sorteo.charAt(0).toUpperCase()+s.sorteo.slice(1)} ${s.activo ? `✓ ${s.hora_inicio}` : '✗'}
+        </span>
+      `).join('');
+
+      return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div>
+              <div style="font-weight:600;font-size:14px;">${g.descripcion}</div>
+              <div style="font-size:12px;color:var(--muted);">${fechaStr} · Configurado por ${g.creado_por}</div>
+            </div>
+            <button onclick="eliminarConfiguracion('${g.fecha}')"
+              style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);color:#e63946;
+              border-radius:8px;padding:5px 12px;cursor:pointer;font-size:12px;">
+              🗑 Eliminar
+            </button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">${sorteosBadges}</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+  }
 }
 
-init();
+async function eliminarConfiguracion(fecha) {
+  if (!confirm(`¿Eliminar la configuración del ${fecha}? Esta acción no se puede deshacer.`)) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=eq.${fecha}`,
+      {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      }
+    );
+    if (res.ok) {
+      showToast('✅ Configuración eliminada','ok');
+      cargarConfiguraciones();
+    }
+  } catch(e) { showToast('Error al eliminar','err'); }
+}
+
+function limpiarConfiguracion() {
+  document.getElementById('cfg-fecha').value = '';
+  document.getElementById('cfg-descripcion').value = '';
+  document.getElementById('cfg-confirmacion').value = '';
+  SORTEOS_CONFIG.forEach(s => {
+    document.getElementById(`cfg-activo-${s.key}`).checked = true;
+    document.getElementById(`cfg-hora-${s.key}`).value = s.hora;
+  });
+}
+let toastTimer;
+function showToast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${tipo} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
 </script>
 </body>
 </html>
