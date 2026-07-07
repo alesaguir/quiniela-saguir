@@ -665,8 +665,8 @@ function initApp() {
   document.getElementById('fecha-sel').value = hoy;
 
   // Detectar sorteo actual por hora
-  const now = new Date();
-  const tm = now.getHours()*60+now.getMinutes();
+  const nowTime = new Date();
+  const tm = nowTime.getHours()*60+nowTime.getMinutes();
   if      (tm < 10*60+15) sorteoActual = 'nocturna';
   else if (tm < 12*60)    sorteoActual = 'previa';
   else if (tm < 15*60)    sorteoActual = 'primera';
