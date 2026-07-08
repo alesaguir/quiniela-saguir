@@ -405,6 +405,31 @@ async function cargarDuracionSorteando() {
   } catch(e) { console.error('Error cargando duración de SORTEANDO:', e); }
 }
 
+// Minutos que un número recién cargado (o corregido) se muestra en verde.
+// Un solo valor para los 5 sorteos. 5 = default si nunca se configuró.
+let duracionVerdeMin = 5;
+
+async function cargarDuracionVerde() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.verde_minutos&select=valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const filas = await res.json();
+    const minutos = filas && filas[0] ? parseInt(filas[0].valor, 10) : NaN;
+    if (!isNaN(minutos)) duracionVerdeMin = minutos;
+  } catch(e) { console.error('Error cargando duración de verde:', e); }
+}
+
+// ¿Este número puntual (provincia + posición) se cargó/corrigió hace menos
+// de "duracionVerdeMin" minutos? Si no hay timestamp, no se resalta.
+function esNumeroRecienCargado(provKey, idx) {
+  const ts = ultimaCargaTimestamps[provKey]?.[idx];
+  if (!ts) return false;
+  const minutosTranscurridos = (Date.now() - ts) / 60000;
+  return minutosTranscurridos < duracionVerdeMin;
+}
+
 function getSorteoActual() {
   const now = new Date();
   const totalMin = now.getHours() * 60 + now.getMinutes();
@@ -480,7 +505,7 @@ function render() {
       let cls = 'num-cell';
       if (isEmpty) cls += ' empty';
       else if (isFirst) cls += ' primero';
-      else if (sorteo.live && !isEmpty) cls += ' live-num';
+      else if (!isEmpty && esNumeroRecienCargado(p, idx)) cls += ' live-num';
       html += `<div class="${cls}">${num}</div>`;
     }
     html += '</div>';
@@ -533,30 +558,36 @@ async function resolverAgenciaDesdeCodigoAcceso() {
   } catch(e) { console.error('Error resolviendo código de acceso:', e); }
 }
 
+let ultimaCargaTimestamps = {}; // ultimaCargaTimestamps[provincia][idx] = milisegundos desde epoch, o null
+
 async function cargarDatosReales(fechaStr, sorteoKey) {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc`,
+      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc&select=provincia,posicion,numero,actualizado_en`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
 
     // Armar mapa siempre — con ---- si no hay dato
     const provMap = {};
-    provKeys.forEach(p => { provMap[p] = Array(20).fill('----'); });
+    const tsMap = {};
+    provKeys.forEach(p => { provMap[p] = Array(20).fill('----'); tsMap[p] = Array(20).fill(null); });
 
     if (rows && rows.length > 0) {
       rows.forEach(r => {
         if (provMap[r.provincia] && r.posicion >= 1 && r.posicion <= 20) {
           provMap[r.provincia][r.posicion - 1] = r.numero;
+          tsMap[r.provincia][r.posicion - 1] = r.actualizado_en ? new Date(r.actualizado_en).getTime() : null;
         }
       });
     }
+    ultimaCargaTimestamps = tsMap;
     return provMap;
   } catch(e) {
     console.error('Error Supabase:', e);
     const vacio = {};
     provKeys.forEach(p => { vacio[p] = Array(20).fill('----'); });
+    ultimaCargaTimestamps = {};
     return vacio;
   }
 }
@@ -830,6 +861,7 @@ function getFechaConsulta() {
 // =====================
 async function calcularYCargarSlotEfectivo() {
   await cargarDuracionSorteando(); // hay que tenerlo ANTES de llamar a getSorteoActual()
+  await cargarDuracionVerde();
   const natural = getSorteoActual();
   const fechaNatural = getFechaConsulta();
 
