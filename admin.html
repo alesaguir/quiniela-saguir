@@ -473,6 +473,17 @@
             </div>
           </div>
 
+          <!-- MINUTOS EN VERDE -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Minutos en verde después de cargado</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+              Cuánto tiempo se resalta en verde un número recién cargado o corregido, en la pantalla. Un solo valor para los 5 sorteos.
+            </div>
+            <div style="max-width:200px;">
+              <input type="number" min="1" max="1440" class="form-input" id="verde_minutos" value="5">
+            </div>
+          </div>
+
           <!-- NOMBRES DE PROVINCIA PERSONALIZADOS -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Nombres de provincia</div>
@@ -1831,6 +1842,8 @@ async function cargarConfigVisual() {
   });
   // Reset de duraciones de SORTEANDO a 60 min antes de traer lo guardado
   SORTEOS.forEach(s => { const el = document.getElementById(`sorteando_${s}`); if (el) el.value = 60; });
+  // Reset de minutos en verde a 5 antes de traer lo guardado
+  { const el = document.getElementById('verde_minutos'); if (el) el.value = 5; }
   // Reset de nombres de provincia a vacío (= usa el original) antes de traer lo guardado
   PROVINCIAS.forEach(p => { const el = document.getElementById(`nombre_prov_${p.key}`); if (el) el.value = ''; });
   try {
@@ -1846,6 +1859,9 @@ async function cargarConfigVisual() {
           if (sel) sel.value = r.valor;
         } else if (r.clave.startsWith('sorteando_')) {
           const el = document.getElementById(r.clave);
+          if (el) el.value = r.valor;
+        } else if (r.clave === 'verde_minutos') {
+          const el = document.getElementById('verde_minutos');
           if (el) el.value = r.valor;
         } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
           Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
@@ -1909,6 +1925,19 @@ async function guardarVisual() {
       actualizado_por: usuarioActual.nombre
     });
   });
+
+  // Minutos en verde después de cargado (un solo valor para los 5 sorteos)
+  {
+    const el = document.getElementById('verde_minutos');
+    let minutos = parseInt(el?.value, 10);
+    if (isNaN(minutos) || minutos < 1) minutos = 5;
+    rows.push({
+      agencia_id: agencia, clave: 'verde_minutos',
+      valor: String(minutos),
+      numeros_por_provincia: null,
+      actualizado_por: usuarioActual.nombre
+    });
+  }
 
   // Nombres de provincia personalizados (vacío = usar el original)
   const nombresProv = {};
