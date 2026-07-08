@@ -235,11 +235,11 @@
   <div class="col-tabla">
     <div class="provincias-header">
       <div class="prov-cell label">N°</div>
-      <div class="prov-cell">CHAQUEÑA</div>
-      <div class="prov-cell">CIUDAD</div>
-      <div class="prov-cell">PROVINCIA</div>
-      <div class="prov-cell">CORRIENTES</div>
-      <div class="prov-cell">CÓRDOBA</div>
+      <div class="prov-cell" id="header-chaquena">CHAQUEÑA</div>
+      <div class="prov-cell" id="header-ciudad">CIUDAD</div>
+      <div class="prov-cell" id="header-provincia">PROVINCIA</div>
+      <div class="prov-cell" id="header-corrientes">CORRIENTES</div>
+      <div class="prov-cell" id="header-cordoba">CÓRDOBA</div>
     </div>
     <div class="numeros-wrap">
       <div class="numeros-grid" id="numeros-grid"></div>
@@ -264,6 +264,16 @@
 const datos = {};
 const sorteoKeys = ['previa','primera','matutina','vespertina','nocturna'];
 const provKeys   = ['chaquena','ciudad','provincia','corrientes','cordoba'];
+
+// Nombres de provincia mostrados en pantalla — se pueden personalizar por agencia desde el superadmin
+let nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
+
+function aplicarNombresProvinciaAlHeader() {
+  provKeys.forEach(k => {
+    const cel = document.getElementById(`header-${k}`);
+    if (cel) cel.textContent = (nombresProvinciaTV[k] || k).toUpperCase();
+  });
+}
 let cantidadTV = {}; // ej: { chaquena:20, corrientes:10, ... } — se completa desde configuracion_visual
 
 function cantidadProvinciaTV(key) {
@@ -373,9 +383,32 @@ function fechaMasRecienteParaSlot(slotKey, fechaEfectiva, keyEfectivo) {
 // =====================
 // LÓGICA HORARIA
 // =====================
+// Duración configurable (en minutos) de la leyenda SORTEANDO, por tipo de sorteo.
+// Se carga desde configuracion_visual antes de calcular el slot de cada ciclo.
+// 60 = default si el superadmin nunca configuró nada para esta agencia.
+let duracionSorteandoMin = { previa:60, primera:60, matutina:60, vespertina:60, nocturna:60 };
+
+async function cargarDuracionSorteando() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=in.(sorteando_previa,sorteando_primera,sorteando_matutina,sorteando_vespertina,sorteando_nocturna)&select=clave,valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const filas = await res.json();
+    (filas || []).forEach(r => {
+      const sorteo = r.clave.replace('sorteando_', '');
+      const minutos = parseInt(r.valor, 10);
+      if (!isNaN(minutos) && duracionSorteandoMin.hasOwnProperty(sorteo)) {
+        duracionSorteandoMin[sorteo] = minutos;
+      }
+    });
+  } catch(e) { console.error('Error cargando duración de SORTEANDO:', e); }
+}
+
 function getSorteoActual() {
   const now = new Date();
   const totalMin = now.getHours() * 60 + now.getMinutes();
+  const d = duracionSorteandoMin;
 
   // Domingo: mostrar nocturna del sábado
   if (now.getDay() === 0) return { key:'nocturna', label:'NOCTURNA', live:false };
@@ -383,11 +416,11 @@ function getSorteoActual() {
   if (now.getDay() === 1 && totalMin < 10*60+15) return { key:'nocturna', label:'NOCTURNA', live:false };
 
   if (totalMin < 10*60+15) return { key:'nocturna',    label:'NOCTURNA',    live:false };
-  if (totalMin < 12*60)    return { key:'previa',      label:'PREVIA',      live: totalMin < 10*60+30 };
-  if (totalMin < 15*60)    return { key:'primera',     label:'PRIMERA',     live: totalMin < 12*60+15 };
-  if (totalMin < 18*60)    return { key:'matutina',    label:'MATUTINA',    live: totalMin < 15*60+15 };
-  if (totalMin < 21*60)    return { key:'vespertina',  label:'VESPERTINA',  live: totalMin < 18*60+15 };
-  return                          { key:'nocturna',    label:'NOCTURNA',    live: totalMin < 21*60+15 };
+  if (totalMin < 12*60)    return { key:'previa',      label:'PREVIA',      live: totalMin < 10*60+15 + d.previa };
+  if (totalMin < 15*60)    return { key:'primera',     label:'PRIMERA',     live: totalMin < 12*60 + d.primera };
+  if (totalMin < 18*60)    return { key:'matutina',    label:'MATUTINA',    live: totalMin < 15*60 + d.matutina };
+  if (totalMin < 21*60)    return { key:'vespertina',  label:'VESPERTINA',  live: totalMin < 18*60 + d.vespertina };
+  return                          { key:'nocturna',    label:'NOCTURNA',    live: totalMin < 21*60 + d.nocturna };
 }
 
 
@@ -409,27 +442,18 @@ function render() {
   document.getElementById('badge-fecha').textContent =
     `${diasNombre[fechaSorteo.getDay()]}, ${fechaSorteo.getDate()} de ${mesesNombre[fechaSorteo.getMonth()]}`;
 
-  // Determinar si hay números cargados
-  const hayNumeros = provKeys.some(p => d[p].some(n => n !== '----' && n !== '——'));
   const badge = document.getElementById('sorteo-badge');
   const label = document.getElementById('badge-label');
-  const esDomingo = fechaSorteo.getDay() === 0; // no debería pasar nunca (domingo siempre se salta), queda como resguardo
 
-  if (esDomingo || hayNumeros) {
-    // Domingo siempre FINALIZADO. Con datos también FINALIZADO (incluye feriados: al mostrar
-    // el último sorteo real, ya tiene números cargados, así que cae acá directamente).
-    badge.className = 'sorteo-badge finalizado';
-    label.textContent = '✓ FINALIZADO';
-    label.className = 'done-label';
-  } else if (sorteo.live) {
-    // En vivo — SORTEANDO
+  if (sorteo.live) {
+    // Dentro de la ventana configurada — SORTEANDO
     badge.className = 'sorteo-badge sorteando';
     label.textContent = 'SORTEANDO';
     label.className = 'live-label';
   } else {
-    // Sin datos y no en vivo — PENDIENTE
-    badge.className = 'sorteo-badge';
-    label.textContent = 'PENDIENTE';
+    // Pasó la ventana configurada (o es domingo, o es un feriado resuelto a un día anterior) — FINALIZADO
+    badge.className = 'sorteo-badge finalizado';
+    label.textContent = '✓ FINALIZADO';
     label.className = 'done-label';
   }
 
@@ -468,11 +492,11 @@ function render() {
   cabezasParaMostrar.forEach(s => {
     cabHtml += `<div class="cabezas-section">
       <div class="cabezas-section-title">${s.sorteo}</div>
-      <div class="cabeza-row"><div class="cabeza-prov">Chaqueña</div><div class="cabeza-num">${s.chaquena}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Ciudad</div><div class="cabeza-num">${s.ciudad}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Provincia</div><div class="cabeza-num">${s.provincia}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Corrientes</div><div class="cabeza-num">${s.corrientes}</div></div>
-      <div class="cabeza-row"><div class="cabeza-prov">Córdoba</div><div class="cabeza-num">${s.cordoba}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.chaquena}</div><div class="cabeza-num">${s.chaquena}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.ciudad}</div><div class="cabeza-num">${s.ciudad}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.provincia}</div><div class="cabeza-num">${s.provincia}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.corrientes}</div><div class="cabeza-num">${s.corrientes}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.cordoba}</div><div class="cabeza-num">${s.cordoba}</div></div>
     </div>`;
   });
   document.getElementById('cabezas-content').innerHTML = cabHtml;
@@ -484,12 +508,30 @@ function render() {
 // =====================
 // SUPABASE
 // =====================
-// Leer agencia de la URL (?agencia=670-15) o usar la principal por defecto
-const URL_AGENCIA_ID = new URLSearchParams(window.location.search).get('agencia') || '670-00';
-const URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+// Agencia de esta pantalla — se resuelve por código de acceso (?t=AbCdEf) si está presente,
+// si no por el parámetro viejo (?agencia=670-XX) como respaldo durante la transición,
+// y si no hay ninguno de los dos, la agencia principal por defecto.
+let URL_AGENCIA_ID = new URLSearchParams(window.location.search).get('agencia') || '670-00';
+let URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
 
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+async function resolverAgenciaDesdeCodigoAcceso() {
+  const token = new URLSearchParams(window.location.search).get('t');
+  if (!token) return; // sin código en la URL, se usa el ?agencia= o el default ya calculados arriba
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&valor=eq.${encodeURIComponent(token)}&select=agencia_id`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const filas = await res.json();
+    if (filas && filas[0] && filas[0].agencia_id) {
+      URL_AGENCIA_ID = filas[0].agencia_id;
+      URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+    }
+  } catch(e) { console.error('Error resolviendo código de acceso:', e); }
+}
 
 async function cargarDatosReales(fechaStr, sorteoKey) {
   try {
@@ -678,17 +720,9 @@ function programarProximaRotacionCarteles() {
   proximaRotacionCarteles = Date.now() + cartelesConfig.frecuenciaMin * 60000;
 }
 
-// Misma lógica que usa el badge visual (FINALIZADO/SORTEANDO): si ya hay números
-// cargados para el slot que se está mostrando, NO está en vivo, aunque el reloj
-// todavía esté dentro de la ventana horaria del sorteo.
+// Misma lógica que usa el badge visual: puramente por tiempo (ventana configurada),
+// ya no depende de si hay números cargados.
 function estaSorteando() {
-  const d = datos[slotEfectivo.key];
-  if (!d) return false;
-  const hayNumeros = provKeys.some(p => d[p].some(n => n !== '----' && n !== '——'));
-  const partes = slotEfectivo.fecha.split('-');
-  const fechaSorteo = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-  const esDomingo = fechaSorteo.getDay() === 0;
-  if (esDomingo || hayNumeros) return false; // ya está FINALIZADO
   return slotEfectivo.live;
 }
 
@@ -723,16 +757,25 @@ async function aplicarConfigVisual() {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
-    if (!rows || rows.length === 0) return;
+
+    // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
+    nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
+
+    if (!rows || rows.length === 0) { aplicarNombresProvinciaAlHeader(); return; }
 
     const cfg = {};
     rows.forEach(r => {
       if (r.clave === 'tv') {
         cfg.tv = r.valor;
+      } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
+        Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
+          if (v && v.trim() !== '') nombresProvinciaTV[k] = v;
+        });
       } else if (!r.clave.startsWith('numeros_')) {
         cfg[r.clave] = r.valor + 'px';
       }
     });
+    aplicarNombresProvinciaAlHeader();
 
     let style = document.getElementById('estilo-dinamico');
     if (!style) {
@@ -786,6 +829,7 @@ function getFechaConsulta() {
 // INIT
 // =====================
 async function calcularYCargarSlotEfectivo() {
+  await cargarDuracionSorteando(); // hay que tenerlo ANTES de llamar a getSorteoActual()
   const natural = getSorteoActual();
   const fechaNatural = getFechaConsulta();
 
@@ -802,6 +846,7 @@ async function calcularYCargarSlotEfectivo() {
 }
 
 async function init() {
+  await resolverAgenciaDesdeCodigoAcceso(); // tiene que ser lo PRIMERO de todo
   await calcularYCargarSlotEfectivo();
 
   datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
