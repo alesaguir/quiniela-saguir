@@ -308,6 +308,24 @@
       </div>
     </div>
 
+    <!-- CÓDIGOS DE ACCESO — solo superadmin -->
+    <div id="seccion-codigos-acceso" style="display:none;">
+      <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🔗 Códigos de Acceso (URL)</div>
+        <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Reemplaza el número de agencia visible en la URL (ej: <code>?agencia=670-05</code>) por un código de 6 letras al azar (ej: <code>?t=kQxRtP</code>), para que no se pueda adivinar probando números correlativos. Al regenerar un código, la URL vieja de esa agencia deja de funcionar — hay que actualizar el link guardado en ese Smart TV.
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📋 Agencias</div>
+          <button class="btn btn-ghost" onclick="cargarCodigosAcceso()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div id="lista-codigos-acceso" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+      </div>
+    </div>
+
     <!-- CONFIGURACIÓN VISUAL — solo superadmin -->
     <div id="seccion-visual" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
@@ -438,6 +456,30 @@
             <button class="btn btn-ghost" style="font-size:12px;" onclick="copiarCantidadATodosLosSorteos()">
               📋 Copiar estos valores a los 5 sorteos
             </button>
+          </div>
+
+          <!-- DURACIÓN DE "SORTEANDO" POR SORTEO -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Duración de "SORTEANDO" (minutos)</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+              Cuánto tiempo, desde el horario oficial de cada sorteo, la pantalla muestra "SORTEANDO" antes de pasar a "FINALIZADO" — independientemente de si ya se cargaron los números o no.
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;">
+              <div><label class="form-label">Previa</label><input type="number" min="1" max="1440" class="form-input" id="sorteando_previa" value="60"></div>
+              <div><label class="form-label">Primera</label><input type="number" min="1" max="1440" class="form-input" id="sorteando_primera" value="60"></div>
+              <div><label class="form-label">Matutina</label><input type="number" min="1" max="1440" class="form-input" id="sorteando_matutina" value="60"></div>
+              <div><label class="form-label">Vespertina</label><input type="number" min="1" max="1440" class="form-input" id="sorteando_vespertina" value="60"></div>
+              <div><label class="form-label">Nocturna</label><input type="number" min="1" max="1440" class="form-input" id="sorteando_nocturna" value="60"></div>
+            </div>
+          </div>
+
+          <!-- NOMBRES DE PROVINCIA PERSONALIZADOS -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Nombres de provincia</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+              Cómo se muestran en el formulario de carga y en la pantalla (encabezado y últimas cabezas), para la agencia seleccionada arriba. La columna en la base de datos no cambia, solo lo que se ve.
+            </div>
+            <div id="grid-nombres-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;"></div>
           </div>
 
           <button class="btn btn-primary" style="width:100%" onclick="guardarVisual()">
@@ -631,6 +673,28 @@ const SORTEOS = ['previa','primera','matutina','vespertina','nocturna'];
 let sorteoActual = 'nocturna';
 let usuarioActual = null;
 let numerosPorProvincia = {}; // ej: { chaquena:20, ciudad:10, ... } — se completa según la agencia logueada
+let nombresProvincia = {}; // ej: { chaquena:'Chaco', ... } — nombre personalizado por agencia, si se configuró
+
+async function cargarNombresProvincia() {
+  nombresProvincia = {};
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.nombres_provincias&select=numeros_por_provincia`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows[0] && rows[0].numeros_por_provincia) {
+      nombresProvincia = rows[0].numeros_por_provincia;
+    }
+  } catch(e) { console.error(e); }
+}
+
+// Nombre a mostrar para una provincia: el personalizado si existe, si no el de siempre
+function nombreProvincia(key) {
+  if (nombresProvincia[key] && nombresProvincia[key].trim() !== '') return nombresProvincia[key];
+  const p = PROVINCIAS.find(p => p.key === key);
+  return p ? p.label : key;
+}
 
 function hoyStr() {
   const d = new Date();
@@ -1120,6 +1184,7 @@ async function initApp() {
   if (tabs[idx]) tabs[idx].classList.add('active');
 
   await cargarNumerosPorProvincia(); // hay que tenerlo ANTES de armar el formulario
+  await cargarNombresProvincia();
   buildForm();
   actualizarTitulos();
   actualizarEstadoDia();
@@ -1159,7 +1224,7 @@ function buildForm() {
   let html = '';
   PROVINCIAS.forEach(p => {
     html += `<div class="prov-section">
-      <div class="prov-title">${p.label}</div>
+      <div class="prov-title">${nombreProvincia(p.key)}</div>
       <div class="num-grid">`;
     for (let i = 1; i <= cantidadProvincia(p.key); i++) {
       html += `<div class="num-group">
@@ -1590,6 +1655,82 @@ function aplicarMultiplicadorTV() {
   });
 }
 
+// =====================
+// CÓDIGOS DE ACCESO (URL aleatoria por agencia)
+// =====================
+function generarTokenAleatorio(longitud=6) {
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  let token = '';
+  for (let i=0;i<longitud;i++) token += letras.charAt(Math.floor(Math.random()*letras.length));
+  return token;
+}
+
+async function cargarCodigosAcceso() {
+  const lista = document.getElementById('lista-codigos-acceso');
+  try {
+    // Agencias distintas: 670-00 siempre, más cada subagencia registrada
+    const resAgencias = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&select=agencia_id`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const filasAgencias = await resAgencias.json();
+    const agencias = new Set(['670-00']);
+    (filasAgencias || []).forEach(r => agencias.add(r.agencia_id));
+
+    // Códigos ya generados (siempre con SUPABASE_KEY, igual que el resto de configuracion_visual)
+    const resTokens = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&select=agencia_id,valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const filasTokens = await resTokens.json();
+    const tokensPorAgencia = {};
+    (filasTokens || []).forEach(r => { tokensPorAgencia[r.agencia_id] = r.valor; });
+
+    lista.innerHTML = Array.from(agencias).sort().map(ag => {
+      const token = tokensPorAgencia[ag];
+      const url = token ? `https://alesaguir.github.io/quiniela-saguir/?t=${token}` : null;
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);flex-wrap:wrap;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);min-width:80px;">${ag}</div>
+          <div style="flex:1;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:200px;">
+            ${token ? url : 'Sin código generado todavía — sigue usando la URL vieja (?agencia=...)'}
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="regenerarToken('${ag}')">🔄 ${token ? 'Regenerar' : 'Generar'}</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" ${token?'':'disabled'} onclick="copiarURLToken('${token||''}','${ag}')">📋 Copiar URL</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) { console.error(e); lista.innerHTML = '<div style="color:var(--red);">Error al cargar.</div>'; }
+}
+
+async function regenerarToken(agenciaId) {
+  if (!confirm(`¿Generar/regenerar el código de acceso de ${agenciaId}? Si ya tenía uno, la URL vieja de esa agencia deja de funcionar.`)) return;
+  const nuevoToken = generarTokenAleatorio();
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
+      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify([{
+          agencia_id: agenciaId, clave: 'url_token', valor: nuevoToken,
+          numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+        }]) }
+    );
+    if (res.ok || res.status === 201) {
+      showToast(`✅ Código de ${agenciaId} generado`,'ok');
+      cargarCodigosAcceso();
+    } else showToast('Error al generar el código','err');
+  } catch(e) { showToast('Error de conexión','err'); }
+}
+
+function copiarURLToken(token, agenciaId) {
+  if (!token) { showToast('Generá el código primero','err'); return; }
+  const url = `https://alesaguir.github.io/quiniela-saguir/?t=${token}`;
+  navigator.clipboard.writeText(url).then(() => showToast(`📋 URL de ${agenciaId} copiada`,'ok'));
+}
+
 async function cargarAgenciasEnSelector() {
   try {
     const res = await fetch(
@@ -1643,6 +1784,17 @@ function buildProgProvinciasGrid() {
   `).join('');
 }
 
+function buildNombresProvinciaGrid() {
+  const cont = document.getElementById('grid-nombres-provincias');
+  if (!cont) return;
+  cont.innerHTML = PROVINCIAS.map(p => `
+    <div>
+      <label class="form-label">${p.label} (nombre original)</label>
+      <input type="text" class="form-input" id="nombre_prov_${p.key}" placeholder="${p.label}">
+    </div>
+  `).join('');
+}
+
 let sorteoNumerosSeleccionado = 'previa';
 
 function setTabNumeros(sorteo, el) {
@@ -1677,6 +1829,10 @@ async function cargarConfigVisual() {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
     else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
   });
+  // Reset de duraciones de SORTEANDO a 60 min antes de traer lo guardado
+  SORTEOS.forEach(s => { const el = document.getElementById(`sorteando_${s}`); if (el) el.value = 60; });
+  // Reset de nombres de provincia a vacío (= usa el original) antes de traer lo guardado
+  PROVINCIAS.forEach(p => { const el = document.getElementById(`nombre_prov_${p.key}`); if (el) el.value = ''; });
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
@@ -1688,6 +1844,14 @@ async function cargarConfigVisual() {
         if (r.clave === 'tv') {
           const sel = document.getElementById('visual-tv-size');
           if (sel) sel.value = r.valor;
+        } else if (r.clave.startsWith('sorteando_')) {
+          const el = document.getElementById(r.clave);
+          if (el) el.value = r.valor;
+        } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
+          Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
+            const el = document.getElementById(`nombre_prov_${k}`);
+            if (el) el.value = v;
+          });
         } else if (!r.clave.startsWith('numeros_')) {
           const slider = document.getElementById(`slider-${r.clave}`);
           if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
@@ -1730,6 +1894,32 @@ async function guardarVisual() {
     agencia_id: agencia, clave: `numeros_${sorteoNumerosSeleccionado}`,
     valor: '1',
     numeros_por_provincia: leerCantidadesDeLosInputs(),
+    actualizado_por: usuarioActual.nombre
+  });
+
+  // Duración de SORTEANDO por sorteo (en minutos)
+  SORTEOS.forEach(s => {
+    const el = document.getElementById(`sorteando_${s}`);
+    let minutos = parseInt(el?.value, 10);
+    if (isNaN(minutos) || minutos < 1) minutos = 60;
+    rows.push({
+      agencia_id: agencia, clave: `sorteando_${s}`,
+      valor: String(minutos),
+      numeros_por_provincia: null,
+      actualizado_por: usuarioActual.nombre
+    });
+  });
+
+  // Nombres de provincia personalizados (vacío = usar el original)
+  const nombresProv = {};
+  PROVINCIAS.forEach(p => {
+    const el = document.getElementById(`nombre_prov_${p.key}`);
+    nombresProv[p.key] = (el?.value || '').trim();
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'nombres_provincias',
+    valor: '1',
+    numeros_por_provincia: nombresProv,
     actualizado_por: usuarioActual.nombre
   });
 
@@ -1903,19 +2093,23 @@ function verificarSuperadmin() {
     document.getElementById('seccion-subagencias').style.display = 'block';
     document.getElementById('seccion-visual').style.display = 'block';
     document.getElementById('seccion-programaciones').style.display = 'block';
+    document.getElementById('seccion-codigos-acceso').style.display = 'block';
     buildConfigGrids();
     buildCantidadProvinciasGrid();
     buildProgProvinciasGrid();
+    buildNombresProvinciaGrid();
     cargarConfiguraciones();
     cargarSubagencias();
     cargarActividad();
     cargarConfigVisual();
     cargarAgenciasEnSelector();
     cargarProgramaciones();
+    cargarCodigosAcceso();
   } else {
     document.getElementById('seccion-config').style.display = 'none';
     document.getElementById('seccion-subagencias').style.display = 'none';
     document.getElementById('seccion-visual').style.display = 'none';
+    document.getElementById('seccion-codigos-acceso').style.display = 'none';
     document.getElementById('seccion-programaciones').style.display = 'none';
   }
 }
