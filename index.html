@@ -640,21 +640,34 @@ async function cargarConfigCarteles() {
     );
     const filas = await resCarteles.json();
     // Un cartel sin texto no entra en la rotación
-    cartelesConfig.lista = (filas || []).filter(c => c.texto && c.texto.trim() !== '');
+    // Un cartel sin ninguna línea con texto no entra en la rotación
+    cartelesConfig.lista = (filas || []).filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
   } catch(e) { console.error('Error cargando carteles:', e); cartelesConfig.lista = []; }
+}
+
+function escaparHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 function mostrarCartelOverlay(cartel) {
   const overlay = document.getElementById('carteles-overlay');
   overlay.style.display = 'flex';
+  overlay.style.flexDirection = 'column';
+  overlay.style.gap = '10px';
   overlay.style.background = cartel.color_fondo || '#1a1a2e';
   overlay.style.color = cartel.color_texto || '#ffffff';
   overlay.style.fontFamily = `'${cartel.fuente || 'Bebas Neue'}', sans-serif`;
-  overlay.style.fontSize = (cartel.tamano_fuente || 48) + 'px';
   overlay.style.fontWeight = cartel.negrita ? '700' : '400';
   overlay.style.fontStyle = cartel.cursiva ? 'italic' : 'normal';
   overlay.style.textDecoration = cartel.subrayado ? 'underline' : 'none';
-  overlay.textContent = cartel.texto;
+
+  const lineas = Array.isArray(cartel.lineas) ? cartel.lineas : [];
+  overlay.innerHTML = lineas
+    .filter(l => l.texto && l.texto.trim() !== '')
+    .map(l => `<div style="font-size:${l.tamano || 32}px;">${escaparHtml(l.texto)}</div>`)
+    .join('');
 }
 
 function ocultarCartelOverlay() {
@@ -663,6 +676,20 @@ function ocultarCartelOverlay() {
 
 function programarProximaRotacionCarteles() {
   proximaRotacionCarteles = Date.now() + cartelesConfig.frecuenciaMin * 60000;
+}
+
+// Misma lógica que usa el badge visual (FINALIZADO/SORTEANDO): si ya hay números
+// cargados para el slot que se está mostrando, NO está en vivo, aunque el reloj
+// todavía esté dentro de la ventana horaria del sorteo.
+function estaSorteando() {
+  const d = datos[slotEfectivo.key];
+  if (!d) return false;
+  const hayNumeros = provKeys.some(p => d[p].some(n => n !== '----' && n !== '——'));
+  const partes = slotEfectivo.fecha.split('-');
+  const fechaSorteo = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  const esDomingo = fechaSorteo.getDay() === 0;
+  if (esDomingo || hayNumeros) return false; // ya está FINALIZADO
+  return slotEfectivo.live;
 }
 
 // Se llama cada 30 segundos (junto con el resto de las actualizaciones). Si todavía no
@@ -675,7 +702,7 @@ async function intentarMostrarBloqueCarteles() {
   // Se reprograma YA, se muestre o no el bloque esta vez
   programarProximaRotacionCarteles();
 
-  if (getSorteoActual().live) return; // coincide con "SORTEANDO": se saltea esta vez
+  if (estaSorteando()) return; // coincide con "SORTEANDO" de verdad: se saltea esta vez
 
   await cargarConfigCarteles(); // trae la lista más fresca posible antes de mostrarla
   if (!cartelesConfig.lista || cartelesConfig.lista.length === 0) return;
