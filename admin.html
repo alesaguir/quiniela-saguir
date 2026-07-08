@@ -722,18 +722,26 @@ async function cargarCarteles() {
   } catch(e) { console.error(e); document.getElementById('lista-carteles').innerHTML = '<div style="color:var(--red);">Error al cargar carteles.</div>'; }
 }
 
-function renderListaCarteles() {
-  const cont = document.getElementById('lista-carteles');
-  if (cartelesActuales.length === 0) {
-    cont.innerHTML = '<div style="color:var(--muted);">Todavía no creaste ningún cartel. Usá "➕ Nuevo cartel" para empezar.</div>';
-    return;
-  }
-  cont.innerHTML = cartelesActuales.map((c, idx) => `
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+function htmlLineaCartel(cartelId, idx, linea) {
+  return `
+    <div class="linea-cartel-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" class="form-input linea-texto" placeholder="Texto de esta línea"
+        value="${(linea.texto||'').replace(/"/g,'&quot;')}" style="flex:1;"
+        oninput="actualizarPreviewCartel(${cartelId})">
+      <input type="number" class="form-input linea-tamano" min="10" max="160" value="${linea.tamano||32}"
+        style="width:80px;" oninput="actualizarPreviewCartel(${cartelId})" title="Tamaño de esta línea">
+      <button class="btn btn-ghost" style="padding:6px 10px;" onclick="eliminarLineaCartel(${cartelId},${idx})">🗑</button>
+    </div>`;
+}
+
+function htmlCartelCard(c, idx, total) {
+  const lineas = (Array.isArray(c.lineas) && c.lineas.length > 0) ? c.lineas : [{texto:'', tamano:32}];
+  return `
+    <div id="cartel_card_${c.id}" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},-1)" ${idx===0?'disabled':''}>▲</button>
-          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},1)" ${idx===cartelesActuales.length-1?'disabled':''}>▼</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},1)" ${idx===total-1?'disabled':''}>▼</button>
           <span style="font-size:12px;color:var(--muted);margin-left:6px;">Posición ${idx+1}</span>
         </div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
@@ -742,18 +750,16 @@ function renderListaCarteles() {
         </label>
       </div>
 
-      <label class="form-label">Texto</label>
-      <textarea id="cartel_texto_${c.id}" oninput="actualizarPreviewCartel(${c.id})"
-        style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;font-family:'DM Sans',sans-serif;font-size:14px;min-height:60px;margin-bottom:14px;resize:vertical;">${c.texto || ''}</textarea>
+      <label class="form-label">Líneas (cada una con su propio tamaño — ej: "Quiniela" chico, "8 millones" grande)</label>
+      <div id="cartel_lineas_${c.id}">
+        ${lineas.map((l, idx2) => htmlLineaCartel(c.id, idx2, l)).join('')}
+      </div>
+      <button class="btn btn-ghost" style="font-size:12px;margin-bottom:14px;" onclick="agregarLineaCartel(${c.id})">➕ Agregar línea</button>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:14px;">
         <div>
           <label class="form-label">Duración (seg)</label>
           <input type="number" min="1" max="60" class="form-input" id="cartel_duracion_${c.id}" value="${c.duracion_segundos||5}">
-        </div>
-        <div>
-          <label class="form-label">Tamaño letra</label>
-          <input type="number" min="12" max="120" class="form-input" id="cartel_tamano_${c.id}" value="${c.tamano_fuente||48}" oninput="actualizarPreviewCartel(${c.id})">
         </div>
         <div>
           <label class="form-label">Tipografía</label>
@@ -784,23 +790,66 @@ function renderListaCarteles() {
       </div>
 
       <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa</div>
-      <div id="cartel_preview_${c.id}" style="border-radius:10px;padding:24px;text-align:center;margin-bottom:14px;min-height:60px;display:flex;align-items:center;justify-content:center;"></div>
+      <div id="cartel_preview_${c.id}" style="border-radius:10px;padding:24px;text-align:center;margin-bottom:14px;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;"></div>
 
       <div style="display:flex;gap:10px;">
         <button class="btn btn-primary" style="flex:1" onclick="guardarCartel(${c.id})">💾 Guardar</button>
         <button class="btn btn-danger" onclick="eliminarCartel(${c.id})">🗑 Eliminar</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+}
 
+function renderListaCarteles() {
+  const cont = document.getElementById('lista-carteles');
+  if (cartelesActuales.length === 0) {
+    cont.innerHTML = '<div style="color:var(--muted);">Todavía no creaste ningún cartel. Usá "➕ Nuevo cartel" para empezar.</div>';
+    return;
+  }
+  cont.innerHTML = cartelesActuales.map((c, idx) => htmlCartelCard(c, idx, cartelesActuales.length)).join('');
   cartelesActuales.forEach(c => actualizarPreviewCartel(c.id));
+}
+
+function refrescarUnaCartelCard(id) {
+  const idx = cartelesActuales.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  const card = document.getElementById(`cartel_card_${id}`);
+  if (card) {
+    card.outerHTML = htmlCartelCard(cartelesActuales[idx], idx, cartelesActuales.length);
+    actualizarPreviewCartel(id);
+  }
+}
+
+// Lee lo que hay HOY en los inputs de líneas de un cartel (sin guardar en la base)
+function leerLineasDesdeDOM(id) {
+  const contenedor = document.getElementById(`cartel_lineas_${id}`);
+  if (!contenedor) return [];
+  return Array.from(contenedor.querySelectorAll('.linea-cartel-row')).map(fila => ({
+    texto: fila.querySelector('.linea-texto').value,
+    tamano: parseInt(fila.querySelector('.linea-tamano').value, 10) || 32
+  }));
+}
+
+function agregarLineaCartel(id) {
+  const cartel = cartelesActuales.find(c => c.id === id);
+  if (!cartel) return;
+  cartel.lineas = leerLineasDesdeDOM(id); // guarda lo ya tipeado antes de agregar la nueva fila
+  cartel.lineas.push({ texto: '', tamano: 32 });
+  refrescarUnaCartelCard(id);
+}
+
+function eliminarLineaCartel(id, idx) {
+  const cartel = cartelesActuales.find(c => c.id === id);
+  if (!cartel) return;
+  cartel.lineas = leerLineasDesdeDOM(id);
+  cartel.lineas.splice(idx, 1);
+  if (cartel.lineas.length === 0) cartel.lineas.push({ texto: '', tamano: 32 });
+  refrescarUnaCartelCard(id);
 }
 
 function actualizarPreviewCartel(id) {
   const preview = document.getElementById(`cartel_preview_${id}`);
   if (!preview) return;
-  const texto = document.getElementById(`cartel_texto_${id}`)?.value || '';
-  const tamano = document.getElementById(`cartel_tamano_${id}`)?.value || 48;
+  const lineas = leerLineasDesdeDOM(id);
   const fuente = document.getElementById(`cartel_fuente_${id}`)?.value || 'Bebas Neue';
   const colorFondo = document.getElementById(`cartel_color_fondo_${id}`)?.value || '#1a1a2e';
   const colorTexto = document.getElementById(`cartel_color_texto_${id}`)?.value || '#ffffff';
@@ -811,11 +860,17 @@ function actualizarPreviewCartel(id) {
   preview.style.background = colorFondo;
   preview.style.color = colorTexto;
   preview.style.fontFamily = `'${fuente}', sans-serif`;
-  preview.style.fontSize = `${Math.min(parseInt(tamano)||48, 32)}px`; // recortado para que entre en la vista previa chica
   preview.style.fontWeight = negrita ? '700' : '400';
   preview.style.fontStyle = cursiva ? 'italic' : 'normal';
   preview.style.textDecoration = subrayado ? 'underline' : 'none';
-  preview.textContent = texto || '(sin texto — este cartel no aparece en la pantalla)';
+
+  const conTexto = lineas.filter(l => l.texto && l.texto.trim() !== '');
+  if (conTexto.length === 0) {
+    preview.innerHTML = '<span style="opacity:0.5;">(sin texto — este cartel no aparece en la pantalla)</span>';
+    return;
+  }
+  // Tamaños recortados para que entren en la vista previa chica (en la TV se ven al tamaño real)
+  preview.innerHTML = conTexto.map(l => `<div style="font-size:${Math.min(parseInt(l.tamano)||32, 32)}px;">${(l.texto||'').replace(/</g,'&lt;')}</div>`).join('');
 }
 
 async function crearCartel() {
@@ -828,7 +883,7 @@ async function crearCartel() {
       },
       body: JSON.stringify([{
         agencia_id: usuarioActual.agencia_id,
-        texto: '',
+        lineas: [{ texto: '', tamano: 32 }],
         posicion: cartelesActuales.length,
         creado_por: usuarioActual.nombre
       }])
@@ -842,12 +897,11 @@ async function crearCartel() {
 
 async function guardarCartel(id) {
   const datos = {
-    texto: document.getElementById(`cartel_texto_${id}`).value,
+    lineas: leerLineasDesdeDOM(id),
     duracion_segundos: parseInt(document.getElementById(`cartel_duracion_${id}`).value, 10) || 5,
     activo: document.getElementById(`cartel_activo_${id}`).checked,
     color_fondo: document.getElementById(`cartel_color_fondo_${id}`).value,
     color_texto: document.getElementById(`cartel_color_texto_${id}`).value,
-    tamano_fuente: parseInt(document.getElementById(`cartel_tamano_${id}`).value, 10) || 48,
     fuente: document.getElementById(`cartel_fuente_${id}`).value,
     negrita: document.getElementById(`cartel_negrita_${id}`).checked,
     cursiva: document.getElementById(`cartel_cursiva_${id}`).checked,
