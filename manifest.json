@@ -1,15 +1,30 @@
 {
-  "name": "Panel Admin Quiniela",
-  "short_name": "Admin Quiniela",
+  "name": "Quiniela Saguir",
+  "short_name": "Q. Saguir",
+  "description": "Panel de administración y pantalla de resultados de Quiniela Saguir",
   "start_url": "/quiniela-saguir/admin.html",
   "display": "standalone",
   "background_color": "#0a0c10",
   "theme_color": "#f0b429",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "https://alesaguir.github.io/quiniela-saguir/icon.png",
+      "src": "/quiniela-saguir/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/quiniela-saguir/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/quiniela-saguir/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
