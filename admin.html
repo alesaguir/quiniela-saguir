@@ -177,7 +177,7 @@
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <div style="display:flex;flex-direction:column;gap:5px;">
           <label class="form-label" style="font-size:10px;">N° de Sorteo</label>
-          <input type="text" id="num-sorteo" maxlength="5" placeholder="00000"
+          <input type="text" id="num-sorteo" maxlength="5" placeholder="00000" inputmode="numeric" pattern="[0-9]*"
             class="form-input" style="width:120px;font-family:'JetBrains Mono',monospace;font-size:18px;text-align:center;letter-spacing:2px;"
             oninput="this.value=this.value.replace(/\D/g,'')">
         </div>
@@ -1313,7 +1313,7 @@ function buildForm() {
     for (let i = 1; i <= cantidadProvincia(p.key); i++) {
       html += `<div class="num-group">
         <div class="num-label">${i}°</div>
-        <input class="num-input" id="n_${p.key}_${i}" type="text" maxlength="4" placeholder="----"
+        <input class="num-input" id="n_${p.key}_${i}" type="text" maxlength="4" placeholder="----" inputmode="numeric" pattern="[0-9]*"
           oninput="onInput(this)" data-prov="${p.key}" data-pos="${i}">
       </div>`;
     }
