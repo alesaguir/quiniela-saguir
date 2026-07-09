@@ -1343,6 +1343,20 @@ async function guardarTodo() {
   if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
   if (!numSorteo || numSorteo.length !== 5) { showToast('Ingresá el número de sorteo (5 cifras)','err'); return; }
 
+  // No permitir el mismo número de sorteo en otra fecha, para el mismo tipo de sorteo y agencia
+  // (el mismo día sí puede repetirse — eso es solo editar/confirmar el número que ya estaba)
+  try {
+    const resDup = await fetch(
+      `${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${usuarioActual.agencia_id}&sorteo=eq.${sorteoActual}&numero_sorteo=eq.${numSorteo}&fecha=neq.${fecha}&select=fecha`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const dup = await resDup.json();
+    if (dup && dup.length > 0) {
+      showToast(`⚠️ El sorteo N° ${numSorteo} ya se usó el ${dup[0].fecha} en este mismo tipo de sorteo`,'err');
+      return;
+    }
+  } catch(e) { console.error('Error validando número de sorteo duplicado:', e); }
+
   const btn = document.getElementById('btn-guardar');
   btn.innerHTML = '<div class="loading"></div> Guardando...';
   btn.disabled = true;
