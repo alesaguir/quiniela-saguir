@@ -92,6 +92,24 @@
   /* LOADING */
   .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* LISTAS/TABLAS INFORMATIVAS: scroll horizontal en vez de achicarse mal */
+  .info-lista{overflow-x:auto;}
+  .info-lista table{min-width:700px;}
+
+  /* CELULAR: reorganizar grillas anchas para que entren completas */
+  @media (max-width: 640px) {
+    /* Grillas de 5 columnas (números por posición, estado del día, sorteos activos, horarios) -> 2 columnas */
+    .num-grid,
+    .estado-grid,
+    .grid5-mobile2 {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+    /* Grillas de 2 columnas (selectores, sliders, formularios) -> 1 columna, ancho completo */
+    .grid2-mobile1 {
+      grid-template-columns: 1fr !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -221,7 +239,7 @@
         <div class="card-title">📋 Mis carteles</div>
         <button class="btn btn-primary" onclick="crearCartel()" style="font-size:13px;">➕ Nuevo cartel</button>
       </div>
-      <div id="lista-carteles" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+      <div id="lista-carteles" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
     </div>
 
     <!-- GESTIÓN DE SUBAGENCIAS — solo superadmin -->
@@ -257,7 +275,7 @@
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
             <div>
               <label class="form-label">Nombre completo</label>
               <input type="text" class="form-input" id="nueva-agencia-nombre" placeholder="Ej: María González">
@@ -267,7 +285,7 @@
               <input type="email" class="form-input" id="nueva-agencia-email" placeholder="usuario@email.com">
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
             <div>
               <label class="form-label">Contraseña inicial</label>
               <input type="text" class="form-input" id="nueva-agencia-pass" placeholder="Mínimo 6 caracteres">
@@ -295,7 +313,7 @@
           <div class="card-title">📋 Subagencias activas</div>
           <button class="btn btn-ghost" onclick="cargarSubagencias()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
-        <div id="lista-subagencias" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        <div id="lista-subagencias" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
 
       <!-- REGISTRO DE ACTIVIDAD -->
@@ -304,7 +322,7 @@
           <div class="card-title">📋 Registro de actividad</div>
           <button class="btn btn-ghost" onclick="cargarActividad()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
-        <div id="lista-actividad" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        <div id="lista-actividad" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
     </div>
 
@@ -322,7 +340,7 @@
           <div class="card-title">📋 Agencias</div>
           <button class="btn btn-ghost" onclick="cargarCodigosAcceso()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
-        <div id="lista-codigos-acceso" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        <div id="lista-codigos-acceso" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
     </div>
 
@@ -341,7 +359,7 @@
         <div class="card-body">
 
           <!-- SELECTOR DE AGENCIA Y TV -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+          <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div>
               <label class="form-label">Configurar para agencia</label>
               <select id="visual-agencia-sel" class="form-input" onchange="cargarConfigVisual()">
@@ -366,7 +384,7 @@
           <div style="margin-bottom:24px;">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Números del sorteo actual</div>
             <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño del 1° premio y del resto de los números</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
               <div>
                 <label class="form-label">1° Premio</label>
                 <div style="display:flex;align-items:center;gap:12px;">
@@ -398,7 +416,7 @@
           <div style="margin-bottom:24px;padding-top:20px;border-top:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Últimas cabezas</div>
             <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de los números en la columna izquierda</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
               <div>
                 <label class="form-label">Números de cabezas</label>
                 <div style="display:flex;align-items:center;gap:12px;">
@@ -514,7 +532,7 @@
         <div class="card-header"><div class="card-title">➕ Nueva programación</div></div>
         <div class="card-body">
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
             <div>
               <label class="form-label">Agencia</label>
               <select id="prog-agencia-sel" class="form-input">
@@ -536,7 +554,7 @@
           <div class="form-label" style="margin-bottom:8px;">Cantidad de números por provincia durante la programación</div>
           <div id="grid-prog-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:20px;"></div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
+          <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
             <div>
               <label class="form-label">Desde</label>
               <input type="date" class="form-input" id="prog-fecha-desde">
@@ -562,7 +580,7 @@
           <div class="card-title">📋 Programaciones guardadas</div>
           <button class="btn btn-ghost" onclick="cargarProgramaciones()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
-        <div id="lista-programaciones" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        <div id="lista-programaciones" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
     </div>
 
@@ -588,7 +606,7 @@
           <span style="font-size:12px;color:var(--muted)">Ej: feriados, navidad, fin de año</span>
         </div>
         <div class="card-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
             <div>
               <label class="form-label">Fecha del evento</label>
               <input type="date" class="form-input" id="cfg-fecha">
@@ -601,11 +619,11 @@
 
           <!-- SORTEOS ACTIVOS -->
           <div class="form-label" style="margin-bottom:12px;">Sorteos activos ese día</div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;" id="cfg-sorteos-grid"></div>
+          <div class="grid5-mobile2" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;" id="cfg-sorteos-grid"></div>
 
           <!-- HORARIOS -->
           <div class="form-label" style="margin-bottom:12px;">Horarios de inicio</div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;" id="cfg-horarios-grid"></div>
+          <div class="grid5-mobile2" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;" id="cfg-horarios-grid"></div>
 
           <!-- CONFIRMACIÓN -->
           <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
@@ -626,7 +644,7 @@
           <div class="card-title">📋 Configuraciones guardadas</div>
           <button class="btn btn-ghost" onclick="cargarConfiguraciones()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
-        <div id="cfg-lista" style="padding:16px;font-size:13px;color:var(--muted);">Cargando...</div>
+        <div id="cfg-lista" class="info-lista" style="padding:16px;font-size:13px;color:var(--muted);">Cargando...</div>
       </div>
 
       <!-- HORARIOS ESTÁNDAR -->
@@ -635,7 +653,7 @@
           <div class="card-title">🕐 Horarios estándar actuales</div>
           <span style="font-size:12px;color:var(--muted)">Solo informativo</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
+        <div class="grid5-mobile2" style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);">
           <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">PREVIA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">10:15</div></div>
           <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">PRIMERA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">12:00</div></div>
           <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">MATUTINA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">15:00</div></div>
