@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f0b429">
 <link rel="manifest" href="/quiniela-saguir/manifest.json">
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link rel="apple-touch-icon" href="/quiniela-saguir/icon-192.png">
 <title>Panel Admin — Quiniela Saguir</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -1343,6 +1345,7 @@ function onInput(el) {
 }
 
 function limpiarTodo() {
+  if (!confirm('¿Borrar todos los números tipeados en este formulario? Esta acción no se puede deshacer.')) return;
   PROVINCIAS.forEach(p => {
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
