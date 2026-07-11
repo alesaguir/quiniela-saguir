@@ -731,16 +731,16 @@ function mostrarCartelOverlay(cartel) {
   overlay.style.flexDirection = 'column';
   overlay.style.gap = '10px';
   overlay.style.background = cartel.color_fondo || '#1a1a2e';
-  overlay.style.color = cartel.color_texto || '#ffffff';
-  overlay.style.fontFamily = `'${cartel.fuente || 'Bebas Neue'}', sans-serif`;
-  overlay.style.fontWeight = cartel.negrita ? '700' : '400';
-  overlay.style.fontStyle = cartel.cursiva ? 'italic' : 'normal';
-  overlay.style.textDecoration = cartel.subrayado ? 'underline' : 'none';
 
   const lineas = Array.isArray(cartel.lineas) ? cartel.lineas : [];
   overlay.innerHTML = lineas
     .filter(l => l.texto && l.texto.trim() !== '')
-    .map(l => `<div style="font-size:${l.tamano || 32}px;">${escaparHtml(l.texto)}</div>`)
+    .map(l => {
+      const peso = l.negrita ? '700' : '400';
+      const estilo = l.cursiva ? 'italic' : 'normal';
+      const decoracion = l.subrayado ? 'underline' : 'none';
+      return `<div style="font-size:${l.tamano || 32}px;color:${l.color || '#ffffff'};font-family:'${l.fuente || 'Bebas Neue'}',sans-serif;font-weight:${peso};font-style:${estilo};text-decoration:${decoracion};">${escaparHtml(l.texto)}</div>`;
+    })
     .join('');
 }
 
