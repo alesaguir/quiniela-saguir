@@ -458,6 +458,35 @@
             </div>
           </div>
 
+          <!-- DISPOSICIÓN DE LA GRILLA Y MODO DE AVANCE (solo para el formulario de carga, no afecta el Smart TV) -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Disposición del formulario de carga</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+              Solo afecta cómo se ve el admin al cargar números (celular/notebook) — el Smart TV no cambia.
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px;">
+              <div>
+                <label class="form-label">Orden de la grilla</label>
+                <select class="form-input" id="grilla-orden-sel" onchange="document.getElementById('grilla-columnas-wrap').style.display = this.value==='columna' ? 'block' : 'none';">
+                  <option value="fila">Por fila (como ahora)</option>
+                  <option value="columna">Por columna (como los extractos oficiales)</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">Modo de avance al cargar</label>
+                <select class="form-input" id="modo-avance-sel">
+                  <option value="automatico">Automático (al completar 4 cifras)</option>
+                  <option value="enter">Con la tecla Enter</option>
+                </select>
+              </div>
+            </div>
+            <div id="grilla-columnas-wrap" style="display:none;">
+              <label class="form-label">Agrupación en columnas (posiciones por columna, separadas por coma)</label>
+              <input type="text" class="form-input" id="grilla-columnas-input" placeholder="Ej: 10,10  o  5,5,5,5" style="max-width:300px;">
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Ej: "10,10" = primera columna con las posiciones 1 a 10, segunda con 11 a 20. "5,5,5,5" = cuatro columnas de 5.</div>
+            </div>
+          </div>
+
           <!-- CANTIDAD DE NÚMEROS POR PROVINCIA (por sorteo) -->
           <div style="margin-bottom:24px;padding-bottom:20px;padding-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Cantidad de números por provincia</div>
@@ -872,18 +901,48 @@ async function cargarCarteles() {
 
 function htmlLineaCartel(cartelId, idx, linea) {
   return `
-    <div class="linea-cartel-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-      <input type="text" class="form-input linea-texto" placeholder="Texto de esta línea"
-        value="${(linea.texto||'').replace(/"/g,'&quot;')}" style="flex:1;"
-        oninput="actualizarPreviewCartel(${cartelId})">
-      <input type="number" class="form-input linea-tamano" min="10" max="160" value="${linea.tamano||32}"
-        style="width:80px;" oninput="actualizarPreviewCartel(${cartelId})" title="Tamaño de esta línea">
-      <button class="btn btn-ghost" style="padding:6px 10px;" onclick="eliminarLineaCartel(${cartelId},${idx})">🗑</button>
+    <div class="linea-cartel-row" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input type="text" class="form-input linea-texto" placeholder="Texto de esta línea"
+          value="${(linea.texto||'').replace(/"/g,'&quot;')}" style="flex:1;"
+          oninput="actualizarPreviewCartel(${cartelId})">
+        <button class="btn btn-ghost" style="padding:6px 10px;" onclick="eliminarLineaCartel(${cartelId},${idx})">🗑</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:10px;">
+        <div>
+          <label class="form-label" style="font-size:10px;">Tamaño</label>
+          <input type="number" class="form-input linea-tamano" min="10" max="160" value="${linea.tamano||32}"
+            oninput="actualizarPreviewCartel(${cartelId})">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:10px;">Color de texto</label>
+          <input type="color" class="form-input linea-color" value="${linea.color||'#ffffff'}"
+            style="height:38px;padding:3px;" oninput="actualizarPreviewCartel(${cartelId})">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:10px;">Tipografía</label>
+          <select class="form-input linea-fuente" onchange="actualizarPreviewCartel(${cartelId})">
+            ${FUENTES_CARTEL.map(f => `<option value="${f}" ${linea.fuente===f?'selected':''}>${f}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;">
+          <input type="checkbox" class="linea-negrita" ${linea.negrita?'checked':''} onchange="actualizarPreviewCartel(${cartelId})" style="width:15px;height:15px;accent-color:var(--gold);"> Negrita
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;">
+          <input type="checkbox" class="linea-cursiva" ${linea.cursiva?'checked':''} onchange="actualizarPreviewCartel(${cartelId})" style="width:15px;height:15px;accent-color:var(--gold);"> Cursiva
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;">
+          <input type="checkbox" class="linea-subrayado" ${linea.subrayado?'checked':''} onchange="actualizarPreviewCartel(${cartelId})" style="width:15px;height:15px;accent-color:var(--gold);"> Subrayado
+        </label>
+      </div>
     </div>`;
 }
 
 function htmlCartelCard(c, idx, total) {
-  const lineas = (Array.isArray(c.lineas) && c.lineas.length > 0) ? c.lineas : [{texto:'', tamano:32}];
+  const lineaDefault = { texto:'', tamano:32, color:'#ffffff', fuente:'Bebas Neue', negrita:false, cursiva:false, subrayado:false };
+  const lineas = (Array.isArray(c.lineas) && c.lineas.length > 0) ? c.lineas : [lineaDefault];
   return `
     <div id="cartel_card_${c.id}" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -898,7 +957,7 @@ function htmlCartelCard(c, idx, total) {
         </label>
       </div>
 
-      <label class="form-label">Líneas (cada una con su propio tamaño — ej: "Quiniela" chico, "8 millones" grande)</label>
+      <label class="form-label">Líneas (cada una con su propio tamaño, color, tipografía y estilo)</label>
       <div id="cartel_lineas_${c.id}">
         ${lineas.map((l, idx2) => htmlLineaCartel(c.id, idx2, l)).join('')}
       </div>
@@ -910,31 +969,9 @@ function htmlCartelCard(c, idx, total) {
           <input type="number" min="1" max="60" class="form-input" id="cartel_duracion_${c.id}" value="${c.duracion_segundos||5}">
         </div>
         <div>
-          <label class="form-label">Tipografía</label>
-          <select class="form-input" id="cartel_fuente_${c.id}" onchange="actualizarPreviewCartel(${c.id})">
-            ${FUENTES_CARTEL.map(f => `<option value="${f}" ${c.fuente===f?'selected':''}>${f}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Color de fondo</label>
+          <label class="form-label">Color de fondo (todo el cartel)</label>
           <input type="color" class="form-input" id="cartel_color_fondo_${c.id}" value="${c.color_fondo||'#1a1a2e'}" style="height:42px;padding:4px;" oninput="actualizarPreviewCartel(${c.id})">
         </div>
-        <div>
-          <label class="form-label">Color de texto</label>
-          <input type="color" class="form-input" id="cartel_color_texto_${c.id}" value="${c.color_texto||'#ffffff'}" style="height:42px;padding:4px;" oninput="actualizarPreviewCartel(${c.id})">
-        </div>
-      </div>
-
-      <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-          <input type="checkbox" id="cartel_negrita_${c.id}" ${c.negrita?'checked':''} onchange="actualizarPreviewCartel(${c.id})" style="width:16px;height:16px;accent-color:var(--gold);"> Negrita
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-          <input type="checkbox" id="cartel_cursiva_${c.id}" ${c.cursiva?'checked':''} onchange="actualizarPreviewCartel(${c.id})" style="width:16px;height:16px;accent-color:var(--gold);"> Cursiva
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-          <input type="checkbox" id="cartel_subrayado_${c.id}" ${c.subrayado?'checked':''} onchange="actualizarPreviewCartel(${c.id})" style="width:16px;height:16px;accent-color:var(--gold);"> Subrayado
-        </label>
       </div>
 
       <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa</div>
@@ -973,15 +1010,22 @@ function leerLineasDesdeDOM(id) {
   if (!contenedor) return [];
   return Array.from(contenedor.querySelectorAll('.linea-cartel-row')).map(fila => ({
     texto: fila.querySelector('.linea-texto').value,
-    tamano: parseInt(fila.querySelector('.linea-tamano').value, 10) || 32
+    tamano: parseInt(fila.querySelector('.linea-tamano').value, 10) || 32,
+    color: fila.querySelector('.linea-color').value,
+    fuente: fila.querySelector('.linea-fuente').value,
+    negrita: fila.querySelector('.linea-negrita').checked,
+    cursiva: fila.querySelector('.linea-cursiva').checked,
+    subrayado: fila.querySelector('.linea-subrayado').checked,
   }));
 }
+
+const LINEA_DEFAULT = { texto:'', tamano:32, color:'#ffffff', fuente:'Bebas Neue', negrita:false, cursiva:false, subrayado:false };
 
 function agregarLineaCartel(id) {
   const cartel = cartelesActuales.find(c => c.id === id);
   if (!cartel) return;
   cartel.lineas = leerLineasDesdeDOM(id); // guarda lo ya tipeado antes de agregar la nueva fila
-  cartel.lineas.push({ texto: '', tamano: 32 });
+  cartel.lineas.push({ ...LINEA_DEFAULT });
   refrescarUnaCartelCard(id);
 }
 
@@ -990,7 +1034,7 @@ function eliminarLineaCartel(id, idx) {
   if (!cartel) return;
   cartel.lineas = leerLineasDesdeDOM(id);
   cartel.lineas.splice(idx, 1);
-  if (cartel.lineas.length === 0) cartel.lineas.push({ texto: '', tamano: 32 });
+  if (cartel.lineas.length === 0) cartel.lineas.push({ ...LINEA_DEFAULT });
   refrescarUnaCartelCard(id);
 }
 
@@ -998,19 +1042,8 @@ function actualizarPreviewCartel(id) {
   const preview = document.getElementById(`cartel_preview_${id}`);
   if (!preview) return;
   const lineas = leerLineasDesdeDOM(id);
-  const fuente = document.getElementById(`cartel_fuente_${id}`)?.value || 'Bebas Neue';
   const colorFondo = document.getElementById(`cartel_color_fondo_${id}`)?.value || '#1a1a2e';
-  const colorTexto = document.getElementById(`cartel_color_texto_${id}`)?.value || '#ffffff';
-  const negrita = document.getElementById(`cartel_negrita_${id}`)?.checked;
-  const cursiva = document.getElementById(`cartel_cursiva_${id}`)?.checked;
-  const subrayado = document.getElementById(`cartel_subrayado_${id}`)?.checked;
-
   preview.style.background = colorFondo;
-  preview.style.color = colorTexto;
-  preview.style.fontFamily = `'${fuente}', sans-serif`;
-  preview.style.fontWeight = negrita ? '700' : '400';
-  preview.style.fontStyle = cursiva ? 'italic' : 'normal';
-  preview.style.textDecoration = subrayado ? 'underline' : 'none';
 
   const conTexto = lineas.filter(l => l.texto && l.texto.trim() !== '');
   if (conTexto.length === 0) {
@@ -1018,7 +1051,13 @@ function actualizarPreviewCartel(id) {
     return;
   }
   // Tamaños recortados para que entren en la vista previa chica (en la TV se ven al tamaño real)
-  preview.innerHTML = conTexto.map(l => `<div style="font-size:${Math.min(parseInt(l.tamano)||32, 32)}px;">${(l.texto||'').replace(/</g,'&lt;')}</div>`).join('');
+  preview.innerHTML = conTexto.map(l => {
+    const tam = Math.min(parseInt(l.tamano)||32, 32);
+    const peso = l.negrita ? '700' : '400';
+    const estilo = l.cursiva ? 'italic' : 'normal';
+    const decoracion = l.subrayado ? 'underline' : 'none';
+    return `<div style="font-size:${tam}px;color:${l.color||'#ffffff'};font-family:'${l.fuente||'Bebas Neue'}',sans-serif;font-weight:${peso};font-style:${estilo};text-decoration:${decoracion};">${(l.texto||'').replace(/</g,'&lt;')}</div>`;
+  }).join('');
 }
 
 async function crearCartel() {
@@ -1031,7 +1070,7 @@ async function crearCartel() {
       },
       body: JSON.stringify([{
         agencia_id: usuarioActual.agencia_id,
-        lineas: [{ texto: '', tamano: 32 }],
+        lineas: [{ ...LINEA_DEFAULT }],
         posicion: cartelesActuales.length,
         creado_por: usuarioActual.nombre
       }])
@@ -1049,11 +1088,6 @@ async function guardarCartel(id) {
     duracion_segundos: parseInt(document.getElementById(`cartel_duracion_${id}`).value, 10) || 5,
     activo: document.getElementById(`cartel_activo_${id}`).checked,
     color_fondo: document.getElementById(`cartel_color_fondo_${id}`).value,
-    color_texto: document.getElementById(`cartel_color_texto_${id}`).value,
-    fuente: document.getElementById(`cartel_fuente_${id}`).value,
-    negrita: document.getElementById(`cartel_negrita_${id}`).checked,
-    cursiva: document.getElementById(`cartel_cursiva_${id}`).checked,
-    subrayado: document.getElementById(`cartel_subrayado_${id}`).checked,
   };
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
@@ -1269,6 +1303,7 @@ async function initApp() {
 
   await cargarNumerosPorProvincia(); // hay que tenerlo ANTES de armar el formulario
   await cargarNombresProvincia();
+  await cargarConfigCarga();
   buildForm();
   actualizarTitulos();
   actualizarEstadoDia();
@@ -1305,46 +1340,144 @@ function actualizarTitulos() {
 // =====================
 // BUILD FORM
 // =====================
+// Config de disposición de la grilla y modo de avance — se carga por agencia, una sola vez al loguearse
+let gridConfig = { orden: 'fila', columnas: [10, 10] };
+let configTeclado = { modo: 'automatico' };
+
+async function cargarConfigCarga() {
+  gridConfig = { orden: 'fila', columnas: [10, 10] };
+  configTeclado = { modo: 'automatico' };
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance)&select=clave,valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    (rows || []).forEach(r => {
+      if (r.clave === 'grilla_orden' && (r.valor === 'fila' || r.valor === 'columna')) gridConfig.orden = r.valor;
+      if (r.clave === 'grilla_columnas' && r.valor) {
+        const partes = r.valor.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n > 0);
+        if (partes.length > 0) gridConfig.columnas = partes;
+      }
+      if (r.clave === 'modo_avance' && (r.valor === 'automatico' || r.valor === 'enter')) configTeclado.modo = r.valor;
+    });
+  } catch(e) { console.error('Error cargando config de carga:', e); }
+}
+
+function buildCeldasHTML(provKey, desde, hasta) {
+  let html = '';
+  for (let i = desde; i <= hasta; i++) {
+    html += `<div class="num-group">
+      <div class="num-label">${i}°</div>
+      <input class="num-input" id="n_${provKey}_${i}" type="text" maxlength="4" placeholder="----" inputmode="numeric" pattern="[0-9]*"
+        oninput="onInput(this)" onkeydown="onKeydownNum(event,this)" data-prov="${provKey}" data-pos="${i}">
+    </div>`;
+  }
+  return html;
+}
+
+function buildColumnasHTML(provKey, total) {
+  let html = '<div class="num-columnas-wrap" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">';
+  let pos = 1;
+  const grupos = (gridConfig.columnas && gridConfig.columnas.length > 0) ? gridConfig.columnas : [total];
+  for (const tam of grupos) {
+    if (pos > total) break;
+    const hasta = Math.min(pos + tam - 1, total);
+    html += `<div class="num-columna" style="display:flex;flex-direction:column;gap:10px;min-width:90px;">${buildCeldasHTML(provKey, pos, hasta)}</div>`;
+    pos = hasta + 1;
+  }
+  if (pos <= total) {
+    html += `<div class="num-columna" style="display:flex;flex-direction:column;gap:10px;min-width:90px;">${buildCeldasHTML(provKey, pos, total)}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
 function buildForm() {
   const container = document.getElementById('form-provincias');
   let html = '';
   PROVINCIAS.forEach(p => {
+    const total = cantidadProvincia(p.key);
     html += `<div class="prov-section">
-      <div class="prov-title">${nombreProvincia(p.key)}</div>
-      <div class="num-grid">`;
-    for (let i = 1; i <= cantidadProvincia(p.key); i++) {
-      html += `<div class="num-group">
-        <div class="num-label">${i}°</div>
-        <input class="num-input" id="n_${p.key}_${i}" type="text" maxlength="4" placeholder="----" inputmode="numeric" pattern="[0-9]*"
-          oninput="onInput(this)" data-prov="${p.key}" data-pos="${i}">
-      </div>`;
+      <div class="prov-title">${nombreProvincia(p.key)}</div>`;
+    if (gridConfig.orden === 'columna') {
+      html += buildColumnasHTML(p.key, total);
+    } else {
+      html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
   });
   container.innerHTML = html;
+}
+
+function avanzarSiguiente(el) {
+  const prov = el.dataset.prov;
+  const pos = parseInt(el.dataset.pos);
+  const next = document.getElementById(`n_${prov}_${pos+1}`);
+  if (next) { next.focus(); return; }
+  const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
+  if (provIdx < PROVINCIAS.length-1) {
+    const np = document.getElementById(`n_${PROVINCIAS[provIdx+1].key}_1`);
+    if (np) np.focus();
+  }
 }
 
 function onInput(el) {
   el.value = el.value.replace(/\D/g,'');
   el.classList.toggle('filled', el.value.length > 0);
-  // Auto avanzar al siguiente campo
-  if (el.value.length === 4) {
-    const prov = el.dataset.prov;
-    const pos = parseInt(el.dataset.pos);
-    const next = document.getElementById(`n_${prov}_${pos+1}`);
-    if (next) next.focus();
-    else {
-      // Siguiente provincia
-      const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
-      if (provIdx < PROVINCIAS.length-1) {
-        const np = document.getElementById(`n_${PROVINCIAS[provIdx+1].key}_1`);
-        if (np) np.focus();
-      }
-    }
+  // Avance automático solo si ese es el modo configurado (es incompatible con el modo "Enter")
+  if (configTeclado.modo === 'automatico' && el.value.length === 4) {
+    avanzarSiguiente(el);
   }
 }
 
+// Navegación con flechas (siempre activa) + Enter (solo si el modo configurado es "enter")
+function moverFoco(el, direccion) {
+  const prov = el.dataset.prov;
+  const pos = parseInt(el.dataset.pos, 10);
+  let destino = null;
+
+  if (direccion === 'right') {
+    destino = document.getElementById(`n_${prov}_${pos+1}`);
+    if (!destino) {
+      const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
+      if (provIdx < PROVINCIAS.length-1) destino = document.getElementById(`n_${PROVINCIAS[provIdx+1].key}_1`);
+    }
+  } else if (direccion === 'left') {
+    destino = document.getElementById(`n_${prov}_${pos-1}`);
+    if (!destino) {
+      const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
+      if (provIdx > 0) {
+        const provAnterior = PROVINCIAS[provIdx-1];
+        destino = document.getElementById(`n_${provAnterior.key}_${cantidadProvincia(provAnterior.key)}`);
+      }
+    }
+  } else if (direccion === 'down' || direccion === 'up') {
+    if (gridConfig.orden === 'columna') {
+      // Dentro de la misma columna visual: el siguiente/anterior casillero apilado
+      const columna = el.closest('.num-columna');
+      const inputs = columna ? Array.from(columna.querySelectorAll('.num-input')) : [];
+      const idx = inputs.indexOf(el);
+      destino = direccion === 'down' ? inputs[idx+1] : inputs[idx-1];
+    } else {
+      // En modo fila, la grilla tiene 5 columnas fijas
+      destino = document.getElementById(`n_${prov}_${pos + (direccion === 'down' ? 5 : -5)}`);
+    }
+  }
+  if (destino) destino.focus();
+}
+
+function onKeydownNum(e, el) {
+  if (e.key === 'Enter') {
+    if (configTeclado.modo === 'enter') { e.preventDefault(); avanzarSiguiente(el); }
+  } else if (e.key === 'ArrowRight') { e.preventDefault(); moverFoco(el, 'right'); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); moverFoco(el, 'left'); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); moverFoco(el, 'down'); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); moverFoco(el, 'up'); }
+}
+
 function limpiarTodo() {
+
   if (!confirm('¿Borrar todos los números tipeados en este formulario? Esta acción no se puede deshacer.')) return;
   PROVINCIAS.forEach(p => {
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
@@ -1938,6 +2071,10 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('verde_minutos'); if (el) el.value = 5; }
   // Reset de nombres de provincia a vacío (= usa el original) antes de traer lo guardado
   PROVINCIAS.forEach(p => { const el = document.getElementById(`nombre_prov_${p.key}`); if (el) el.value = ''; });
+  // Reset de disposición de grilla y modo de avance a los defaults antes de traer lo guardado
+  { const el = document.getElementById('grilla-orden-sel'); if (el) { el.value = 'fila'; el.dispatchEvent(new Event('change')); } }
+  { const el = document.getElementById('grilla-columnas-input'); if (el) el.value = '10,10'; }
+  { const el = document.getElementById('modo-avance-sel'); if (el) el.value = 'automatico'; }
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
@@ -1954,6 +2091,15 @@ async function cargarConfigVisual() {
           if (el) el.value = r.valor;
         } else if (r.clave === 'verde_minutos') {
           const el = document.getElementById('verde_minutos');
+          if (el) el.value = r.valor;
+        } else if (r.clave === 'grilla_orden') {
+          const el = document.getElementById('grilla-orden-sel');
+          if (el) { el.value = r.valor; el.dispatchEvent(new Event('change')); }
+        } else if (r.clave === 'grilla_columnas') {
+          const el = document.getElementById('grilla-columnas-input');
+          if (el) el.value = r.valor;
+        } else if (r.clave === 'modo_avance') {
+          const el = document.getElementById('modo-avance-sel');
           if (el) el.value = r.valor;
         } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
           Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
@@ -2044,6 +2190,23 @@ async function guardarVisual() {
     actualizado_por: usuarioActual.nombre
   });
 
+  // Disposición de la grilla y modo de avance (solo afectan el formulario de carga, no el Smart TV)
+  const ordenGrilla = document.getElementById('grilla-orden-sel')?.value || 'fila';
+  const columnasGrilla = (document.getElementById('grilla-columnas-input')?.value || '10,10').trim() || '10,10';
+  const modoAvance = document.getElementById('modo-avance-sel')?.value || 'automatico';
+  rows.push({
+    agencia_id: agencia, clave: 'grilla_orden',
+    valor: ordenGrilla, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'grilla_columnas',
+    valor: columnasGrilla, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'modo_avance',
+    valor: modoAvance, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
@@ -2057,6 +2220,7 @@ async function guardarVisual() {
       // la cantidad de números y reconstruimos el formulario de carga al instante
       if (usuarioActual && agencia === usuarioActual.agencia_id) {
         await cargarNumerosPorProvincia();
+        await cargarConfigCarga();
         buildForm();
         cargarExistentes();
       }
