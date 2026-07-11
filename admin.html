@@ -1516,7 +1516,9 @@ async function guardarTodo() {
   btn.disabled = true;
 
   const rows = [];
+  const vaciasPorProvincia = {}; // posiciones que quedaron en blanco en el formulario, por provincia
   PROVINCIAS.forEach(p => {
+    const vacias = [];
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
       if (el && el.value.length === 4) {
@@ -1528,8 +1530,11 @@ async function guardarTodo() {
           numero: el.value,
           agencia_id: usuarioActual.agencia_id
         });
+      } else {
+        vacias.push(i);
       }
     }
+    if (vacias.length > 0) vaciasPorProvincia[p.key] = vacias;
   });
 
   if (rows.length === 0) {
@@ -1553,6 +1558,16 @@ async function guardarTodo() {
     });
 
     if (res.ok || res.status === 201) {
+      // Borrar cualquier posición que haya quedado vacía en el formulario, para que no
+      // quede un número viejo guardado en la base si se cambió de casillero (ej: estaba
+      // en la posición 5 y se corrigió a la posición 4 — la 5 tiene que quedar en "----").
+      for (const [provincia, posiciones] of Object.entries(vaciasPorProvincia)) {
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
+          { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+        ).catch(e => console.error('Error borrando posiciones vacías:', provincia, e));
+      }
+
       // Guardar número de sorteo
       await fetch(`${SUPABASE_URL}/rest/v1/sorteos_info?on_conflict=fecha,sorteo,agencia_id`, {
         method: 'POST',
