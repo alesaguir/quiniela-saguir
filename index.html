@@ -534,29 +534,56 @@ function render() {
 // =====================
 // SUPABASE
 // =====================
-// Agencia de esta pantalla — se resuelve por código de acceso (?t=AbCdEf) si está presente,
-// si no por el parámetro viejo (?agencia=670-XX) como respaldo durante la transición,
-// y si no hay ninguno de los dos, la agencia principal por defecto.
-let URL_AGENCIA_ID = new URLSearchParams(window.location.search).get('agencia') || '670-00';
-let URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+// Agencia de esta pantalla — se resuelve por código de acceso (?t=AbCdEf), o por el
+// parámetro viejo (?agencia=670-XX) como respaldo durante la transición. Si no hay
+// ninguno de los dos, o el código no existe, la pantalla no muestra ninguna agencia.
+let URL_AGENCIA_ID = null;
+let URL_AGENCIA_ENCODED = null;
+let codigoAccesoValido = false;
 
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 
 async function resolverAgenciaDesdeCodigoAcceso() {
-  const token = new URLSearchParams(window.location.search).get('t');
-  if (!token) return; // sin código en la URL, se usa el ?agencia= o el default ya calculados arriba
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&valor=eq.${encodeURIComponent(token)}&select=agencia_id`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await res.json();
-    if (filas && filas[0] && filas[0].agencia_id) {
-      URL_AGENCIA_ID = filas[0].agencia_id;
-      URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
-    }
-  } catch(e) { console.error('Error resolviendo código de acceso:', e); }
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('t');
+  const agenciaParam = params.get('agencia');
+
+  if (token) {
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&valor=eq.${encodeURIComponent(token)}&select=agencia_id`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      );
+      const filas = await res.json();
+      if (filas && filas[0] && filas[0].agencia_id) {
+        URL_AGENCIA_ID = filas[0].agencia_id;
+        URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+        codigoAccesoValido = true;
+      }
+    } catch(e) { console.error('Error resolviendo código de acceso:', e); }
+    return;
+  }
+
+  if (agenciaParam) {
+    // Compatibilidad con el link viejo (?agencia=670-XX), sin validar contra la base
+    URL_AGENCIA_ID = agenciaParam;
+    URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+    codigoAccesoValido = true;
+    return;
+  }
+
+  // Ni ?t= ni ?agencia= presentes: sin código de acceso válido
+  codigoAccesoValido = false;
+}
+
+function mostrarCodigoInvalido() {
+  document.body.innerHTML = `
+    <div style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;">
+      <div style="color:#fff;font-family:'DM Sans',sans-serif;font-size:28px;letter-spacing:1px;text-align:center;">
+        Código de acceso no válido
+      </div>
+    </div>`;
 }
 
 let ultimaCargaTimestamps = {}; // ultimaCargaTimestamps[provincia][idx] = milisegundos desde epoch, o null
@@ -880,6 +907,8 @@ async function calcularYCargarSlotEfectivo() {
 
 async function init() {
   await resolverAgenciaDesdeCodigoAcceso(); // tiene que ser lo PRIMERO de todo
+  if (!codigoAccesoValido) { mostrarCodigoInvalido(); return; }
+
   await calcularYCargarSlotEfectivo();
 
   datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
