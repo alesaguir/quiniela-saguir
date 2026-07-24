@@ -193,7 +193,7 @@
       </div>
       <style>
         .agency-tab{padding:9px 14px;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);
-          color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;cursor:pointer;transition:.1s;}
+          color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:.1s;white-space:nowrap;}
         .agency-tab:hover{border-color:var(--gold);}
         .agency-tab.active{background:var(--gold);color:#000;border-color:var(--gold);}
         .agency-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);
@@ -472,14 +472,17 @@ async function cargarSubagenciasSelect() {
       tabs.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay subagencias activas cargadas todavía.</div>';
       return;
     }
-    tabs.innerHTML = subagenciasCache.map(a => `
+    tabs.innerHTML = subagenciasCache.map(a => {
+      const numero = a.agencia_id.split('-')[1] || a.agencia_id;
+      return `
       <button type="button" class="agency-tab" id="agtab-${a.agencia_id}"
         data-buscar="${(a.agencia_id+' '+(a.nombre_titular||'')+' '+(a.ciudad||'')).toLowerCase()}"
         title="${a.nombre_titular || ''}"
         onclick="seleccionarAgencia('${a.agencia_id}')">
-        ${a.agencia_id}
+        ${numero} — ${a.nombre_titular || '(sin nombre)'}
       </button>
-    `).join('');
+    `;
+    }).join('');
   } catch(e) { console.error(e); showToast('Error al cargar subagencias','err'); }
 }
 
