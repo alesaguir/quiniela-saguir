@@ -209,6 +209,7 @@
             </div>
             <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Filtrar subagencia" oninput="filtrarSubagencias()" style="padding:8px 10px;flex:1;min-width:160px;max-width:240px;">
             <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
+            <button class="btn btn-ghost" id="btn-borrar-todos" style="padding:8px 10px;color:var(--red);border-color:rgba(230,57,70,.4);" onclick="borrarTodosLosReportesDelDia()" title="Borrar todos los reportes guardados de esta fecha">🗑</button>
           </div>
 
           <div id="agency-tabs" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:5px;padding-bottom:6px;scrollbar-width:thin;">Cargando subagencias...</div>
@@ -283,6 +284,7 @@
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn btn-primary" style="flex:1;" id="btn-guardar-reporte" onclick="guardarReporte()">💾 Guardar reporte</button>
             <button class="btn btn-ghost" style="flex:0 0 auto;padding:12px 16px;" onclick="generarImagenActual()">🖼 Imagen</button>
+            <button class="btn btn-ghost" style="flex:0 0 auto;padding:12px 14px;" onclick="limpiarFormularioActualConfirmado()" title="Vaciar este formulario">🧹</button>
           </div>
           <div class="hint" id="hint-estado" style="text-align:center;margin-top:6px;"></div>
         </div>
@@ -1651,6 +1653,62 @@ async function descargarPdfCombinado() {
   } finally {
     btn.textContent = original;
     btn.disabled = false;
+  }
+}
+
+// =====================
+// LIMPIEZA — con confirmación obligatoria en ambos casos
+// =====================
+
+// Vacía el formulario de la subagencia abierta. NO borra un reporte ya guardado en Supabase,
+// solo limpia lo que se ve en pantalla y el borrador en memoria de esta sesión.
+function limpiarFormularioActualConfirmado() {
+  if (!agenciaSeleccionada) { showToast('No hay ninguna subagencia abierta', 'err'); return; }
+  const ok = confirm(
+    `¿Vaciar el formulario de ${agenciaSeleccionada.agencia_id} — ${agenciaSeleccionada.nombre_titular}?\n\n` +
+    `Esto no borra un reporte ya guardado en Supabase, solo limpia lo que ves en pantalla ahora mismo.`
+  );
+  if (!ok) return;
+  const fecha = document.getElementById('fecha-reporte').value;
+  delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`];
+  limpiarFormulario();
+  recalcularTicket();
+  showToast('🧹 Formulario limpiado', 'ok');
+}
+
+// Borra PERMANENTEMENTE todos los reportes guardados en Supabase para la fecha elegida, de todas
+// las subagencias. Doble confirmación porque es una acción destructiva sobre datos ya guardados.
+async function borrarTodosLosReportesDelDia() {
+  const fecha = document.getElementById('fecha-reporte').value;
+  const [y1,m1,d1] = fecha.split('-');
+  const fechaLegible = `${d1}/${m1}/${y1}`;
+
+  const primera = confirm(
+    `⚠️ Esto va a BORRAR de forma permanente todos los reportes guardados en Supabase para el ${fechaLegible}, de todas las subagencias.\n\n` +
+    `Esta acción no se puede deshacer. ¿Continuar?`
+  );
+  if (!primera) return;
+
+  const segunda = confirm(
+    `Última confirmación: se van a eliminar TODOS los reportes del ${fechaLegible}. ¿Estás completamente seguro?`
+  );
+  if (!segunda) return;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    });
+    if (res.ok) {
+      Object.keys(borradores).forEach(k => { if (k.startsWith(fecha + '_')) delete borradores[k]; });
+      if (agenciaSeleccionada) { limpiarFormulario(); recalcularTicket(); }
+      showToast(`🗑 Reportes del ${fechaLegible} eliminados`, 'ok');
+    } else {
+      showToast('Error al borrar los reportes', 'err');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión al borrar', 'err');
   }
 }
 </script>
