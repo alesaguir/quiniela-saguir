@@ -75,6 +75,49 @@
 
   .placeholder-panel{padding:40px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
 
+  /* CARGA DE REPORTE */
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .agency-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;}
+  .agency-btn{aspect-ratio:1;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.12s;}
+  .agency-btn:hover{border-color:var(--gold);}
+  .agency-btn.active{background:var(--gold);color:#000;border-color:var(--gold);}
+  .agency-name{margin-top:10px;font-size:13px;color:var(--muted);}
+  .agency-name b{color:var(--text);}
+
+  .field-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .field-row:last-child{margin-bottom:0;}
+  .field-label{flex:0 0 150px;font-size:13px;color:var(--muted);}
+  .field-input-wrap{flex:1;position:relative;}
+  .peso{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:14px;pointer-events:none;}
+  input.amount{width:100%;padding:11px 11px 11px 28px;background:var(--surface2);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;}
+  input.amount:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
+  input.amount.no-peso{padding-left:11px;}
+  .remove-line{flex:0 0 auto;width:32px;height:32px;border-radius:8px;background:transparent;border:1.5px solid var(--border);color:var(--muted);cursor:pointer;font-size:15px;}
+  .remove-line:hover{border-color:var(--red);color:var(--red);}
+  .add-line-btn{width:100%;margin-top:4px;padding:10px;background:transparent;border:1.5px dashed var(--border);border-radius:9px;color:var(--gold);font-weight:600;font-size:13px;cursor:pointer;}
+  .add-line-btn:hover{border-color:var(--gold);background:rgba(240,180,41,0.06);}
+  .free-line{display:flex;gap:8px;margin-bottom:10px;align-items:center;}
+  .free-line input.concept{flex:1.3;padding:11px;background:var(--surface2);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-size:13.5px;}
+  .free-line .field-input-wrap{flex:1;}
+
+  .ticket{background:var(--surface2);border:1px dashed var(--border);border-radius:10px;padding:14px 14px 6px;}
+  .ticket-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dotted var(--border);}
+  .ticket-row:last-child{border-bottom:none;}
+  .ticket-row .t-label{color:var(--muted);}
+  .ticket-row .t-amount.pos{color:var(--text);}
+  .ticket-row .t-amount.neg{color:var(--red);}
+  .ticket-empty{font-size:12.5px;color:var(--muted);text-align:center;padding:14px 0;}
+
+  .result-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 20px;margin:0 -20px;}
+  .result-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:2px;}
+  .result-row .mono{color:var(--text);}
+  .result-main{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;}
+  .result-amount{font-size:24px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .result-amount.rojo{color:var(--red);}
+  .result-amount.negro{color:var(--text);}
+
+  .hint{font-size:11.5px;color:var(--muted);}
+
   @media (max-width: 640px) {
     .topbar{padding:12px 16px;}
     .content{padding:18px;}
@@ -126,16 +169,121 @@
 
     <!-- PASO 1: solo estructura. El contenido real de cada pestaña se arma en los próximos pasos. -->
     <div id="panel-carga">
+
       <div class="card">
-        <div class="card-header"><div class="card-title">📝 Carga de reporte diario</div></div>
-        <div class="placeholder-panel">Acá va la pantalla de carga (próximo paso).</div>
+        <div class="card-header"><div class="card-title">📅 Fecha y subagencia</div></div>
+        <div class="card-body">
+          <div class="field-row">
+            <div class="field-label">Fecha</div>
+            <div class="field-input-wrap">
+              <input type="date" class="form-input" id="fecha-reporte" onchange="onCambioFechaOAgencia()">
+            </div>
+          </div>
+          <label class="form-label" style="margin-top:10px;display:block;">Subagencia</label>
+          <div class="agency-grid" id="agency-grid" style="margin-top:8px;"></div>
+          <div class="agency-name" id="agency-name">Cargando subagencias...</div>
+        </div>
+      </div>
+
+      <div id="form-reporte" style="display:none;">
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">🧾 Reporte (Lotería Chaqueña)</div></div>
+          <div class="card-body">
+            <div class="field-row">
+              <div class="field-label">Monto informado</div>
+              <div class="field-input-wrap">
+                <span class="peso">$</span>
+                <input type="text" inputmode="decimal" class="amount" id="inp-reporte" placeholder="0,00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏆 Premios (cobrados en otra sucursal)</div></div>
+          <div class="card-body">
+            <div id="premios-container"></div>
+            <button class="add-line-btn" onclick="addPremioLine()" type="button">+ Agregar premio</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">↩ A favor del subagente</div></div>
+          <div class="card-body">
+            <div class="field-row">
+              <div class="field-label">Saldo a favor</div>
+              <div class="field-input-wrap">
+                <span class="peso">$</span>
+                <input type="text" inputmode="decimal" class="amount" id="inp-favor" placeholder="0,00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="card-juegos" style="display:none;">
+          <div class="card-header"><div class="card-title">🎯 Bono / Raspaditas</div></div>
+          <div class="card-body" id="juegos-container"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">📎 Otros conceptos</div></div>
+          <div class="card-body">
+            <div id="free-container"></div>
+            <button class="add-line-btn" onclick="addFreeLine()" type="button">+ Agregar concepto</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">👁 Vista previa</div></div>
+          <div class="card-body">
+            <div class="ticket" id="ticket-preview">
+              <div class="ticket-empty">Empezá a cargar para ver el detalle acá</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-bar">
+          <div class="result-row"><span>Subtotal</span><span class="mono" id="out-subtotal">$ 0,00</span></div>
+          <div class="result-row"><span>Redondeo</span><span class="mono" id="out-redondeo">$ 0,00</span></div>
+          <div class="result-main">
+            <span id="out-label" style="font-weight:700;font-size:14px;">A definir</span>
+            <span class="result-amount negro" id="out-monto">$ 0</span>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px;" id="btn-guardar-reporte" onclick="guardarReporte()">💾 Guardar reporte</button>
+          <div class="hint" id="hint-estado" style="text-align:center;margin-top:8px;"></div>
+        </div>
+
       </div>
     </div>
 
     <div id="panel-subagencias" style="display:none;">
       <div class="card">
-        <div class="card-header"><div class="card-title">🏪 Contactos de subagencias</div></div>
-        <div class="placeholder-panel">Acá va el alta/edición de subagencias (más adelante).</div>
+        <div class="card-header">
+          <div class="card-title">🏪 Contactos de subagencias</div>
+          <button class="btn btn-primary" id="btn-nueva-subagencia" style="font-size:13px;display:none;" onclick="mostrarFormNuevaSubagencia()">➕ Nueva subagencia</button>
+        </div>
+        <div class="card-body">
+          <div id="form-nueva-subagencia" style="display:none;margin-bottom:16px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+            <div class="field-row">
+              <div class="field-label">Código</div>
+              <div class="field-input-wrap">
+                <input type="text" class="form-input" id="nueva-sub-id" placeholder="Ej: 670-16" style="text-transform:uppercase;">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-label">Titular</div>
+              <div class="field-input-wrap">
+                <input type="text" class="form-input" id="nueva-sub-nombre" placeholder="Nombre y apellido">
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <button class="btn btn-primary" style="flex:1" onclick="crearSubagencia()">💾 Crear</button>
+              <button class="btn btn-ghost" onclick="document.getElementById('form-nueva-subagencia').style.display='none'">Cancelar</button>
+            </div>
+          </div>
+          <div id="lista-subagencias-contactos">Cargando...</div>
+        </div>
       </div>
     </div>
 
@@ -225,7 +373,11 @@ async function login() {
 
     if (esSuperadmin) {
       document.getElementById('tab-config-juegos').style.display = 'block';
+      document.getElementById('btn-nueva-subagencia').style.display = 'inline-flex';
     }
+
+    initCarga();
+    cargarSubagenciasContactos();
 
   } catch(e) {
     console.error(e);
@@ -265,6 +417,454 @@ function setTabReportes(nombre, el) {
   document.getElementById('panel-carga').style.display = nombre === 'carga' ? 'block' : 'none';
   document.getElementById('panel-subagencias').style.display = nombre === 'subagencias' ? 'block' : 'none';
   document.getElementById('panel-juegos').style.display = nombre === 'juegos' ? 'block' : 'none';
+}
+
+// =====================
+// CARGA DE REPORTE — estado en memoria
+// =====================
+let subagenciasCache = [];
+let juegosCache = [];
+let agenciaSeleccionada = null;
+let reporteExistenteId = null; // si ya hay un reporte cargado hoy para esta subagencia, guardamos su id para hacer UPDATE en vez de INSERT
+
+async function initCarga() {
+  document.getElementById('fecha-reporte').value = new Date().toISOString().slice(0,10);
+  await Promise.all([cargarSubagenciasSelect(), cargarJuegosActivos()]);
+}
+
+async function cargarSubagenciasSelect() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/subagencias?activa=eq.true&order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    subagenciasCache = await res.json() || [];
+    const grid = document.getElementById('agency-grid');
+    grid.innerHTML = subagenciasCache.map(a => `
+      <button type="button" class="agency-btn" id="agbtn-${a.agencia_id}" onclick="seleccionarAgencia('${a.agencia_id}')">
+        ${a.agencia_id.split('-')[1] || a.agencia_id}
+      </button>
+    `).join('');
+    document.getElementById('agency-name').textContent =
+      subagenciasCache.length ? 'Elegí una subagencia' : 'No hay subagencias activas cargadas todavía.';
+  } catch(e) { console.error(e); showToast('Error al cargar subagencias','err'); }
+}
+
+async function cargarJuegosActivos() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/juegos_config?activo=eq.true&order=clave.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    juegosCache = await res.json() || [];
+    const cont = document.getElementById('juegos-container');
+    document.getElementById('card-juegos').style.display = juegosCache.length ? 'block' : 'none';
+    cont.innerHTML = juegosCache.map(j => `
+      <div class="field-row">
+        <div class="field-label">${j.nombre_visible} — unidades</div>
+        <div class="field-input-wrap">
+          <input type="text" inputmode="numeric" class="amount no-peso juego-input" data-clave="${j.clave}" placeholder="0" oninput="recalcularTicket()">
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+function seleccionarAgencia(agenciaId) {
+  document.querySelectorAll('.agency-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`agbtn-${agenciaId}`).classList.add('active');
+  agenciaSeleccionada = subagenciasCache.find(a => a.agencia_id === agenciaId);
+  document.getElementById('agency-name').innerHTML = `Cargando: <b>${agenciaId} — ${agenciaSeleccionada.nombre_titular}</b>`;
+  document.getElementById('form-reporte').style.display = 'block';
+  onCambioFechaOAgencia();
+}
+
+async function onCambioFechaOAgencia() {
+  if (!agenciaSeleccionada) return;
+  limpiarFormulario();
+  const fecha = document.getElementById('fecha-reporte').value;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaSeleccionada.agencia_id}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0) {
+      cargarReporteEnFormulario(rows[0]);
+      document.getElementById('hint-estado').textContent = '✏️ Ya existe un reporte para esta fecha — estás corrigiéndolo.';
+    } else {
+      reporteExistenteId = null;
+      document.getElementById('hint-estado').textContent = '';
+    }
+  } catch(e) { console.error(e); }
+  recalcularTicket();
+}
+
+function limpiarFormulario() {
+  reporteExistenteId = null;
+  document.getElementById('inp-reporte').value = '';
+  document.getElementById('inp-favor').value = '';
+  document.getElementById('premios-container').innerHTML = '';
+  document.getElementById('free-container').innerHTML = '';
+  document.querySelectorAll('.juego-input').forEach(i => i.value = '');
+  addPremioLine(false);
+}
+
+function cargarReporteEnFormulario(r) {
+  reporteExistenteId = r.id;
+  document.getElementById('inp-reporte').value = r.monto_reporte_loteria || '';
+  document.getElementById('inp-favor').value = r.a_favor || '';
+
+  const premiosCont = document.getElementById('premios-container');
+  premiosCont.innerHTML = '';
+  (r.premios && r.premios.length ? r.premios : [{monto:''}]).forEach(p => addPremioLine(false, p.monto));
+
+  const freeCont = document.getElementById('free-container');
+  freeCont.innerHTML = '';
+  (r.conceptos_libres || []).forEach(c => addFreeLine(c.concepto, c.monto));
+
+  (r.juegos || []).forEach(j => {
+    const inp = document.querySelector(`.juego-input[data-clave="${j.clave}"]`);
+    if (inp) inp.value = j.cantidad;
+  });
+}
+
+// --- Líneas dinámicas ---
+function addPremioLine(focus=true, valor='') {
+  const cont = document.getElementById('premios-container');
+  const row = document.createElement('div');
+  row.className = 'field-row';
+  row.innerHTML = `
+    <div class="field-label">Premio</div>
+    <div class="field-input-wrap">
+      <span class="peso">$</span>
+      <input type="text" inputmode="decimal" class="amount premio-input" placeholder="0,00" value="${valor}">
+    </div>
+    <button class="remove-line" type="button">×</button>
+  `;
+  cont.appendChild(row);
+  const input = row.querySelector('input');
+  input.addEventListener('input', recalcularTicket);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPremioLine(); } });
+  row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
+  if (focus) input.focus();
+}
+
+function addFreeLine(concepto='', valor='') {
+  const cont = document.getElementById('free-container');
+  const row = document.createElement('div');
+  row.className = 'free-line';
+  row.innerHTML = `
+    <input type="text" class="concept" placeholder="Concepto (ej: alquiler)" value="${concepto}">
+    <div class="field-input-wrap">
+      <span class="peso">$</span>
+      <input type="text" inputmode="decimal" class="amount free-input" placeholder="0,00" value="${valor}">
+    </div>
+    <button class="remove-line" type="button">×</button>
+  `;
+  cont.appendChild(row);
+  row.querySelector('.free-input').addEventListener('input', recalcularTicket);
+  row.querySelector('.concept').addEventListener('input', recalcularTicket);
+  row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
+}
+
+// --- Cálculo ---
+function parseMonto(v) {
+  if (!v) return 0;
+  const n = parseFloat(v.toString().replace(/\./g,'').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+function formatARS(n) {
+  return '$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// Fórmula real, verificada contra la calculadora de retenciones del usuario
+function calcularMontoJuego(juego, cantidad) {
+  if (!cantidad) return 0;
+  const p = juego.parametros;
+  const atpFactor = (p.atp_pct/100) * (1 + p.atp_adicional_pct/100);
+  if (juego.tipo_formula === 'bono') {
+    const valorTotal = cantidad * p.valor_unitario;
+    const comision = valorTotal * (p.comision_pct/100);
+    return valorTotal - comision + comision * atpFactor;
+  } else {
+    const totalBrutoUnitario = (p.cupones_por_paquete - p.cupones_sin_cargo) * p.valor_cupon;
+    const totalBruto = totalBrutoUnitario * cantidad;
+    const comision = totalBruto * (p.comision_pct/100);
+    const premiosMenores = p.premios_menores * cantidad;
+    return totalBruto - premiosMenores - comision + comision * atpFactor;
+  }
+}
+
+function recalcularTicket() {
+  const reporte = parseMonto(document.getElementById('inp-reporte').value);
+  const favor = parseMonto(document.getElementById('inp-favor').value);
+
+  let premiosTotal = 0;
+  const premioItems = [];
+  document.querySelectorAll('.premio-input').forEach(i => {
+    const v = parseMonto(i.value);
+    premiosTotal += v;
+    if (v !== 0) premioItems.push({label:'Premio (otra sucursal)', amount:v});
+  });
+
+  let juegosTotal = 0;
+  const juegoItems = [];
+  document.querySelectorAll('.juego-input').forEach(i => {
+    const clave = i.dataset.clave;
+    const cantidad = parseMonto(i.value);
+    if (!cantidad) return;
+    const juego = juegosCache.find(j => j.clave === clave);
+    const monto = calcularMontoJuego(juego, cantidad);
+    juegosTotal += monto;
+    juegoItems.push({label: juego.nombre_visible + ` (${cantidad} u.)`, amount: monto});
+  });
+
+  let extrasTotal = 0;
+  const freeItems = [];
+  document.querySelectorAll('.free-line').forEach(row => {
+    const concepto = row.querySelector('.concept').value || 'Concepto libre';
+    const v = parseMonto(row.querySelector('.free-input').value);
+    extrasTotal += v;
+    if (v !== 0) freeItems.push({label: concepto, amount: v});
+  });
+
+  const subtotal = reporte + premiosTotal - favor + juegosTotal + extrasTotal;
+  const redondeado = Math.round(subtotal / 100) * 100;
+  const redondeo = redondeado - subtotal;
+
+  document.getElementById('out-subtotal').textContent = formatARS(subtotal);
+  document.getElementById('out-redondeo').textContent = formatARS(redondeo);
+  const label = document.getElementById('out-label');
+  const monto = document.getElementById('out-monto');
+  if (redondeado >= 0) {
+    label.textContent = 'Traer a la agencia';
+    monto.className = 'result-amount negro';
+  } else {
+    label.textContent = 'A retirar de la agencia';
+    monto.className = 'result-amount rojo';
+  }
+  monto.textContent = formatARS(Math.abs(redondeado));
+
+  const ticket = document.getElementById('ticket-preview');
+  const items = [{label:'Reporte (Lotería Chaqueña)', amount: reporte}, ...premioItems];
+  if (favor) items.push({label:'A favor del subagente', amount: -favor});
+  items.push(...juegoItems, ...freeItems);
+  const visibles = items.filter(i => i.amount !== 0);
+  ticket.innerHTML = visibles.length ? visibles.map(i => `
+    <div class="ticket-row">
+      <span class="t-label">${i.label}</span>
+      <span class="t-amount mono ${i.amount < 0 ? 'neg' : 'pos'}">${i.amount < 0 ? '−' : '+'} ${formatARS(Math.abs(i.amount))}</span>
+    </div>
+  `).join('') : '<div class="ticket-empty">Empezá a cargar para ver el detalle acá</div>';
+
+  return { subtotal, redondeo, redondeado, premiosTotal, favor, premioItems, freeItems, juegoItems };
+}
+
+// =====================
+// CONTACTOS DE SUBAGENCIAS
+// =====================
+let subagenciasContactosCache = [];
+
+async function cargarSubagenciasContactos() {
+  const cont = document.getElementById('lista-subagencias-contactos');
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    subagenciasContactosCache = await res.json() || [];
+    renderSubagenciasContactos();
+  } catch(e) { console.error(e); cont.innerHTML = '<div style="color:var(--red);">Error al cargar subagencias.</div>'; }
+}
+
+function renderSubagenciasContactos() {
+  const cont = document.getElementById('lista-subagencias-contactos');
+  if (subagenciasContactosCache.length === 0) {
+    cont.innerHTML = '<div style="color:var(--muted);font-size:13px;">Todavía no hay subagencias cargadas.</div>';
+    return;
+  }
+  const editable = usuarioActual.esSuperadmin;
+  cont.innerHTML = subagenciasContactosCache.map(a => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;${a.activa ? '' : 'opacity:0.55;'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span class="mono" style="color:var(--gold);font-weight:700;font-size:15px;">${a.agencia_id}</span>
+        ${editable ? `
+          <button onclick="toggleActivaSubagencia('${a.agencia_id}', ${a.activa})"
+            style="background:${a.activa ? 'rgba(230,57,70,0.1)' : 'rgba(46,196,182,0.1)'};
+            border:1px solid ${a.activa ? 'rgba(230,57,70,0.3)' : 'rgba(46,196,182,0.3)'};
+            color:${a.activa ? 'var(--red)' : 'var(--green)'};
+            border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;">
+            ${a.activa ? '🚫 Dar de baja' : '✅ Reactivar'}
+          </button>
+        ` : `<span style="font-size:11px;color:${a.activa ? 'var(--green)' : 'var(--red)'};">${a.activa ? '✓ Activa' : '✗ Baja'}</span>`}
+      </div>
+      ${editable ? `
+        <div class="field-row">
+          <div class="field-label">Titular</div>
+          <div class="field-input-wrap"><input type="text" class="form-input" id="sub-nombre-${a.agencia_id}" value="${a.nombre_titular || ''}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Domicilio</div>
+          <div class="field-input-wrap"><input type="text" class="form-input" id="sub-domicilio-${a.agencia_id}" value="${a.domicilio || ''}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Teléfono</div>
+          <div class="field-input-wrap"><input type="text" class="form-input" id="sub-telefono-${a.agencia_id}" value="${a.telefono || ''}"></div>
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;margin-top:6px;" onclick="guardarSubagencia('${a.agencia_id}')">💾 Guardar cambios</button>
+      ` : `
+        <div style="font-size:13.5px;">${a.nombre_titular || '(sin nombre)'}</div>
+        <div style="font-size:12px;color:var(--muted);">${a.domicilio || ''} ${a.telefono ? '· '+a.telefono : ''}</div>
+      `}
+    </div>
+  `).join('');
+}
+
+function mostrarFormNuevaSubagencia() {
+  document.getElementById('form-nueva-subagencia').style.display = 'block';
+  document.getElementById('nueva-sub-id').focus();
+}
+
+async function crearSubagencia() {
+  const id = document.getElementById('nueva-sub-id').value.trim().toUpperCase();
+  const nombre = document.getElementById('nueva-sub-nombre').value.trim();
+  if (!id) { showToast('Ingresá el código de subagencia','err'); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ agencia_id: id, nombre_titular: nombre, activa: true })
+    });
+    if (res.ok) {
+      showToast('✅ Subagencia creada', 'ok');
+      document.getElementById('form-nueva-subagencia').style.display = 'none';
+      document.getElementById('nueva-sub-id').value = '';
+      document.getElementById('nueva-sub-nombre').value = '';
+      cargarSubagenciasContactos();
+      cargarSubagenciasSelect();
+    } else {
+      showToast('Error al crear (¿el código ya existe?)', 'err');
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+async function guardarSubagencia(agenciaId) {
+  const payload = {
+    nombre_titular: document.getElementById(`sub-nombre-${agenciaId}`).value.trim(),
+    domicilio: document.getElementById(`sub-domicilio-${agenciaId}`).value.trim(),
+    telefono: document.getElementById(`sub-telefono-${agenciaId}`).value.trim()
+  };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias?agencia_id=eq.${agenciaId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) { showToast('✅ Datos guardados', 'ok'); cargarSubagenciasContactos(); cargarSubagenciasSelect(); }
+    else showToast('Error al guardar', 'err');
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+async function toggleActivaSubagencia(agenciaId, activaActual) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias?agencia_id=eq.${agenciaId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ activa: !activaActual })
+    });
+    if (res.ok) {
+      showToast(activaActual ? '🚫 Subagencia dada de baja' : '✅ Subagencia reactivada', 'ok');
+      cargarSubagenciasContactos();
+      cargarSubagenciasSelect();
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+async function guardarReporte() {
+  if (!agenciaSeleccionada) { showToast('Elegí una subagencia primero','err'); return; }
+  const calc = recalcularTicket();
+  const fecha = document.getElementById('fecha-reporte').value;
+
+  const premios = [];
+  document.querySelectorAll('.premio-input').forEach(i => {
+    const v = parseMonto(i.value);
+    if (v !== 0) premios.push({concepto:'Premio', monto:v});
+  });
+
+  const conceptosLibres = [];
+  document.querySelectorAll('.free-line').forEach(row => {
+    const concepto = row.querySelector('.concept').value.trim();
+    const v = parseMonto(row.querySelector('.free-input').value);
+    if (v !== 0) conceptosLibres.push({concepto: concepto || 'Concepto libre', monto:v});
+  });
+
+  const juegos = [];
+  document.querySelectorAll('.juego-input').forEach(i => {
+    const cantidad = parseMonto(i.value);
+    if (!cantidad) return;
+    const juego = juegosCache.find(j => j.clave === i.dataset.clave);
+    juegos.push({clave: i.dataset.clave, cantidad, monto_calculado: calcularMontoJuego(juego, cantidad)});
+  });
+
+  const payload = {
+    fecha,
+    agencia_id: agenciaSeleccionada.agencia_id,
+    monto_reporte_loteria: parseMonto(document.getElementById('inp-reporte').value),
+    premios,
+    a_favor: parseMonto(document.getElementById('inp-favor').value),
+    juegos,
+    conceptos_libres: conceptosLibres,
+    subtotal: calc.subtotal,
+    redondeo: calc.redondeo,
+    monto_final: Math.abs(calc.redondeado),
+    color: calc.redondeado >= 0 ? 'negro' : 'rojo'
+  };
+
+  const btn = document.getElementById('btn-guardar-reporte');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      reporteExistenteId = data[0]?.id || reporteExistenteId;
+      showToast('✅ Reporte guardado', 'ok');
+      document.getElementById('hint-estado').textContent = '✏️ Reporte guardado — si volvés a entrar hoy a esta subagencia, lo vas a ver para corregirlo.';
+    } else {
+      const err = await res.json().catch(()=>({}));
+      console.error(err);
+      showToast('Error al guardar el reporte', 'err');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión al guardar', 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Guardar reporte';
+  }
 }
 </script>
 
