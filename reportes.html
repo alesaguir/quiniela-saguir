@@ -77,10 +77,14 @@
 
   /* CARGA DE REPORTE */
   .mono{font-family:'JetBrains Mono',monospace;}
-  .agency-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;}
-  .agency-btn{aspect-ratio:1;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.12s;}
-  .agency-btn:hover{border-color:var(--gold);}
-  .agency-btn.active{background:var(--gold);color:#000;border-color:var(--gold);}
+  .agency-list{display:flex;flex-direction:column;gap:8px;}
+  .agency-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);cursor:pointer;transition:.12s;text-align:left;width:100%;}
+  .agency-row:hover{border-color:var(--gold);}
+  .agency-row.active{background:rgba(240,180,41,0.1);border-color:var(--gold);}
+  .agency-row .ag-codigo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--gold);flex-shrink:0;min-width:60px;}
+  .agency-row .ag-datos{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .agency-row .ag-nombre{font-size:14px;font-weight:600;color:var(--text);}
+  .agency-row .ag-direccion{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .agency-name{margin-top:10px;font-size:13px;color:var(--muted);}
   .agency-name b{color:var(--text);}
 
@@ -180,10 +184,20 @@
             </div>
           </div>
           <label class="form-label" style="margin-top:10px;display:block;">Subagencia</label>
-          <div class="agency-grid" id="agency-grid" style="margin-top:8px;"></div>
-          <div class="agency-name" id="agency-name">Cargando subagencias...</div>
+          <div id="agency-list" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">Cargando subagencias...</div>
         </div>
       </div>
+      <style>
+        .agency-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);
+          border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:.12s;text-align:left;width:100%;}
+        .agency-row:hover{border-color:var(--gold);}
+        .agency-row.active{border-color:var(--gold);background:rgba(240,180,41,0.08);}
+        .agency-row .ag-code{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--gold);
+          font-size:14px;flex:0 0 62px;}
+        .agency-row .ag-info{flex:1;min-width:0;}
+        .agency-row .ag-nombre{font-size:14px;font-weight:600;color:var(--text);}
+        .agency-row .ag-detalle{font-size:12px;color:var(--muted);margin-top:1px;}
+      </style>
 
       <div id="form-reporte" style="display:none;">
 
@@ -275,6 +289,12 @@
               <div class="field-label">Titular</div>
               <div class="field-input-wrap">
                 <input type="text" class="form-input" id="nueva-sub-nombre" placeholder="Nombre y apellido">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-label">Ciudad</div>
+              <div class="field-input-wrap">
+                <input type="text" class="form-input" id="nueva-sub-ciudad" placeholder="Ej: Presidencia Roque Sáenz Peña">
               </div>
             </div>
             <div style="display:flex;gap:10px;margin-top:10px;">
@@ -439,14 +459,22 @@ async function cargarSubagenciasSelect() {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     subagenciasCache = await res.json() || [];
-    const grid = document.getElementById('agency-grid');
-    grid.innerHTML = subagenciasCache.map(a => `
-      <button type="button" class="agency-btn" id="agbtn-${a.agencia_id}" onclick="seleccionarAgencia('${a.agencia_id}')">
-        ${a.agencia_id.split('-')[1] || a.agencia_id}
-      </button>
-    `).join('');
-    document.getElementById('agency-name').textContent =
-      subagenciasCache.length ? 'Elegí una subagencia' : 'No hay subagencias activas cargadas todavía.';
+    const list = document.getElementById('agency-list');
+    if (subagenciasCache.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay subagencias activas cargadas todavía.</div>';
+      return;
+    }
+    list.innerHTML = subagenciasCache.map(a => {
+      const detalle = [a.ciudad, a.domicilio, a.telefono ? '📱 '+a.telefono : null].filter(Boolean).join(' · ');
+      return `
+      <button type="button" class="agency-row" id="agrow-${a.agencia_id}" onclick="seleccionarAgencia('${a.agencia_id}')">
+        <span class="ag-code">${a.agencia_id}</span>
+        <span class="ag-info">
+          <div class="ag-nombre">${a.nombre_titular || '(sin nombre cargado)'}</div>
+          ${detalle ? `<div class="ag-detalle">${detalle}</div>` : ''}
+        </span>
+      </button>`;
+    }).join('');
   } catch(e) { console.error(e); showToast('Error al cargar subagencias','err'); }
 }
 
@@ -471,10 +499,9 @@ async function cargarJuegosActivos() {
 }
 
 function seleccionarAgencia(agenciaId) {
-  document.querySelectorAll('.agency-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`agbtn-${agenciaId}`).classList.add('active');
+  document.querySelectorAll('.agency-row').forEach(b => b.classList.remove('active'));
+  document.getElementById(`agrow-${agenciaId}`).classList.add('active');
   agenciaSeleccionada = subagenciasCache.find(a => a.agencia_id === agenciaId);
-  document.getElementById('agency-name').innerHTML = `Cargando: <b>${agenciaId} — ${agenciaSeleccionada.nombre_titular}</b>`;
   document.getElementById('form-reporte').style.display = 'block';
   onCambioFechaOAgencia();
 }
@@ -705,6 +732,10 @@ function renderSubagenciasContactos() {
           <div class="field-input-wrap"><input type="text" class="form-input" id="sub-nombre-${a.agencia_id}" value="${a.nombre_titular || ''}"></div>
         </div>
         <div class="field-row">
+          <div class="field-label">Ciudad</div>
+          <div class="field-input-wrap"><input type="text" class="form-input" id="sub-ciudad-${a.agencia_id}" value="${a.ciudad || ''}"></div>
+        </div>
+        <div class="field-row">
           <div class="field-label">Domicilio</div>
           <div class="field-input-wrap"><input type="text" class="form-input" id="sub-domicilio-${a.agencia_id}" value="${a.domicilio || ''}"></div>
         </div>
@@ -715,7 +746,7 @@ function renderSubagenciasContactos() {
         <button class="btn btn-ghost" style="font-size:12px;margin-top:6px;" onclick="guardarSubagencia('${a.agencia_id}')">💾 Guardar cambios</button>
       ` : `
         <div style="font-size:13.5px;">${a.nombre_titular || '(sin nombre)'}</div>
-        <div style="font-size:12px;color:var(--muted);">${a.domicilio || ''} ${a.telefono ? '· '+a.telefono : ''}</div>
+        <div style="font-size:12px;color:var(--muted);">${a.ciudad ? a.ciudad+' · ' : ''}${a.domicilio || ''} ${a.telefono ? '· '+a.telefono : ''}</div>
       `}
     </div>
   `).join('');
@@ -729,6 +760,7 @@ function mostrarFormNuevaSubagencia() {
 async function crearSubagencia() {
   const id = document.getElementById('nueva-sub-id').value.trim().toUpperCase();
   const nombre = document.getElementById('nueva-sub-nombre').value.trim();
+  const ciudad = document.getElementById('nueva-sub-ciudad').value.trim();
   if (!id) { showToast('Ingresá el código de subagencia','err'); return; }
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias`, {
@@ -737,13 +769,14 @@ async function crearSubagencia() {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ agencia_id: id, nombre_titular: nombre, activa: true })
+      body: JSON.stringify({ agencia_id: id, nombre_titular: nombre, ciudad, activa: true })
     });
     if (res.ok) {
       showToast('✅ Subagencia creada', 'ok');
       document.getElementById('form-nueva-subagencia').style.display = 'none';
       document.getElementById('nueva-sub-id').value = '';
       document.getElementById('nueva-sub-nombre').value = '';
+      document.getElementById('nueva-sub-ciudad').value = '';
       cargarSubagenciasContactos();
       cargarSubagenciasSelect();
     } else {
@@ -755,6 +788,7 @@ async function crearSubagencia() {
 async function guardarSubagencia(agenciaId) {
   const payload = {
     nombre_titular: document.getElementById(`sub-nombre-${agenciaId}`).value.trim(),
+    ciudad: document.getElementById(`sub-ciudad-${agenciaId}`).value.trim(),
     domicilio: document.getElementById(`sub-domicilio-${agenciaId}`).value.trim(),
     telefono: document.getElementById(`sub-telefono-${agenciaId}`).value.trim()
   };
