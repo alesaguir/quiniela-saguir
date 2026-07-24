@@ -240,7 +240,11 @@
     <div class="card" style="margin-bottom:16px;">
       <div class="card-header">
         <div class="card-title">📋 Mis carteles</div>
-        <button class="btn btn-primary" onclick="crearCartel()" style="font-size:13px;">➕ Nuevo cartel</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="comprimirTodosCarteles()" style="font-size:12px;padding:6px 12px;">🗜 Comprimir todos</button>
+          <button class="btn btn-ghost" onclick="expandirTodosCarteles()" style="font-size:12px;padding:6px 12px;">⛶ Expandir todos</button>
+          <button class="btn btn-primary" onclick="crearCartel()" style="font-size:13px;">➕ Nuevo cartel</button>
+        </div>
       </div>
       <div id="lista-carteles" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
     </div>
@@ -889,6 +893,8 @@ async function guardarFrecuenciaCarteles() {
   } catch(e) { showToast('Error de conexión','err'); }
 }
 
+let carteleColapsoInicializado = false; // asegura que el auto-comprimido solo pase una vez por sesión
+
 async function cargarCarteles() {
   try {
     const res = await fetch(
@@ -896,6 +902,10 @@ async function cargarCarteles() {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     cartelesActuales = await res.json() || [];
+    if (!carteleColapsoInicializado) {
+      cartelesActuales.forEach(c => cartelesColapsados.add(c.id));
+      carteleColapsoInicializado = true;
+    }
     renderListaCarteles();
   } catch(e) { console.error(e); document.getElementById('lista-carteles').innerHTML = '<div style="color:var(--red);">Error al cargar carteles.</div>'; }
 }
@@ -941,23 +951,15 @@ function htmlLineaCartel(cartelId, idx, linea) {
     </div>`;
 }
 
+let cartelesColapsados = new Set(); // ids comprimidos — solo estado visual, no se guarda en la base
+
 function htmlCartelCard(c, idx, total) {
   const lineaDefault = { texto:'', tamano:32, color:'#ffffff', fuente:'Bebas Neue', negrita:false, cursiva:false, subrayado:false };
   const lineas = (Array.isArray(c.lineas) && c.lineas.length > 0) ? c.lineas : [lineaDefault];
-  return `
-    <div id="cartel_card_${c.id}" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="display:flex;gap:6px;align-items:center;">
-          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},-1)" ${idx===0?'disabled':''}>▲</button>
-          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},1)" ${idx===total-1?'disabled':''}>▼</button>
-          <span style="font-size:12px;color:var(--muted);margin-left:6px;">Posición ${idx+1}</span>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-          <input type="checkbox" id="cartel_activo_${c.id}" ${c.activo?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);">
-          Activo
-        </label>
-      </div>
+  const colapsado = cartelesColapsados.has(c.id);
+  const primerTexto = (lineas[0] && lineas[0].texto) ? lineas[0].texto : '(sin texto)';
 
+  const cuerpo = colapsado ? '' : `
       <label class="form-label">Líneas (cada una con su propio tamaño, color, tipografía y estilo)</label>
       <div id="cartel_lineas_${c.id}">
         ${lineas.map((l, idx2) => htmlLineaCartel(c.id, idx2, l)).join('')}
@@ -981,8 +983,48 @@ function htmlCartelCard(c, idx, total) {
       <div style="display:flex;gap:10px;">
         <button class="btn btn-primary" style="flex:1" onclick="guardarCartel(${c.id})">💾 Guardar</button>
         <button class="btn btn-danger" onclick="eliminarCartel(${c.id})">🗑 Eliminar</button>
+      </div>`;
+
+  return `
+    <div id="cartel_card_${c.id}" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;${colapsado ? '' : 'margin-bottom:12px;'}">
+        <div style="display:flex;gap:6px;align-items:center;min-width:0;flex:1;">
+          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="toggleColapsoCartel(${c.id})" title="${colapsado ? 'Expandir' : 'Comprimir'}">
+            ${colapsado ? '▶' : '▼'}
+          </button>
+          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},-1)" ${idx===0?'disabled':''}>▲</button>
+          <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},1)" ${idx===total-1?'disabled':''}>▼</button>
+          <span style="font-size:12px;color:var(--muted);margin-left:2px;white-space:nowrap;">Posición ${idx+1}</span>
+          ${colapsado ? `<span style="font-size:13px;color:var(--text,#fff);margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${primerTexto}</span>` : ''}
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex-shrink:0;">
+          <input type="checkbox" id="cartel_activo_${c.id}" ${c.activo?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);">
+          Activo
+        </label>
       </div>
+      ${cuerpo}
     </div>`;
+}
+
+function toggleColapsoCartel(id) {
+  if (cartelesColapsados.has(id)) cartelesColapsados.delete(id);
+  else cartelesColapsados.add(id);
+  const idx = cartelesActuales.findIndex(c => c.id === id);
+  const card = document.getElementById(`cartel_card_${id}`);
+  if (card && idx !== -1) {
+    card.outerHTML = htmlCartelCard(cartelesActuales[idx], idx, cartelesActuales.length);
+    if (!cartelesColapsados.has(id)) actualizarPreviewCartel(id);
+  }
+}
+
+function comprimirTodosCarteles() {
+  cartelesActuales.forEach(c => cartelesColapsados.add(c.id));
+  renderListaCarteles();
+}
+
+function expandirTodosCarteles() {
+  cartelesColapsados.clear();
+  renderListaCarteles();
 }
 
 function renderListaCarteles() {
@@ -1272,6 +1314,8 @@ async function logout() {
     }).catch(()=>{});
   }
   usuarioActual = null;
+  cartelesColapsados.clear();
+  carteleColapsoInicializado = false;
   document.getElementById('login-wrap').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('inp-pass').value = '';
@@ -1771,6 +1815,7 @@ async function cargarSubagencias() {
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Nivel</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Retención</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Estado</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Reportes</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">URL Smart TV</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Acciones</th>
           </tr>
@@ -1795,6 +1840,16 @@ async function cargarSubagencias() {
                   color:${r.activo ? '#2ec4b6' : '#e63946'};">
                   ${r.activo ? '✓ Activo' : '✗ Suspendido'}
                 </span>
+              </td>
+              <td style="padding:12px 10px;">
+                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" ${r.puede_hacer_reportes ? 'checked' : ''}
+                    onchange="toggleReportes('${r.user_id}', ${r.puede_hacer_reportes === true})"
+                    style="width:18px;height:18px;cursor:pointer;accent-color:var(--gold);">
+                  <span style="font-size:11px;color:var(--muted);">
+                    ${r.puede_hacer_reportes ? 'Habilitado' : 'Deshabilitado'}
+                  </span>
+                </label>
               </td>
               <td style="padding:12px 10px;">
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -1850,6 +1905,28 @@ async function toggleAgencia(user_id, activo) {
     );
     if (res.ok) {
       showToast(nuevoEstado ? '✅ Subagencia activada' : '🚫 Subagencia suspendida','ok');
+      cargarSubagencias();
+    }
+  } catch(e) { showToast('Error','err'); }
+}
+
+async function toggleReportes(user_id, actual) {
+  const nuevoEstado = !actual;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ puede_hacer_reportes: nuevoEstado })
+      }
+    );
+    if (res.ok) {
+      showToast(nuevoEstado ? '✅ Permiso de reportes habilitado' : '🚫 Permiso de reportes deshabilitado','ok');
       cargarSubagencias();
     }
   } catch(e) { showToast('Error','err'); }
