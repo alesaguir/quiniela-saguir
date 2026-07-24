@@ -180,11 +180,17 @@
           <div class="field-row">
             <div class="field-label">Fecha</div>
             <div class="field-input-wrap">
-              <input type="date" class="form-input" id="fecha-reporte" onchange="onCambioFechaOAgencia()">
+              <input type="date" class="form-input" id="fecha-reporte" onchange="onCambioFecha()">
             </div>
           </div>
-          <label class="form-label" style="margin-top:10px;display:block;">Subagencia</label>
-          <div id="agency-list" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">Cargando subagencias...</div>
+
+          <div id="agency-selected-summary" style="display:none;margin-top:10px;"></div>
+
+          <div id="agency-selector-wrap">
+            <label class="form-label" style="margin-top:10px;display:block;">Subagencia</label>
+            <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Buscar por número, nombre o ciudad" oninput="filtrarSubagencias()" style="margin:8px 0;">
+            <div id="agency-list" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px;">Cargando subagencias...</div>
+          </div>
         </div>
       </div>
       <style>
@@ -446,6 +452,8 @@ let subagenciasCache = [];
 let juegosCache = [];
 let agenciaSeleccionada = null;
 let reporteExistenteId = null; // si ya hay un reporte cargado hoy para esta subagencia, guardamos su id para hacer UPDATE en vez de INSERT
+let borradores = {}; // guarda lo que se va tipeando por (fecha+subagencia) mientras dura la sesión, sin guardar en Supabase
+let contextoActual = null; // {fecha, agencia_id} de lo que está mostrado ahora mismo en el formulario
 
 async function initCarga() {
   document.getElementById('fecha-reporte').value = new Date().toISOString().slice(0,10);
@@ -467,7 +475,9 @@ async function cargarSubagenciasSelect() {
     list.innerHTML = subagenciasCache.map(a => {
       const detalle = [a.ciudad, a.domicilio, a.telefono ? '📱 '+a.telefono : null].filter(Boolean).join(' · ');
       return `
-      <button type="button" class="agency-row" id="agrow-${a.agencia_id}" onclick="seleccionarAgencia('${a.agencia_id}')">
+      <button type="button" class="agency-row" id="agrow-${a.agencia_id}"
+        data-buscar="${(a.agencia_id+' '+(a.nombre_titular||'')+' '+(a.ciudad||'')).toLowerCase()}"
+        onclick="seleccionarAgencia('${a.agencia_id}')">
         <span class="ag-code">${a.agencia_id}</span>
         <span class="ag-info">
           <div class="ag-nombre">${a.nombre_titular || '(sin nombre cargado)'}</div>
@@ -476,6 +486,13 @@ async function cargarSubagenciasSelect() {
       </button>`;
     }).join('');
   } catch(e) { console.error(e); showToast('Error al cargar subagencias','err'); }
+}
+
+function filtrarSubagencias() {
+  const q = document.getElementById('buscar-subagencia').value.trim().toLowerCase();
+  document.querySelectorAll('.agency-row').forEach(row => {
+    row.style.display = row.dataset.buscar.includes(q) ? 'flex' : 'none';
+  });
 }
 
 async function cargarJuegosActivos() {
@@ -498,18 +515,80 @@ async function cargarJuegosActivos() {
   } catch(e) { console.error(e); }
 }
 
+// --- Borrador en memoria: evita perder lo tipeado al saltar entre subagencias ---
+function getFormSnapshot() {
+  return {
+    monto_reporte_loteria: document.getElementById('inp-reporte').value,
+    a_favor: document.getElementById('inp-favor').value,
+    premios: Array.from(document.querySelectorAll('.premio-input')).map(i => ({monto: i.value})),
+    conceptos_libres: Array.from(document.querySelectorAll('.free-line')).map(row => ({
+      concepto: row.querySelector('.concept').value, monto: row.querySelector('.free-input').value
+    })),
+    juegos: Array.from(document.querySelectorAll('.juego-input'))
+      .filter(i => i.value).map(i => ({clave: i.dataset.clave, cantidad: i.value}))
+  };
+}
+
+function guardarBorradorActual() {
+  if (contextoActual) {
+    borradores[`${contextoActual.fecha}_${contextoActual.agencia_id}`] = getFormSnapshot();
+  }
+}
+
 function seleccionarAgencia(agenciaId) {
+  guardarBorradorActual();
   document.querySelectorAll('.agency-row').forEach(b => b.classList.remove('active'));
   document.getElementById(`agrow-${agenciaId}`).classList.add('active');
   agenciaSeleccionada = subagenciasCache.find(a => a.agencia_id === agenciaId);
   document.getElementById('form-reporte').style.display = 'block';
-  onCambioFechaOAgencia();
+  mostrarResumenAgencia();
+  cargarFormularioParaContexto();
 }
 
-async function onCambioFechaOAgencia() {
+function mostrarResumenAgencia() {
+  document.getElementById('agency-selector-wrap').style.display = 'none';
+  const summary = document.getElementById('agency-selected-summary');
+  const detalle = [agenciaSeleccionada.ciudad, agenciaSeleccionada.domicilio,
+    agenciaSeleccionada.telefono ? '📱 '+agenciaSeleccionada.telefono : null].filter(Boolean).join(' · ');
+  summary.innerHTML = `
+    <div class="agency-row active" style="cursor:default;">
+      <span class="ag-code">${agenciaSeleccionada.agencia_id}</span>
+      <span class="ag-info">
+        <div class="ag-nombre">${agenciaSeleccionada.nombre_titular || '(sin nombre)'}</div>
+        ${detalle ? `<div class="ag-detalle">${detalle}</div>` : ''}
+      </span>
+      <button type="button" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;flex-shrink:0;" onclick="cambiarSubagencia()">🔄 Cambiar</button>
+    </div>`;
+  summary.style.display = 'block';
+}
+
+function cambiarSubagencia() {
+  document.getElementById('agency-selector-wrap').style.display = 'block';
+  document.getElementById('agency-selected-summary').style.display = 'none';
+  document.getElementById('buscar-subagencia').value = '';
+  filtrarSubagencias();
+  document.getElementById('buscar-subagencia').focus();
+}
+
+function onCambioFecha() {
+  guardarBorradorActual();
+  cargarFormularioParaContexto();
+}
+
+async function cargarFormularioParaContexto() {
   if (!agenciaSeleccionada) return;
-  limpiarFormulario();
   const fecha = document.getElementById('fecha-reporte').value;
+  const key = `${fecha}_${agenciaSeleccionada.agencia_id}`;
+  limpiarFormulario();
+  contextoActual = { fecha, agencia_id: agenciaSeleccionada.agencia_id };
+
+  if (borradores[key]) {
+    cargarReporteEnFormulario(borradores[key]);
+    document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
+    recalcularTicket();
+    return;
+  }
+
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaSeleccionada.agencia_id}`,
@@ -538,7 +617,7 @@ function limpiarFormulario() {
 }
 
 function cargarReporteEnFormulario(r) {
-  reporteExistenteId = r.id;
+  reporteExistenteId = r.id || null;
   document.getElementById('inp-reporte').value = r.monto_reporte_loteria || '';
   document.getElementById('inp-favor').value = r.a_favor || '';
 
@@ -885,6 +964,7 @@ async function guardarReporte() {
     if (res.ok) {
       const data = await res.json();
       reporteExistenteId = data[0]?.id || reporteExistenteId;
+      delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`]; // ya está guardado en Supabase, no hace falta el borrador local
       showToast('✅ Reporte guardado', 'ok');
       document.getElementById('hint-estado').textContent = '✏️ Reporte guardado — si volvés a entrar hoy a esta subagencia, lo vas a ver para corregirlo.';
     } else {
