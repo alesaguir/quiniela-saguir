@@ -1443,7 +1443,7 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   ctx.fillText('QUINIELA SAGUIR', padding, 42);
 
   ctx.fillStyle = cfg.color_texto_secundario;
-  ctx.font = `13px ${fuente}`;
+  ctx.font = `${tTexto}px ${fuente}`;
   ctx.fillText('Reporte digital de subagencias', padding, 62);
 
   ctx.fillStyle = cfg.color_texto;
@@ -1452,10 +1452,10 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
 
   const detalleUbicacion = [ciudad, domicilio].filter(Boolean).join(' · ');
   ctx.fillStyle = cfg.color_texto_secundario;
-  ctx.font = `12.5px ${fuente}`;
+  ctx.font = `${Math.max(tTexto - 1.5, 9)}px ${fuente}`;
   if (detalleUbicacion) ctx.fillText(detalleUbicacion, padding, 105);
 
-  ctx.font = `13px ${fuente}`;
+  ctx.font = `${tTexto}px ${fuente}`;
   const [y1,m1,d1] = fecha.split('-');
   ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, padding, 126);
 
@@ -1486,13 +1486,14 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   y += 26;
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = cfg.color_texto_secundario; ctx.font = `13px ${fuente}`;
+  ctx.fillStyle = cfg.color_texto_secundario; ctx.font = `${tTexto}px ${fuente}`;
   ctx.fillText('Subtotal', padding, y);
   ctx.textAlign = 'right'; ctx.fillStyle = cfg.color_texto;
   ctx.fillText(formatARS(subtotal), width - padding, y);
 
   y += 20;
   ctx.textAlign = 'left'; ctx.fillStyle = cfg.color_texto_secundario;
+  ctx.font = `${tTexto}px ${fuente}`;
   ctx.fillText('Redondeo', padding, y);
   ctx.textAlign = 'right'; ctx.fillStyle = redondeo < 0 ? cfg.color_negativo : cfg.color_texto;
   ctx.fillText(formatARS(redondeo), width - padding, y);
@@ -1627,12 +1628,16 @@ async function descargarPdfCombinado() {
         color: row.color
       });
       const imgData = canvas.toDataURL('image/png');
+      // Convertimos manualmente de píxeles a puntos (1px = 0.75pt a 96dpi) — la unidad 'px' de jsPDF
+      // no escala bien de forma consistente entre el tamaño de página y la imagen, y cortaba el contenido.
+      const pageW = canvas.width * 0.75;
+      const pageH = canvas.height * 0.75;
       if (idx === 0) {
-        pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf = new jsPDF({ unit: 'pt', format: [pageW, pageH] });
       } else {
-        pdf.addPage([canvas.width, canvas.height]);
+        pdf.addPage([pageW, pageH]);
       }
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH);
     });
 
     const [y1,m1,d1] = fecha.split('-');
