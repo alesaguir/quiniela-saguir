@@ -193,6 +193,7 @@
       <div class="tab active" onclick="setTabReportes('carga', this)">Carga de reporte</div>
       <div class="tab" onclick="setTabReportes('subagencias', this)">Contactos de subagencias</div>
       <div class="tab" id="tab-config-juegos" onclick="setTabReportes('juegos', this)" style="display:none;">Configuración de juegos</div>
+      <div class="tab" id="tab-diseno-imagen" onclick="setTabReportes('diseno', this)" style="display:none;">🎨 Diseño de imagen</div>
     </div>
 
     <!-- PASO 1: solo estructura. El contenido real de cada pestaña se arma en los próximos pasos. -->
@@ -371,6 +372,62 @@
       </style>
     </div>
 
+    <div id="panel-diseno" style="display:none;">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🎨 Diseño de la imagen del reporte</div></div>
+        <div class="card-body">
+          <div class="hint" style="margin-bottom:14px;">Estos ajustes afectan la imagen individual y cada página del PDF combinado. Se aplican al toque, sin tocar código.</div>
+
+          <div class="game-fields" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+            <div>
+              <span class="mini-label">Color de fondo</span>
+              <input type="color" class="form-input" id="dc-fondo" style="height:40px;padding:4px;">
+            </div>
+            <div>
+              <span class="mini-label">Color de texto principal</span>
+              <input type="color" class="form-input" id="dc-texto" style="height:40px;padding:4px;">
+            </div>
+            <div>
+              <span class="mini-label">Color de texto secundario</span>
+              <input type="color" class="form-input" id="dc-secundario" style="height:40px;padding:4px;">
+            </div>
+            <div>
+              <span class="mini-label">Color de acento (título)</span>
+              <input type="color" class="form-input" id="dc-acento" style="height:40px;padding:4px;">
+            </div>
+            <div>
+              <span class="mini-label">Color negativo (a favor / rojo)</span>
+              <input type="color" class="form-input" id="dc-negativo" style="height:40px;padding:4px;">
+            </div>
+            <div>
+              <span class="mini-label">Tipografía</span>
+              <select class="form-input" id="dc-fuente">
+                <option value="sans-serif">Sans serif (por defecto)</option>
+                <option value="'DM Sans',sans-serif">DM Sans</option>
+                <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+                <option value="Georgia, serif">Serif clásica</option>
+              </select>
+            </div>
+            <div>
+              <span class="mini-label">Tamaño del título (px)</span>
+              <input type="text" inputmode="numeric" class="form-input" id="dc-tamano-titulo">
+            </div>
+            <div>
+              <span class="mini-label">Tamaño del texto (px)</span>
+              <input type="text" inputmode="numeric" class="form-input" id="dc-tamano-texto">
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+            <button class="btn btn-primary" onclick="guardarDisenoImagen()">💾 Guardar diseño</button>
+            <button class="btn btn-ghost" onclick="previsualizarDiseno()">👁 Ver ejemplo</button>
+          </div>
+
+          <div id="preview-diseno-wrap" style="margin-top:16px;"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -462,10 +519,13 @@ async function login() {
 
     if (esSuperadmin) {
       document.getElementById('tab-config-juegos').style.display = 'block';
+      document.getElementById('tab-diseno-imagen').style.display = 'block';
       document.getElementById('btn-nueva-subagencia').style.display = 'inline-flex';
       cargarJuegosConfig();
+      cargarDisenoImagenForm();
     }
 
+    await cargarImagenConfig();
     initCarga();
     cargarSubagenciasContactos();
 
@@ -507,6 +567,7 @@ function setTabReportes(nombre, el) {
   document.getElementById('panel-carga').style.display = nombre === 'carga' ? 'block' : 'none';
   document.getElementById('panel-subagencias').style.display = nombre === 'subagencias' ? 'block' : 'none';
   document.getElementById('panel-juegos').style.display = nombre === 'juegos' ? 'block' : 'none';
+  document.getElementById('panel-diseno').style.display = nombre === 'diseno' ? 'block' : 'none';
 }
 
 // =====================
@@ -1267,10 +1328,104 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 // Dibuja el reporte de una subagencia en un canvas — mismo canvas se usa para la imagen individual y para cada página del PDF combinado
+// =====================
+// DISEÑO DE IMAGEN (config global, editable solo por superadmin)
+// =====================
+let imagenConfigCache = {
+  color_fondo: '#12151A', color_texto: '#E9E7E1', color_texto_secundario: '#8B93A3',
+  color_acento: '#f0b429', color_negativo: '#e15353', fuente: 'sans-serif',
+  tamano_titulo: 26, tamano_texto: 14
+};
+
+async function cargarImagenConfig() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/imagen_config?id=eq.true`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0) imagenConfigCache = rows[0];
+  } catch(e) { console.error(e); /* si falla, seguimos con los valores por defecto */ }
+}
+
+function cargarDisenoImagenForm() {
+  document.getElementById('dc-fondo').value = imagenConfigCache.color_fondo;
+  document.getElementById('dc-texto').value = imagenConfigCache.color_texto;
+  document.getElementById('dc-secundario').value = imagenConfigCache.color_texto_secundario;
+  document.getElementById('dc-acento').value = imagenConfigCache.color_acento;
+  document.getElementById('dc-negativo').value = imagenConfigCache.color_negativo;
+  document.getElementById('dc-fuente').value = imagenConfigCache.fuente;
+  document.getElementById('dc-tamano-titulo').value = imagenConfigCache.tamano_titulo;
+  document.getElementById('dc-tamano-texto').value = imagenConfigCache.tamano_texto;
+}
+
+function leerFormDiseno() {
+  return {
+    color_fondo: document.getElementById('dc-fondo').value,
+    color_texto: document.getElementById('dc-texto').value,
+    color_texto_secundario: document.getElementById('dc-secundario').value,
+    color_acento: document.getElementById('dc-acento').value,
+    color_negativo: document.getElementById('dc-negativo').value,
+    fuente: document.getElementById('dc-fuente').value,
+    tamano_titulo: parseInt(document.getElementById('dc-tamano-titulo').value) || 26,
+    tamano_texto: parseInt(document.getElementById('dc-tamano-texto').value) || 14
+  };
+}
+
+async function guardarDisenoImagen() {
+  const payload = leerFormDiseno();
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/imagen_config?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      imagenConfigCache = { ...imagenConfigCache, ...payload };
+      showToast('✅ Diseño guardado', 'ok');
+    } else {
+      showToast('Error al guardar el diseño', 'err');
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+function previsualizarDiseno() {
+  const configTemporal = leerFormDiseno();
+  const anterior = imagenConfigCache;
+  imagenConfigCache = configTemporal; // temporal, solo para dibujar el ejemplo
+  const canvas = crearCanvasReporte({
+    agenciaId: '670-00',
+    nombreTitular: 'Ejemplo de subagencia',
+    ciudad: 'Presidencia Roque Sáenz Peña',
+    domicilio: 'Calle de ejemplo 123',
+    fecha: new Date().toISOString().slice(0,10),
+    items: [
+      {label:'Reporte (Lotería Chaqueña)', amount: 250000},
+      {label:'Premio (otra sucursal)', amount: 5000},
+      {label:'A favor del subagente', amount: -3000},
+    ],
+    subtotal: 252000, redondeo: -2000, montoFinal: 250000, color: 'negro'
+  });
+  imagenConfigCache = anterior; // no se guarda hasta que aprieten "Guardar diseño"
+  const wrap = document.getElementById('preview-diseno-wrap');
+  wrap.innerHTML = '';
+  canvas.style.maxWidth = '100%';
+  canvas.style.borderRadius = '10px';
+  wrap.appendChild(canvas);
+}
+
 function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha, items, subtotal, redondeo, montoFinal, color}) {
+  const cfg = imagenConfigCache;
+  const fuente = cfg.fuente || 'sans-serif';
+  const tTitulo = cfg.tamano_titulo || 26;
+  const tTexto = cfg.tamano_texto || 14;
+
   const width = 680;
   const padding = 32;
-  const lineHeight = 26;
+  const lineHeight = Math.round(tTexto * 1.85);
   const headerHeight = 136;
   const footerHeight = 70;
   const height = headerHeight + Math.max(items.length, 1) * lineHeight + 110 + footerHeight;
@@ -1280,27 +1435,27 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#12151A';
+  ctx.fillStyle = cfg.color_fondo;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = '#f0b429';
-  ctx.font = 'bold 26px sans-serif';
+  ctx.fillStyle = cfg.color_acento;
+  ctx.font = `bold ${tTitulo}px ${fuente}`;
   ctx.fillText('QUINIELA SAGUIR', padding, 42);
 
-  ctx.fillStyle = '#8B93A3';
-  ctx.font = '13px sans-serif';
+  ctx.fillStyle = cfg.color_texto_secundario;
+  ctx.font = `13px ${fuente}`;
   ctx.fillText('Reporte digital de subagencias', padding, 62);
 
-  ctx.fillStyle = '#E9E7E1';
-  ctx.font = 'bold 17px sans-serif';
+  ctx.fillStyle = cfg.color_texto;
+  ctx.font = `bold ${tTexto + 3}px ${fuente}`;
   ctx.fillText(`Subagencia ${agenciaId} — ${nombreTitular || ''}`, padding, 86);
 
   const detalleUbicacion = [ciudad, domicilio].filter(Boolean).join(' · ');
-  ctx.fillStyle = '#8B93A3';
-  ctx.font = '12.5px sans-serif';
+  ctx.fillStyle = cfg.color_texto_secundario;
+  ctx.font = `12.5px ${fuente}`;
   if (detalleUbicacion) ctx.fillText(detalleUbicacion, padding, 105);
 
-  ctx.font = '13px sans-serif';
+  ctx.font = `13px ${fuente}`;
   const [y1,m1,d1] = fecha.split('-');
   ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, padding, 126);
 
@@ -1308,17 +1463,17 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   ctx.beginPath(); ctx.moveTo(padding, headerHeight - 8); ctx.lineTo(width - padding, headerHeight - 8); ctx.stroke();
 
   let y = headerHeight + 16;
-  ctx.font = '14px sans-serif';
+  ctx.font = `${tTexto}px ${fuente}`;
   if (items.length === 0) {
-    ctx.fillStyle = '#8B93A3';
+    ctx.fillStyle = cfg.color_texto_secundario;
     ctx.fillText('Sin conceptos adicionales', padding, y);
     y += lineHeight;
   } else {
     items.forEach(i => {
-      ctx.fillStyle = '#8B93A3';
+      ctx.fillStyle = cfg.color_texto_secundario;
       ctx.textAlign = 'left';
       ctx.fillText(i.label, padding, y);
-      ctx.fillStyle = i.amount < 0 ? '#e15353' : '#E9E7E1';
+      ctx.fillStyle = i.amount < 0 ? cfg.color_negativo : cfg.color_texto;
       ctx.textAlign = 'right';
       ctx.fillText((i.amount < 0 ? '− ' : '+ ') + formatARS(Math.abs(i.amount)), width - padding, y);
       y += lineHeight;
@@ -1331,30 +1486,30 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   y += 26;
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#8B93A3'; ctx.font = '13px sans-serif';
+  ctx.fillStyle = cfg.color_texto_secundario; ctx.font = `13px ${fuente}`;
   ctx.fillText('Subtotal', padding, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = '#E9E7E1';
+  ctx.textAlign = 'right'; ctx.fillStyle = cfg.color_texto;
   ctx.fillText(formatARS(subtotal), width - padding, y);
 
   y += 20;
-  ctx.textAlign = 'left'; ctx.fillStyle = '#8B93A3';
+  ctx.textAlign = 'left'; ctx.fillStyle = cfg.color_texto_secundario;
   ctx.fillText('Redondeo', padding, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = redondeo < 0 ? '#e15353' : '#E9E7E1';
+  ctx.textAlign = 'right'; ctx.fillStyle = redondeo < 0 ? cfg.color_negativo : cfg.color_texto;
   ctx.fillText(formatARS(redondeo), width - padding, y);
 
   y += 46;
   const etiquetaFinal = color === 'rojo' ? 'A retirar de la agencia' : 'Traer a la agencia';
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#E9E7E1'; ctx.font = 'bold 16px sans-serif';
+  ctx.fillStyle = cfg.color_texto; ctx.font = `bold ${tTexto + 2}px ${fuente}`;
   ctx.fillText(etiquetaFinal, padding, y);
   ctx.textAlign = 'right';
-  ctx.fillStyle = color === 'rojo' ? '#e15353' : '#E9E7E1';
-  ctx.font = 'bold 28px monospace';
+  ctx.fillStyle = color === 'rojo' ? cfg.color_negativo : cfg.color_texto;
+  ctx.font = `bold ${tTitulo}px ${fuente}`;
   ctx.fillText(formatARS(montoFinal), width - padding, y + 6);
 
   y += 40;
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#6b7280'; ctx.font = '10.5px sans-serif';
+  ctx.fillStyle = '#6b7280'; ctx.font = `10.5px ${fuente}`;
   wrapText(ctx,
     'Los importes en rojo son a favor del subagente; en blanco, a favor del agente. Información confidencial — evite compartir.',
     padding, y, width - 2 * padding, 14);
@@ -1414,6 +1569,29 @@ function generarImagenActual() {
   mostrarImagenModal(canvas, `reporte_${agenciaSeleccionada.agencia_id}_${fecha}.png`);
 }
 
+async function guardarPdfConDialogo(pdf, nombreArchivo) {
+  const blob = pdf.output('blob');
+  // File System Access API: abre la ventana nativa "Guardar como" (Edge/Chrome de escritorio)
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: nombreArchivo,
+        types: [{ description: 'PDF', accept: {'application/pdf': ['.pdf']} }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return; // el usuario canceló el diálogo, no hacer nada más
+      console.error(e);
+      // si falla por algún otro motivo, seguimos con la descarga normal como respaldo
+    }
+  }
+  // Respaldo para navegadores sin soporte (ej. Safari, Firefox): descarga directa
+  pdf.save(nombreArchivo);
+}
+
 async function descargarPdfCombinado() {
   const fecha = document.getElementById('fecha-reporte').value;
   const btn = document.getElementById('btn-pdf-combinado');
@@ -1450,14 +1628,16 @@ async function descargarPdfCombinado() {
       });
       const imgData = canvas.toDataURL('image/png');
       if (idx === 0) {
-        pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+        pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
       } else {
         pdf.addPage([canvas.width, canvas.height]);
       }
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
     });
 
-    pdf.save(`reportes_${fecha}.pdf`);
+    const [y1,m1,d1] = fecha.split('-');
+    const nombreArchivo = `REPORTE_${d1}-${m1}-${y1}.pdf`;
+    await guardarPdfConDialogo(pdf, nombreArchivo);
     showToast(`✅ PDF generado — ${rows.length} subagencia(s)`, 'ok');
   } catch(e) {
     console.error(e);
