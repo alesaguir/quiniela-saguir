@@ -381,6 +381,7 @@
     <img id="imagen-modal-img" style="max-width:100%;border-radius:8px;display:block;margin:0 auto 14px;">
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <a id="imagen-modal-download" class="btn btn-primary" download="reporte.png" style="text-decoration:none;">⬇ Descargar</a>
+      <button class="btn btn-ghost" id="imagen-modal-copy">📋 Copiar</button>
       <button class="btn btn-ghost" id="imagen-modal-share" style="display:none;">📲 Compartir</button>
       <button class="btn btn-ghost" onclick="document.getElementById('imagen-modal').style.display='none'">Cerrar</button>
     </div>
@@ -822,7 +823,9 @@ function recalcularTicket() {
   const redondeo = redondeado - subtotal;
 
   document.getElementById('out-subtotal').textContent = formatARS(subtotal);
-  document.getElementById('out-redondeo').textContent = formatARS(redondeo);
+  const redondeoEl = document.getElementById('out-redondeo');
+  redondeoEl.textContent = formatARS(redondeo);
+  redondeoEl.style.color = redondeo < 0 ? 'var(--red)' : '';
   const label = document.getElementById('out-label');
   const monto = document.getElementById('out-monto');
   if (redondeado >= 0) {
@@ -1264,11 +1267,11 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 // Dibuja el reporte de una subagencia en un canvas — mismo canvas se usa para la imagen individual y para cada página del PDF combinado
-function crearCanvasReporte({agenciaId, nombreTitular, fecha, items, subtotal, redondeo, montoFinal, color}) {
+function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha, items, subtotal, redondeo, montoFinal, color}) {
   const width = 680;
   const padding = 32;
   const lineHeight = 26;
-  const headerHeight = 120;
+  const headerHeight = 136;
   const footerHeight = 70;
   const height = headerHeight + Math.max(items.length, 1) * lineHeight + 110 + footerHeight;
 
@@ -1290,12 +1293,16 @@ function crearCanvasReporte({agenciaId, nombreTitular, fecha, items, subtotal, r
 
   ctx.fillStyle = '#E9E7E1';
   ctx.font = 'bold 17px sans-serif';
-  ctx.fillText(`Subagencia ${agenciaId} — ${nombreTitular || ''}`, padding, 90);
+  ctx.fillText(`Subagencia ${agenciaId} — ${nombreTitular || ''}`, padding, 86);
 
+  const detalleUbicacion = [ciudad, domicilio].filter(Boolean).join(' · ');
   ctx.fillStyle = '#8B93A3';
+  ctx.font = '12.5px sans-serif';
+  if (detalleUbicacion) ctx.fillText(detalleUbicacion, padding, 105);
+
   ctx.font = '13px sans-serif';
   const [y1,m1,d1] = fecha.split('-');
-  ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, padding, 110);
+  ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, padding, 126);
 
   ctx.strokeStyle = '#22262f';
   ctx.beginPath(); ctx.moveTo(padding, headerHeight - 8); ctx.lineTo(width - padding, headerHeight - 8); ctx.stroke();
@@ -1332,7 +1339,7 @@ function crearCanvasReporte({agenciaId, nombreTitular, fecha, items, subtotal, r
   y += 20;
   ctx.textAlign = 'left'; ctx.fillStyle = '#8B93A3';
   ctx.fillText('Redondeo', padding, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = '#E9E7E1';
+  ctx.textAlign = 'right'; ctx.fillStyle = redondeo < 0 ? '#e15353' : '#E9E7E1';
   ctx.fillText(formatARS(redondeo), width - padding, y);
 
   y += 46;
@@ -1362,8 +1369,20 @@ function mostrarImagenModal(canvas, nombreArchivo) {
   downloadLink.href = dataUrl;
   downloadLink.download = nombreArchivo;
 
+  const copyBtn = document.getElementById('imagen-modal-copy');
   const shareBtn = document.getElementById('imagen-modal-share');
+
   canvas.toBlob(blob => {
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+        showToast('✅ Imagen copiada — pegala en WhatsApp Web con Ctrl+V', 'ok');
+      } catch(e) {
+        console.error(e);
+        showToast('No se pudo copiar. Probá con "Descargar" en su lugar.', 'err');
+      }
+    };
+
     const file = new File([blob], nombreArchivo, {type: 'image/png'});
     if (navigator.canShare && navigator.canShare({files: [file]})) {
       shareBtn.style.display = 'inline-flex';
@@ -1383,6 +1402,8 @@ function generarImagenActual() {
   const canvas = crearCanvasReporte({
     agenciaId: agenciaSeleccionada.agencia_id,
     nombreTitular: agenciaSeleccionada.nombre_titular,
+    ciudad: agenciaSeleccionada.ciudad,
+    domicilio: agenciaSeleccionada.domicilio,
     fecha,
     items: calc.items,
     subtotal: calc.subtotal,
@@ -1418,6 +1439,8 @@ async function descargarPdfCombinado() {
       const canvas = crearCanvasReporte({
         agenciaId: agencia.agencia_id,
         nombreTitular: agencia.nombre_titular,
+        ciudad: agencia.ciudad,
+        domicilio: agencia.domicilio,
         fecha,
         items: itemsDesdeRegistro(row),
         subtotal: row.subtotal,
