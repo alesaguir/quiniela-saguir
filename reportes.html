@@ -243,10 +243,7 @@
                   </div>
                 </div>
 
-                <div class="section-head">
-                  <span class="label">🏆 Premio</span>
-                </div>
-                <div id="premios-container"></div>
+                <div id="premios-container" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);"></div>
 
                 <div class="field-row compact" style="margin-top:6px;">
                   <div class="field-label">↩ A favor del subagente</div>
@@ -638,6 +635,7 @@ function addPremioLine(focus=true, valor='') {
   const row = document.createElement('div');
   row.className = 'field-row compact';
   row.innerHTML = `
+    <div class="field-label">🏆 Premio</div>
     <div class="field-input-wrap">
       <span class="peso">$</span>
       <input type="text" inputmode="decimal" class="amount premio-input" placeholder="0,00" value="${valor}">
