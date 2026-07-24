@@ -1632,10 +1632,11 @@ async function descargarPdfCombinado() {
       // no escala bien de forma consistente entre el tamaño de página y la imagen, y cortaba el contenido.
       const pageW = canvas.width * 0.75;
       const pageH = canvas.height * 0.75;
+      const orientacion = pageW >= pageH ? 'l' : 'p'; // jsPDF fuerza portrait por defecto y corta el contenido si no se lo indicamos
       if (idx === 0) {
-        pdf = new jsPDF({ unit: 'pt', format: [pageW, pageH] });
+        pdf = new jsPDF({ unit: 'pt', format: [pageW, pageH], orientation: orientacion });
       } else {
-        pdf.addPage([pageW, pageH]);
+        pdf.addPage([pageW, pageH], orientacion);
       }
       pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH);
     });
