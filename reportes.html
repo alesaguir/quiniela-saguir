@@ -202,14 +202,14 @@
             <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Filtrar subagencia" oninput="filtrarSubagencias()" style="padding:8px 10px;flex:1;min-width:160px;max-width:240px;">
           </div>
 
-          <div id="agency-tabs" style="display:flex;flex-wrap:wrap;gap:5px;">Cargando subagencias...</div>
-          <div id="agency-selected-summary" style="display:none;margin-top:8px;"></div>
+          <div id="agency-tabs" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:5px;padding-bottom:6px;scrollbar-width:thin;">Cargando subagencias...</div>
 
         </div>
       </div>
       <style>
-        .agency-tab{padding:6px 11px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);
-          color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12.5px;cursor:pointer;transition:.1s;white-space:nowrap;}
+        .agency-tab{padding:7px 13px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);
+          color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;transition:.1s;
+          white-space:nowrap;flex:0 0 auto;}
         .agency-tab:hover{border-color:var(--gold);}
         .agency-tab.active{background:var(--gold);color:#000;border-color:var(--gold);}
         .agency-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);
@@ -233,7 +233,7 @@
                   <div class="field-label">Monto informado</div>
                   <div class="field-input-wrap">
                     <span class="peso">$</span>
-                    <input type="text" inputmode="decimal" class="amount" id="inp-reporte" placeholder="0,00">
+                    <input type="text" inputmode="decimal" class="amount" id="inp-reporte" placeholder="0,00" oninput="recalcularTicket()">
                   </div>
                 </div>
 
@@ -246,7 +246,7 @@
                   <div class="field-label">Saldo a favor</div>
                   <div class="field-input-wrap">
                     <span class="peso">$</span>
-                    <input type="text" inputmode="decimal" class="amount" id="inp-favor" placeholder="0,00">
+                    <input type="text" inputmode="decimal" class="amount" id="inp-favor" placeholder="0,00" oninput="recalcularTicket()">
                   </div>
                 </div>
 
@@ -483,9 +483,8 @@ async function cargarSubagenciasSelect() {
       return `
       <button type="button" class="agency-tab" id="agtab-${a.agencia_id}"
         data-buscar="${(a.agencia_id+' '+(a.nombre_titular||'')+' '+(a.ciudad||'')).toLowerCase()}"
-        title="${a.nombre_titular || ''}"
         onclick="seleccionarAgencia('${a.agencia_id}')">
-        ${numero}
+        ${numero} — ${a.nombre_titular || '(sin nombre)'}
       </button>
     `;
     }).join('');
@@ -495,7 +494,7 @@ async function cargarSubagenciasSelect() {
 function filtrarSubagencias() {
   const q = document.getElementById('buscar-subagencia').value.trim().toLowerCase();
   document.querySelectorAll('.agency-tab').forEach(tab => {
-    tab.style.display = tab.dataset.buscar.includes(q) ? 'inline-block' : 'none';
+    tab.style.display = tab.dataset.buscar.includes(q) ? '' : 'none';
   });
 }
 
@@ -555,23 +554,7 @@ function seleccionarAgencia(agenciaId) {
   document.getElementById(`agtab-${agenciaId}`).classList.add('active');
   agenciaSeleccionada = subagenciasCache.find(a => a.agencia_id === agenciaId);
   document.getElementById('form-reporte').style.display = 'block';
-  mostrarResumenAgencia();
   cargarFormularioParaContexto();
-}
-
-function mostrarResumenAgencia() {
-  const summary = document.getElementById('agency-selected-summary');
-  const detalle = [agenciaSeleccionada.ciudad, agenciaSeleccionada.domicilio,
-    agenciaSeleccionada.telefono ? '📱 '+agenciaSeleccionada.telefono : null].filter(Boolean).join(' · ');
-  summary.innerHTML = `
-    <div class="agency-row">
-      <span class="ag-code">${agenciaSeleccionada.agencia_id}</span>
-      <span class="ag-info">
-        <div class="ag-nombre">${agenciaSeleccionada.nombre_titular || '(sin nombre)'}</div>
-        ${detalle ? `<div class="ag-detalle">${detalle}</div>` : ''}
-      </span>
-    </div>`;
-  summary.style.display = 'block';
 }
 
 function onCambioFecha() {
