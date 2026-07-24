@@ -150,6 +150,7 @@
     .content{padding:18px;}
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -206,6 +207,7 @@
               <input type="date" class="form-input" id="fecha-reporte" onchange="onCambioFecha()" style="padding:8px 10px;width:auto;">
             </div>
             <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Filtrar subagencia" oninput="filtrarSubagencias()" style="padding:8px 10px;flex:1;min-width:160px;max-width:240px;">
+            <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
           </div>
 
           <div id="agency-tabs" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:5px;padding-bottom:6px;scrollbar-width:thin;">Cargando subagencias...</div>
@@ -277,7 +279,10 @@
             <span id="out-label" style="font-weight:700;font-size:14px;">A definir</span>
             <span class="result-amount negro" id="out-monto">$ 0</span>
           </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:10px;" id="btn-guardar-reporte" onclick="guardarReporte()">💾 Guardar reporte</button>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn btn-primary" style="flex:1;" id="btn-guardar-reporte" onclick="guardarReporte()">💾 Guardar reporte</button>
+            <button class="btn btn-ghost" style="flex:0 0 auto;padding:12px 16px;" onclick="generarImagenActual()">🖼 Imagen</button>
+          </div>
           <div class="hint" id="hint-estado" style="text-align:center;margin-top:6px;"></div>
         </div>
 
@@ -370,6 +375,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div id="imagen-modal" style="display:none;position:fixed;inset:0;background:rgba(10,12,15,.85);z-index:9998;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:92vw;max-height:92vh;overflow-y:auto;text-align:center;">
+    <img id="imagen-modal-img" style="max-width:100%;border-radius:8px;display:block;margin:0 auto 14px;">
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <a id="imagen-modal-download" class="btn btn-primary" download="reporte.png" style="text-decoration:none;">⬇ Descargar</a>
+      <button class="btn btn-ghost" id="imagen-modal-share" style="display:none;">📲 Compartir</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('imagen-modal').style.display='none'">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
@@ -829,7 +845,7 @@ function recalcularTicket() {
     </div>
   `).join('') : '<div class="ticket-empty">Empezá a cargar para ver el detalle acá</div>';
 
-  return { subtotal, redondeo, redondeado, premiosTotal, favor, premioItems, freeItems, juegoItems };
+  return { subtotal, redondeo, redondeado, premiosTotal, favor, premioItems, freeItems, juegoItems, items: visibles };
 }
 
 // =====================
@@ -1210,6 +1226,222 @@ async function guardarReporte() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = '💾 Guardar reporte';
+  }
+}
+
+// =====================
+// GENERACIÓN DE IMAGEN Y PDF COMBINADO
+// =====================
+
+// Reconstruye la lista de líneas (label + monto) a partir de una fila ya guardada en reportes_diarios
+function itemsDesdeRegistro(row) {
+  const items = [{label:'Reporte (Lotería Chaqueña)', amount: row.monto_reporte_loteria || 0}];
+  (row.premios || []).forEach(p => items.push({label:'Premio (otra sucursal)', amount: p.monto}));
+  (row.a_favor_detalle || []).forEach(f => items.push({label:'A favor del subagente', amount: -f.monto}));
+  (row.juegos || []).forEach(j => {
+    const juego = juegosCache.find(g => g.clave === j.clave) || juegosConfigCache.find(g => g.clave === j.clave);
+    items.push({label: (juego ? juego.nombre_visible : j.clave) + ` (${j.cantidad} u.)`, amount: j.monto_calculado});
+  });
+  (row.conceptos_libres || []).forEach(c => items.push({label: c.concepto, amount: c.monto}));
+  return items.filter(i => i.amount !== 0);
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  words.forEach(word => {
+    const test = line + word + ' ';
+    if (ctx.measureText(test).width > maxWidth && line !== '') {
+      ctx.fillText(line, x, y);
+      line = word + ' ';
+      y += lineHeight;
+    } else {
+      line = test;
+    }
+  });
+  ctx.fillText(line, x, y);
+  return y + lineHeight;
+}
+
+// Dibuja el reporte de una subagencia en un canvas — mismo canvas se usa para la imagen individual y para cada página del PDF combinado
+function crearCanvasReporte({agenciaId, nombreTitular, fecha, items, subtotal, redondeo, montoFinal, color}) {
+  const width = 680;
+  const padding = 32;
+  const lineHeight = 26;
+  const headerHeight = 120;
+  const footerHeight = 70;
+  const height = headerHeight + Math.max(items.length, 1) * lineHeight + 110 + footerHeight;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#12151A';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = '#f0b429';
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText('QUINIELA SAGUIR', padding, 42);
+
+  ctx.fillStyle = '#8B93A3';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('Reporte digital de subagencias', padding, 62);
+
+  ctx.fillStyle = '#E9E7E1';
+  ctx.font = 'bold 17px sans-serif';
+  ctx.fillText(`Subagencia ${agenciaId} — ${nombreTitular || ''}`, padding, 90);
+
+  ctx.fillStyle = '#8B93A3';
+  ctx.font = '13px sans-serif';
+  const [y1,m1,d1] = fecha.split('-');
+  ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, padding, 110);
+
+  ctx.strokeStyle = '#22262f';
+  ctx.beginPath(); ctx.moveTo(padding, headerHeight - 8); ctx.lineTo(width - padding, headerHeight - 8); ctx.stroke();
+
+  let y = headerHeight + 16;
+  ctx.font = '14px sans-serif';
+  if (items.length === 0) {
+    ctx.fillStyle = '#8B93A3';
+    ctx.fillText('Sin conceptos adicionales', padding, y);
+    y += lineHeight;
+  } else {
+    items.forEach(i => {
+      ctx.fillStyle = '#8B93A3';
+      ctx.textAlign = 'left';
+      ctx.fillText(i.label, padding, y);
+      ctx.fillStyle = i.amount < 0 ? '#e15353' : '#E9E7E1';
+      ctx.textAlign = 'right';
+      ctx.fillText((i.amount < 0 ? '− ' : '+ ') + formatARS(Math.abs(i.amount)), width - padding, y);
+      y += lineHeight;
+    });
+  }
+
+  y += 8;
+  ctx.strokeStyle = '#22262f';
+  ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(width - padding, y); ctx.stroke();
+  y += 26;
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#8B93A3'; ctx.font = '13px sans-serif';
+  ctx.fillText('Subtotal', padding, y);
+  ctx.textAlign = 'right'; ctx.fillStyle = '#E9E7E1';
+  ctx.fillText(formatARS(subtotal), width - padding, y);
+
+  y += 20;
+  ctx.textAlign = 'left'; ctx.fillStyle = '#8B93A3';
+  ctx.fillText('Redondeo', padding, y);
+  ctx.textAlign = 'right'; ctx.fillStyle = '#E9E7E1';
+  ctx.fillText(formatARS(redondeo), width - padding, y);
+
+  y += 46;
+  const etiquetaFinal = color === 'rojo' ? 'A retirar de la agencia' : 'Traer a la agencia';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#E9E7E1'; ctx.font = 'bold 16px sans-serif';
+  ctx.fillText(etiquetaFinal, padding, y);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = color === 'rojo' ? '#e15353' : '#E9E7E1';
+  ctx.font = 'bold 28px monospace';
+  ctx.fillText(formatARS(montoFinal), width - padding, y + 6);
+
+  y += 40;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#6b7280'; ctx.font = '10.5px sans-serif';
+  wrapText(ctx,
+    'Los importes en rojo son a favor del subagente; en blanco, a favor del agente. Información confidencial — evite compartir.',
+    padding, y, width - 2 * padding, 14);
+
+  return canvas;
+}
+
+function mostrarImagenModal(canvas, nombreArchivo) {
+  const dataUrl = canvas.toDataURL('image/png');
+  document.getElementById('imagen-modal-img').src = dataUrl;
+  const downloadLink = document.getElementById('imagen-modal-download');
+  downloadLink.href = dataUrl;
+  downloadLink.download = nombreArchivo;
+
+  const shareBtn = document.getElementById('imagen-modal-share');
+  canvas.toBlob(blob => {
+    const file = new File([blob], nombreArchivo, {type: 'image/png'});
+    if (navigator.canShare && navigator.canShare({files: [file]})) {
+      shareBtn.style.display = 'inline-flex';
+      shareBtn.onclick = () => navigator.share({files: [file], title: nombreArchivo}).catch(()=>{});
+    } else {
+      shareBtn.style.display = 'none';
+    }
+  });
+
+  document.getElementById('imagen-modal').style.display = 'flex';
+}
+
+function generarImagenActual() {
+  if (!agenciaSeleccionada) { showToast('Elegí una subagencia primero', 'err'); return; }
+  const calc = recalcularTicket();
+  const fecha = document.getElementById('fecha-reporte').value;
+  const canvas = crearCanvasReporte({
+    agenciaId: agenciaSeleccionada.agencia_id,
+    nombreTitular: agenciaSeleccionada.nombre_titular,
+    fecha,
+    items: calc.items,
+    subtotal: calc.subtotal,
+    redondeo: calc.redondeo,
+    montoFinal: Math.abs(calc.redondeado),
+    color: calc.redondeado >= 0 ? 'negro' : 'rojo'
+  });
+  mostrarImagenModal(canvas, `reporte_${agenciaSeleccionada.agencia_id}_${fecha}.png`);
+}
+
+async function descargarPdfCombinado() {
+  const fecha = document.getElementById('fecha-reporte').value;
+  const btn = document.getElementById('btn-pdf-combinado');
+  const original = btn.textContent;
+  btn.textContent = '⏳ Generando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (!rows || rows.length === 0) {
+      showToast('No hay reportes guardados para esa fecha', 'err');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    let pdf = null;
+    rows.forEach((row, idx) => {
+      const agencia = subagenciasCache.find(a => a.agencia_id === row.agencia_id) || { agencia_id: row.agencia_id, nombre_titular: '' };
+      const canvas = crearCanvasReporte({
+        agenciaId: agencia.agencia_id,
+        nombreTitular: agencia.nombre_titular,
+        fecha,
+        items: itemsDesdeRegistro(row),
+        subtotal: row.subtotal,
+        redondeo: row.redondeo,
+        montoFinal: row.monto_final,
+        color: row.color
+      });
+      const imgData = canvas.toDataURL('image/png');
+      if (idx === 0) {
+        pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+      } else {
+        pdf.addPage([canvas.width, canvas.height]);
+      }
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    });
+
+    pdf.save(`reportes_${fecha}.pdf`);
+    showToast(`✅ PDF generado — ${rows.length} subagencia(s)`, 'ok');
+  } catch(e) {
+    console.error(e);
+    showToast('Error al generar el PDF', 'err');
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
   }
 }
 </script>
