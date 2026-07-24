@@ -245,13 +245,7 @@
 
                 <div id="premios-container" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);"></div>
 
-                <div class="field-row compact" style="margin-top:6px;">
-                  <div class="field-label">↩ A favor del subagente</div>
-                  <div class="field-input-wrap">
-                    <span class="peso">$</span>
-                    <input type="text" inputmode="decimal" class="amount" id="inp-favor" placeholder="0,00" oninput="recalcularTicket()">
-                  </div>
-                </div>
+                <div id="favor-container" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);"></div>
 
                 <div class="section-head">
                   <span class="label">📎 Otros conceptos</span>
@@ -539,7 +533,7 @@ async function cargarJuegosActivos() {
 function getFormSnapshot() {
   return {
     monto_reporte_loteria: document.getElementById('inp-reporte').value,
-    a_favor: document.getElementById('inp-favor').value,
+    a_favor_detalle: Array.from(document.querySelectorAll('.favor-input')).map(i => ({monto: i.value})),
     premios: Array.from(document.querySelectorAll('.premio-input')).map(i => ({monto: i.value})),
     conceptos_libres: Array.from(document.querySelectorAll('.free-line')).map(row => ({
       concepto: row.querySelector('.concept').value, monto: row.querySelector('.free-input').value
@@ -603,17 +597,24 @@ async function cargarFormularioParaContexto() {
 function limpiarFormulario() {
   reporteExistenteId = null;
   document.getElementById('inp-reporte').value = '';
-  document.getElementById('inp-favor').value = '';
+  document.getElementById('favor-container').innerHTML = '';
   document.getElementById('premios-container').innerHTML = '';
   document.getElementById('free-container').innerHTML = '';
   document.querySelectorAll('.juego-input').forEach(i => i.value = '');
   addPremioLine(false);
+  addFavorLine(false);
 }
 
 function cargarReporteEnFormulario(r) {
   reporteExistenteId = r.id || null;
   document.getElementById('inp-reporte').value = r.monto_reporte_loteria || '';
-  document.getElementById('inp-favor').value = r.a_favor || '';
+
+  const favorCont = document.getElementById('favor-container');
+  favorCont.innerHTML = '';
+  // a_favor_detalle es lo nuevo (varias líneas); si un reporte viejo solo tiene el a_favor único, lo mostramos como una sola línea
+  const favorLines = (r.a_favor_detalle && r.a_favor_detalle.length) ? r.a_favor_detalle
+    : (r.a_favor ? [{monto: r.a_favor}] : [{monto:''}]);
+  favorLines.forEach(f => addFavorLine(false, f.monto));
 
   const premiosCont = document.getElementById('premios-container');
   premiosCont.innerHTML = '';
@@ -648,6 +649,28 @@ function addPremioLine(focus=true, valor='') {
   input.addEventListener('input', recalcularTicket);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPremioLine(); } });
   row.querySelector('.add-inline-btn').addEventListener('click', () => addPremioLine());
+  row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
+  if (focus) input.focus();
+}
+
+function addFavorLine(focus=true, valor='') {
+  const cont = document.getElementById('favor-container');
+  const row = document.createElement('div');
+  row.className = 'field-row compact';
+  row.innerHTML = `
+    <div class="field-label">↩ A favor</div>
+    <div class="field-input-wrap">
+      <span class="peso">$</span>
+      <input type="text" inputmode="decimal" class="amount favor-input" placeholder="0,00" value="${valor}">
+    </div>
+    <button class="add-inline-btn" type="button" title="Agregar otro saldo a favor">+</button>
+    <button class="remove-line" type="button" title="Quitar">×</button>
+  `;
+  cont.appendChild(row);
+  const input = row.querySelector('input');
+  input.addEventListener('input', recalcularTicket);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFavorLine(); } });
+  row.querySelector('.add-inline-btn').addEventListener('click', () => addFavorLine());
   row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
   if (focus) input.focus();
 }
@@ -700,7 +723,14 @@ function calcularMontoJuego(juego, cantidad) {
 
 function recalcularTicket() {
   const reporte = parseMonto(document.getElementById('inp-reporte').value);
-  const favor = parseMonto(document.getElementById('inp-favor').value);
+
+  let favor = 0;
+  const favorItems = [];
+  document.querySelectorAll('.favor-input').forEach(i => {
+    const v = parseMonto(i.value);
+    favor += v;
+    if (v !== 0) favorItems.push({label:'A favor del subagente', amount:-v});
+  });
 
   let premiosTotal = 0;
   const premioItems = [];
@@ -749,8 +779,7 @@ function recalcularTicket() {
   monto.textContent = formatARS(Math.abs(redondeado));
 
   const ticket = document.getElementById('ticket-preview');
-  const items = [{label:'Reporte (Lotería Chaqueña)', amount: reporte}, ...premioItems];
-  if (favor) items.push({label:'A favor del subagente', amount: -favor});
+  const items = [{label:'Reporte (Lotería Chaqueña)', amount: reporte}, ...premioItems, ...favorItems];
   items.push(...juegoItems, ...freeItems);
   const visibles = items.filter(i => i.amount !== 0);
   ticket.innerHTML = visibles.length ? visibles.map(i => `
@@ -910,6 +939,12 @@ async function guardarReporte() {
     if (v !== 0) premios.push({concepto:'Premio', monto:v});
   });
 
+  const favorDetalle = [];
+  document.querySelectorAll('.favor-input').forEach(i => {
+    const v = parseMonto(i.value);
+    if (v !== 0) favorDetalle.push({concepto:'A favor', monto:v});
+  });
+
   const conceptosLibres = [];
   document.querySelectorAll('.free-line').forEach(row => {
     const concepto = row.querySelector('.concept').value.trim();
@@ -930,7 +965,8 @@ async function guardarReporte() {
     agencia_id: agenciaSeleccionada.agencia_id,
     monto_reporte_loteria: parseMonto(document.getElementById('inp-reporte').value),
     premios,
-    a_favor: parseMonto(document.getElementById('inp-favor').value),
+    a_favor: calc.favor,
+    a_favor_detalle: favorDetalle,
     juegos,
     conceptos_libres: conceptosLibres,
     subtotal: calc.subtotal,
