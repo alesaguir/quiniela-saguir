@@ -108,6 +108,7 @@
   .ticket-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dotted var(--border);}
   .ticket-row:last-child{border-bottom:none;}
   .ticket-row .t-label{color:var(--muted);}
+  .ticket-row .t-label.neg{color:var(--red);}
   .ticket-row .t-amount.pos{color:var(--text);}
   .ticket-row .t-amount.neg{color:var(--red);}
   .ticket-empty{font-size:12.5px;color:var(--muted);text-align:center;padding:14px 0;}
@@ -253,7 +254,7 @@
 
                 <div class="section-head">
                   <span class="label">📎 Otros conceptos</span>
-                  <button class="add-inline-btn" onclick="addFreeLine()" type="button" title="Agregar otro concepto">+</button>
+                  <button class="add-inline-btn" onclick="addFreeLine()" type="button" title="Agregar otro concepto" tabindex="-1">+</button>
                 </div>
                 <div id="free-container"></div>
               </div>
@@ -761,8 +762,8 @@ function addPremioLine(focus=true, valor='') {
       <span class="peso">$</span>
       <input type="text" inputmode="decimal" class="amount premio-input" placeholder="0,00" value="${valor}">
     </div>
-    <button class="add-inline-btn" type="button" title="Agregar otro premio">+</button>
-    <button class="remove-line" type="button" title="Quitar">×</button>
+    <button class="add-inline-btn" type="button" title="Agregar otro premio" tabindex="-1">+</button>
+    <button class="remove-line" type="button" title="Quitar" tabindex="-1">×</button>
   `;
   cont.appendChild(row);
   const input = row.querySelector('input');
@@ -783,8 +784,8 @@ function addFavorLine(focus=true, valor='') {
       <span class="peso">$</span>
       <input type="text" inputmode="decimal" class="amount favor-input" placeholder="0,00" value="${valor}">
     </div>
-    <button class="add-inline-btn" type="button" title="Agregar otro saldo a favor">+</button>
-    <button class="remove-line" type="button" title="Quitar">×</button>
+    <button class="add-inline-btn" type="button" title="Agregar otro saldo a favor" tabindex="-1">+</button>
+    <button class="remove-line" type="button" title="Quitar" tabindex="-1">×</button>
   `;
   cont.appendChild(row);
   const input = row.querySelector('input');
@@ -805,7 +806,7 @@ function addFreeLine(concepto='', valor='') {
       <span class="peso">$</span>
       <input type="text" inputmode="decimal" class="amount free-input" placeholder="0,00" value="${valor}">
     </div>
-    <button class="remove-line" type="button">×</button>
+    <button class="remove-line" type="button" tabindex="-1">×</button>
   `;
   cont.appendChild(row);
   row.querySelector('.free-input').addEventListener('input', recalcularTicket);
@@ -885,7 +886,9 @@ function recalcularTicket() {
   const redondeado = Math.round(subtotal / 100) * 100;
   const redondeo = redondeado - subtotal;
 
-  document.getElementById('out-subtotal').textContent = formatARS(subtotal);
+  const subtotalEl = document.getElementById('out-subtotal');
+  subtotalEl.textContent = formatARS(subtotal);
+  subtotalEl.style.color = subtotal < 0 ? 'var(--red)' : '';
   const redondeoEl = document.getElementById('out-redondeo');
   redondeoEl.textContent = formatARS(redondeo);
   redondeoEl.style.color = redondeo < 0 ? 'var(--red)' : '';
@@ -893,9 +896,11 @@ function recalcularTicket() {
   const monto = document.getElementById('out-monto');
   if (redondeado >= 0) {
     label.textContent = 'Traer a la agencia';
+    label.style.color = '';
     monto.className = 'result-amount negro';
   } else {
     label.textContent = 'A retirar de la agencia';
+    label.style.color = 'var(--red)';
     monto.className = 'result-amount rojo';
   }
   monto.textContent = formatARS(Math.abs(redondeado));
@@ -906,7 +911,7 @@ function recalcularTicket() {
   const visibles = items.filter(i => i.amount !== 0);
   ticket.innerHTML = visibles.length ? visibles.map(i => `
     <div class="ticket-row">
-      <span class="t-label">${i.label}</span>
+      <span class="t-label ${i.amount < 0 ? 'neg' : ''}">${i.label}</span>
       <span class="t-amount mono ${i.amount < 0 ? 'neg' : 'pos'}">${i.amount < 0 ? '−' : '+'} ${formatARS(Math.abs(i.amount))}</span>
     </div>
   `).join('') : '<div class="ticket-empty">Empezá a cargar para ver el detalle acá</div>';
@@ -1472,12 +1477,13 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
     y += lineHeight;
   } else {
     items.forEach(i => {
-      ctx.fillStyle = cfg.color_texto_secundario;
+      const negativo = i.amount < 0;
+      ctx.fillStyle = negativo ? cfg.color_negativo : cfg.color_texto_secundario;
       ctx.textAlign = 'left';
       ctx.fillText(i.label, padding, y);
-      ctx.fillStyle = i.amount < 0 ? cfg.color_negativo : cfg.color_texto;
+      ctx.fillStyle = negativo ? cfg.color_negativo : cfg.color_texto;
       ctx.textAlign = 'right';
-      ctx.fillText((i.amount < 0 ? '− ' : '+ ') + formatARS(Math.abs(i.amount)), width - padding, y);
+      ctx.fillText((negativo ? '− ' : '+ ') + formatARS(Math.abs(i.amount)), width - padding, y);
       y += lineHeight;
     });
   }
@@ -1487,26 +1493,29 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(width - padding, y); ctx.stroke();
   y += 26;
 
+  const subtotalNeg = subtotal < 0;
   ctx.textAlign = 'left';
-  ctx.fillStyle = cfg.color_texto_secundario; ctx.font = `${tTexto}px ${fuente}`;
+  ctx.fillStyle = subtotalNeg ? cfg.color_negativo : cfg.color_texto_secundario; ctx.font = `${tTexto}px ${fuente}`;
   ctx.fillText('Subtotal', padding, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = cfg.color_texto;
+  ctx.textAlign = 'right'; ctx.fillStyle = subtotalNeg ? cfg.color_negativo : cfg.color_texto;
   ctx.fillText(formatARS(subtotal), width - padding, y);
 
   y += 20;
-  ctx.textAlign = 'left'; ctx.fillStyle = cfg.color_texto_secundario;
+  const redondeoNeg = redondeo < 0;
+  ctx.textAlign = 'left'; ctx.fillStyle = redondeoNeg ? cfg.color_negativo : cfg.color_texto_secundario;
   ctx.font = `${tTexto}px ${fuente}`;
   ctx.fillText('Redondeo', padding, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = redondeo < 0 ? cfg.color_negativo : cfg.color_texto;
+  ctx.textAlign = 'right'; ctx.fillStyle = redondeoNeg ? cfg.color_negativo : cfg.color_texto;
   ctx.fillText(formatARS(redondeo), width - padding, y);
 
   y += 46;
-  const etiquetaFinal = color === 'rojo' ? 'A retirar de la agencia' : 'Traer a la agencia';
+  const esNegativoFinal = color === 'rojo';
+  const etiquetaFinal = esNegativoFinal ? 'A retirar de la agencia' : 'Traer a la agencia';
   ctx.textAlign = 'left';
-  ctx.fillStyle = cfg.color_texto; ctx.font = `bold ${tTexto + 2}px ${fuente}`;
+  ctx.fillStyle = esNegativoFinal ? cfg.color_negativo : cfg.color_texto; ctx.font = `bold ${tTexto + 2}px ${fuente}`;
   ctx.fillText(etiquetaFinal, padding, y);
   ctx.textAlign = 'right';
-  ctx.fillStyle = color === 'rojo' ? cfg.color_negativo : cfg.color_texto;
+  ctx.fillStyle = esNegativoFinal ? cfg.color_negativo : cfg.color_texto;
   ctx.font = `bold ${tTitulo}px ${fuente}`;
   ctx.fillText(formatARS(montoFinal), width - padding, y + 6);
 
