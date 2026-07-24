@@ -132,7 +132,13 @@
     font-weight:700;margin:12px 0 6px;padding-top:10px;border-top:1px solid var(--border);}
   .mini-header.first{margin-top:0;padding-top:0;border-top:none;}
   .field-row.compact{margin-bottom:6px;}
-  .field-row.compact .field-label{flex:0 0 120px;font-size:12.5px;}
+  .field-row.compact .field-label{flex:0 0 190px;font-size:12.5px;}
+  .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin:12px 0 6px;padding-top:10px;border-top:1px solid var(--border);}
+  .section-head .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;}
+  .add-inline-btn{flex:0 0 auto;width:26px;height:26px;border-radius:7px;background:transparent;
+    border:1.5px dashed var(--border);color:var(--gold);font-size:16px;line-height:1;cursor:pointer;}
+  .add-inline-btn:hover{border-color:var(--gold);background:rgba(240,180,41,.08);}
   /* Los importes no necesitan ocupar todo el ancho: se ven más como una planilla */
   input.amount{max-width:170px;padding:8px 8px 8px 26px;font-size:14px;}
   input.amount.no-peso{max-width:100px;}
@@ -228,36 +234,40 @@
             <div class="form-grid">
 
               <div class="form-col">
-                <div class="mini-header first">🧾 Reporte (Lotería Chaqueña)</div>
+
                 <div class="field-row compact">
-                  <div class="field-label">Monto informado</div>
+                  <div class="field-label">🧾 Reporte Lotería Chaqueña</div>
                   <div class="field-input-wrap">
                     <span class="peso">$</span>
                     <input type="text" inputmode="decimal" class="amount" id="inp-reporte" placeholder="0,00" oninput="recalcularTicket()">
                   </div>
                 </div>
 
-                <div class="mini-header">🏆 Premios <span style="font-weight:400;color:var(--muted);text-transform:none;">(otra sucursal)</span></div>
+                <div class="section-head">
+                  <span class="label">🏆 Premio</span>
+                </div>
                 <div id="premios-container"></div>
-                <button class="add-line-btn" onclick="addPremioLine()" type="button">+ Agregar premio</button>
 
-                <div class="mini-header">↩ A favor del subagente</div>
-                <div class="field-row compact">
-                  <div class="field-label">Saldo a favor</div>
+                <div class="field-row compact" style="margin-top:6px;">
+                  <div class="field-label">↩ A favor del subagente</div>
                   <div class="field-input-wrap">
                     <span class="peso">$</span>
                     <input type="text" inputmode="decimal" class="amount" id="inp-favor" placeholder="0,00" oninput="recalcularTicket()">
                   </div>
                 </div>
 
-                <div class="mini-header">📎 Otros conceptos</div>
+                <div class="section-head">
+                  <span class="label">📎 Otros conceptos</span>
+                  <button class="add-inline-btn" onclick="addFreeLine()" type="button" title="Agregar otro concepto">+</button>
+                </div>
                 <div id="free-container"></div>
-                <button class="add-line-btn" onclick="addFreeLine()" type="button">+ Agregar concepto</button>
               </div>
 
               <div class="form-col">
-                <div id="header-juegos" class="mini-header first" style="display:none;">🎯 Bono / Raspaditas</div>
-                <div id="juegos-container"></div>
+                <details id="details-juegos" style="display:none;">
+                  <summary class="mini-header first" style="cursor:pointer;">🎯 Bono / Raspaditas</summary>
+                  <div id="juegos-container" style="margin-top:8px;"></div>
+                </details>
 
                 <div class="mini-header" id="header-vista-previa">👁 Vista previa</div>
                 <div class="ticket" id="ticket-preview">
@@ -516,7 +526,7 @@ async function cargarJuegosActivos() {
     );
     juegosCache = await res.json() || [];
     const cont = document.getElementById('juegos-container');
-    document.getElementById('header-juegos').style.display = juegosCache.length ? 'block' : 'none';
+    document.getElementById('details-juegos').style.display = juegosCache.length ? 'block' : 'none';
     cont.innerHTML = juegosCache.map(j => `
       <div class="field-row">
         <div class="field-label">${j.nombre_visible} — unidades</div>
@@ -626,19 +636,20 @@ function cargarReporteEnFormulario(r) {
 function addPremioLine(focus=true, valor='') {
   const cont = document.getElementById('premios-container');
   const row = document.createElement('div');
-  row.className = 'field-row';
+  row.className = 'field-row compact';
   row.innerHTML = `
-    <div class="field-label">Premio</div>
     <div class="field-input-wrap">
       <span class="peso">$</span>
       <input type="text" inputmode="decimal" class="amount premio-input" placeholder="0,00" value="${valor}">
     </div>
-    <button class="remove-line" type="button">×</button>
+    <button class="add-inline-btn" type="button" title="Agregar otro premio">+</button>
+    <button class="remove-line" type="button" title="Quitar">×</button>
   `;
   cont.appendChild(row);
   const input = row.querySelector('input');
   input.addEventListener('input', recalcularTicket);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPremioLine(); } });
+  row.querySelector('.add-inline-btn').addEventListener('click', () => addPremioLine());
   row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
   if (focus) input.focus();
 }
