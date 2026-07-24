@@ -345,15 +345,6 @@
               <div class="field-label">Nombre visible</div>
               <div class="field-input-wrap"><input type="text" class="form-input" id="nuevo-juego-nombre" placeholder="Ej: Bono Bienal 2027"></div>
             </div>
-            <div class="field-row">
-              <div class="field-label">Tipo de fórmula</div>
-              <div class="field-input-wrap">
-                <select class="form-input" id="nuevo-juego-tipo">
-                  <option value="raspadita">Raspadita (cupones por paquete)</option>
-                  <option value="bono">Bono (valor unitario × cantidad)</option>
-                </select>
-              </div>
-            </div>
             <div style="display:flex;gap:10px;margin-top:10px;">
               <button class="btn btn-primary" style="flex:1" onclick="crearJuego()">💾 Crear</button>
               <button class="btn btn-ghost" onclick="document.getElementById('form-nuevo-juego').style.display='none'">Cancelar</button>
@@ -825,21 +816,11 @@ function formatARS(n) {
 }
 
 // Fórmula real, verificada contra la calculadora de retenciones del usuario
+// Fórmula universal para todos los juegos: cantidad × precio.
+// El precio ya viene "neto" (calculado aparte en Excel con comisiones, ATP, etc. incluidas).
 function calcularMontoJuego(juego, cantidad) {
   if (!cantidad) return 0;
-  const p = juego.parametros;
-  const atpFactor = (p.atp_pct/100) * (1 + p.atp_adicional_pct/100);
-  if (juego.tipo_formula === 'bono') {
-    const valorTotal = cantidad * p.valor_unitario;
-    const comision = valorTotal * (p.comision_pct/100);
-    return valorTotal - comision + comision * atpFactor;
-  } else {
-    const totalBrutoUnitario = (p.cupones_por_paquete - p.cupones_sin_cargo) * p.valor_cupon;
-    const totalBruto = totalBrutoUnitario * cantidad;
-    const comision = totalBruto * (p.comision_pct/100);
-    const premiosMenores = p.premios_menores * cantidad;
-    return totalBruto - premiosMenores - comision + comision * atpFactor;
-  }
+  return cantidad * (juego.parametros.precio || 0);
 }
 
 function recalcularTicket() {
@@ -1060,20 +1041,9 @@ async function toggleActivaSubagencia(agenciaId, activaActual) {
 // =====================
 let juegosConfigCache = [];
 
-const CAMPOS_RASPADITA = [
-  {key:'cupones_por_paquete', label:'Cupones por paquete'},
-  {key:'cupones_sin_cargo', label:'Cupones sin cargo'},
-  {key:'valor_cupon', label:'Valor del cupón ($)'},
-  {key:'comision_pct', label:'Comisión agencia (%)'},
-  {key:'premios_menores', label:'Premios menores por paquete ($)'},
-  {key:'atp_pct', label:'ATP (%)'},
-  {key:'atp_adicional_pct', label:'ATP adicional (%)'},
-];
-const CAMPOS_BONO = [
-  {key:'valor_unitario', label:'Valor unitario ($)'},
-  {key:'comision_pct', label:'Comisión agencia (%)'},
-  {key:'atp_pct', label:'ATP (%)'},
-  {key:'atp_adicional_pct', label:'ATP adicional (%)'},
+// Un solo campo para todos los juegos: el precio ya neto por unidad, calculado aparte en Excel.
+const CAMPOS_JUEGO = [
+  {key:'precio', label:'Precio unitario ($) — ya neto'},
 ];
 
 async function cargarJuegosConfig() {
@@ -1094,7 +1064,7 @@ function renderJuegosConfig() {
     return;
   }
   cont.innerHTML = juegosConfigCache.map(j => {
-    const campos = j.tipo_formula === 'bono' ? CAMPOS_BONO : CAMPOS_RASPADITA;
+    const campos = CAMPOS_JUEGO;
     return `
     <div class="game-card ${j.activo ? '' : 'inactivo'}">
       <div class="game-card-head">
@@ -1141,12 +1111,9 @@ function mostrarFormNuevoJuego() {
 async function crearJuego() {
   const clave = document.getElementById('nuevo-juego-clave').value.trim().toLowerCase().replace(/\s+/g,'_');
   const nombre = document.getElementById('nuevo-juego-nombre').value.trim();
-  const tipo = document.getElementById('nuevo-juego-tipo').value;
   if (!clave || !nombre) { showToast('Completá clave y nombre','err'); return; }
 
-  const parametrosDefault = tipo === 'bono'
-    ? { valor_unitario:0, comision_pct:0, atp_pct:4.1, atp_adicional_pct:10 }
-    : { cupones_por_paquete:0, cupones_sin_cargo:0, valor_cupon:0, comision_pct:0, premios_menores:0, atp_pct:4.1, atp_adicional_pct:10 };
+  const parametrosDefault = { precio: 0 };
 
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config`, {
@@ -1155,7 +1122,7 @@ async function crearJuego() {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ clave, nombre_visible: nombre, tipo_formula: tipo, parametros: parametrosDefault, activo: true })
+      body: JSON.stringify({ clave, nombre_visible: nombre, tipo_formula: 'simple', parametros: parametrosDefault, activo: true })
     });
     if (res.ok) {
       showToast('✅ Juego creado — completá sus parámetros', 'ok');
@@ -1172,7 +1139,7 @@ async function crearJuego() {
 
 async function guardarJuego(clave) {
   const juego = juegosConfigCache.find(j => j.clave === clave);
-  const campos = juego.tipo_formula === 'bono' ? CAMPOS_BONO : CAMPOS_RASPADITA;
+  const campos = CAMPOS_JUEGO;
   const parametros = {};
   campos.forEach(c => {
     parametros[c.key] = parseMonto(document.getElementById(`juego-param-${clave}-${c.key}`).value);
