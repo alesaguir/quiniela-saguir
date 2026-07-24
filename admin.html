@@ -112,6 +112,9 @@
       grid-template-columns: 1fr !important;
     }
   }
+.seccion-toggle{background:transparent;border:1px solid var(--border);color:var(--muted);width:30px;height:30px;
+  border-radius:8px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.seccion-toggle:hover{border-color:var(--gold);color:var(--gold);}
 </style>
 </head>
 <body>
@@ -253,12 +256,14 @@
     <div id="seccion-subagencias" style="display:none;" data-rol="superadmin">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:12px;">
+          <button class="seccion-toggle" id="toggle-subagencias" onclick="toggleSeccionColapsable('contenido-subagencias', this)">▸</button>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🏪 Gestión de Subagencias</div>
           <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
         </div>
-        <button class="btn btn-primary" onclick="mostrarFormNuevaAgencia()" style="font-size:13px;">➕ Nueva subagencia</button>
+        <button class="btn btn-primary" onclick="document.getElementById('contenido-subagencias').style.display=''; document.getElementById('toggle-subagencias').textContent='▾'; mostrarFormNuevaAgencia();" style="font-size:13px;">➕ Nueva subagencia</button>
       </div>
 
+      <div id="contenido-subagencias" style="display:none;">
       <!-- FORM NUEVA SUBAGENCIA -->
       <div class="card" id="form-nueva-agencia" style="display:none;margin-bottom:16px;">
         <div class="card-header"><div class="card-title" id="form-agencia-titulo">➕ Nuevo Usuario</div></div>
@@ -322,23 +327,31 @@
         </div>
         <div id="lista-subagencias" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
+      </div>
 
       <!-- REGISTRO DE ACTIVIDAD -->
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
-          <div class="card-title">📋 Registro de actividad</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-actividad', this)">▸</button>
+            <div class="card-title">📋 Registro de actividad</div>
+          </div>
           <button class="btn btn-ghost" onclick="cargarActividad()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
+        <div id="contenido-actividad" style="display:none;">
         <div id="lista-actividad" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        </div>
       </div>
     </div>
 
     <!-- CÓDIGOS DE ACCESO — solo superadmin -->
     <div id="seccion-codigos-acceso" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-codigos-acceso', this)">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🔗 Códigos de Acceso (URL)</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
+      <div id="contenido-codigos-acceso" style="display:none;">
       <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
         Reemplaza el número de agencia visible en la URL (ej: <code>?agencia=670-05</code>) por un código de 6 letras al azar (ej: <code>?t=kQxRtP</code>), para que no se pueda adivinar probando números correlativos. Al regenerar un código, la URL vieja de esa agencia deja de funcionar — hay que actualizar el link guardado en ese Smart TV.
       </div>
@@ -349,14 +362,17 @@
         </div>
         <div id="lista-codigos-acceso" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
+      </div>
     </div>
 
     <!-- CONFIGURACIÓN VISUAL — solo superadmin -->
     <div id="seccion-visual" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-visual', this)">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🎨 Apariencia de la Pantalla</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
+      <div id="contenido-visual" style="display:none;">
 
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
@@ -552,14 +568,17 @@
           </button>
         </div>
       </div>
+      </div>
     </div>
 
     <!-- PROGRAMACIONES DE CANTIDAD DE NÚMEROS — solo superadmin -->
     <div id="seccion-programaciones" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones', this)">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📅 Programar Cambios de Cantidad</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
+      <div id="contenido-programaciones" style="display:none;">
       <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
         Programá un cambio de cantidad de números para una fecha futura. Si le ponés fecha de fin, al terminar ese rango el sistema vuelve solo a usar la configuración de siempre.
       </div>
@@ -613,19 +632,27 @@
 
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
-          <div class="card-title">📋 Programaciones guardadas</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones-guardadas', this)">▸</button>
+            <div class="card-title">📋 Programaciones guardadas</div>
+          </div>
           <button class="btn btn-ghost" onclick="cargarProgramaciones()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
+        <div id="contenido-programaciones-guardadas" style="display:none;">
         <div id="lista-programaciones" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        </div>
+      </div>
       </div>
     </div>
 
     <!-- CONFIGURACIÓN DE SORTEOS — solo superadmin -->
     <div id="seccion-config" style="display:none;">
       <div style="margin-top:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this)">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">⚙️ Configuración de Sorteos</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
+      <div id="contenido-config-sorteos" style="display:none;">
 
       <!-- AVISO -->
       <div style="background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">
@@ -696,6 +723,7 @@
           <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">VESPERTINA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">18:00</div></div>
           <div style="background:var(--surface);padding:14px;text-align:center;"><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">NOCTURNA</div><div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);">21:00</div></div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -2667,6 +2695,14 @@ function showToast(msg, tipo='ok') {
   t.className = `toast toast-${tipo} show`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// Colapsar/expandir paneles grandes — arrancan contraídos para que el panel no sea tan extenso
+function toggleSeccionColapsable(contenidoId, btnEl) {
+  const el = document.getElementById(contenidoId);
+  const colapsado = el.style.display === 'none';
+  el.style.display = colapsado ? '' : 'none';
+  btnEl.textContent = colapsado ? '▾' : '▸';
 }
 </script>
 </body>
