@@ -322,9 +322,48 @@
 
     <div id="panel-juegos" style="display:none;">
       <div class="card">
-        <div class="card-header"><div class="card-title">🎯 Configuración de juegos</div></div>
-        <div class="placeholder-panel">Acá va la configuración de Bono Bienal / Raspaditas (más adelante, solo superadmin).</div>
+        <div class="card-header">
+          <div class="card-title">🎯 Configuración de juegos</div>
+          <button class="btn btn-primary" style="font-size:13px;" onclick="mostrarFormNuevoJuego()">➕ Nuevo juego</button>
+        </div>
+        <div class="card-body">
+          <div id="form-nuevo-juego" style="display:none;margin-bottom:16px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+            <div class="field-row">
+              <div class="field-label">Clave interna</div>
+              <div class="field-input-wrap"><input type="text" class="form-input" id="nuevo-juego-clave" placeholder="Ej: bono_bienal_2027" style="text-transform:lowercase;"></div>
+            </div>
+            <div class="field-row">
+              <div class="field-label">Nombre visible</div>
+              <div class="field-input-wrap"><input type="text" class="form-input" id="nuevo-juego-nombre" placeholder="Ej: Bono Bienal 2027"></div>
+            </div>
+            <div class="field-row">
+              <div class="field-label">Tipo de fórmula</div>
+              <div class="field-input-wrap">
+                <select class="form-input" id="nuevo-juego-tipo">
+                  <option value="raspadita">Raspadita (cupones por paquete)</option>
+                  <option value="bono">Bono (valor unitario × cantidad)</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <button class="btn btn-primary" style="flex:1" onclick="crearJuego()">💾 Crear</button>
+              <button class="btn btn-ghost" onclick="document.getElementById('form-nuevo-juego').style.display='none'">Cancelar</button>
+            </div>
+            <div class="hint" style="margin-top:8px;">Después de crearlo, completá sus parámetros (precios, comisión, etc.) abajo en la lista.</div>
+          </div>
+          <div id="lista-juegos">Cargando...</div>
+        </div>
       </div>
+      <style>
+        .game-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+        .game-card.inactivo{opacity:.5;}
+        .game-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+        .game-card-head .nombre{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.5px;color:var(--gold);}
+        .game-card-head .tipo-badge{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-left:8px;}
+        .game-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px;}
+        .game-fields .mini-label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;}
+        .game-fields input.form-input{padding:8px 10px;font-size:13.5px;}
+      </style>
     </div>
 
   </div>
@@ -407,6 +446,7 @@ async function login() {
     if (esSuperadmin) {
       document.getElementById('tab-config-juegos').style.display = 'block';
       document.getElementById('btn-nueva-subagencia').style.display = 'inline-flex';
+      cargarJuegosConfig();
     }
 
     initCarga();
@@ -924,6 +964,166 @@ async function toggleActivaSubagencia(agenciaId, activaActual) {
       showToast(activaActual ? '🚫 Subagencia dada de baja' : '✅ Subagencia reactivada', 'ok');
       cargarSubagenciasContactos();
       cargarSubagenciasSelect();
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+// =====================
+// CONFIGURACIÓN DE JUEGOS (solo superadmin)
+// =====================
+let juegosConfigCache = [];
+
+const CAMPOS_RASPADITA = [
+  {key:'cupones_por_paquete', label:'Cupones por paquete'},
+  {key:'cupones_sin_cargo', label:'Cupones sin cargo'},
+  {key:'valor_cupon', label:'Valor del cupón ($)'},
+  {key:'comision_pct', label:'Comisión agencia (%)'},
+  {key:'premios_menores', label:'Premios menores por paquete ($)'},
+  {key:'atp_pct', label:'ATP (%)'},
+  {key:'atp_adicional_pct', label:'ATP adicional (%)'},
+];
+const CAMPOS_BONO = [
+  {key:'valor_unitario', label:'Valor unitario ($)'},
+  {key:'comision_pct', label:'Comisión agencia (%)'},
+  {key:'atp_pct', label:'ATP (%)'},
+  {key:'atp_adicional_pct', label:'ATP adicional (%)'},
+];
+
+async function cargarJuegosConfig() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/juegos_config?order=clave.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    juegosConfigCache = await res.json() || [];
+    renderJuegosConfig();
+  } catch(e) { console.error(e); document.getElementById('lista-juegos').innerHTML = '<div style="color:var(--red);">Error al cargar juegos.</div>'; }
+}
+
+function renderJuegosConfig() {
+  const cont = document.getElementById('lista-juegos');
+  if (juegosConfigCache.length === 0) {
+    cont.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay juegos configurados todavía.</div>';
+    return;
+  }
+  cont.innerHTML = juegosConfigCache.map(j => {
+    const campos = j.tipo_formula === 'bono' ? CAMPOS_BONO : CAMPOS_RASPADITA;
+    return `
+    <div class="game-card ${j.activo ? '' : 'inactivo'}">
+      <div class="game-card-head">
+        <div>
+          <span class="nombre">${j.nombre_visible}</span>
+          <span class="tipo-badge">${j.tipo_formula}</span>
+        </div>
+        <button class="status-toggle ${j.activo ? 'active-status' : 'inactive-status'}" onclick="toggleActivoJuego('${j.clave}', ${j.activo})"
+          style="background:${j.activo ? 'rgba(230,57,70,0.1)' : 'rgba(46,196,182,0.1)'};
+          border:1px solid ${j.activo ? 'rgba(230,57,70,0.3)' : 'rgba(46,196,182,0.3)'};
+          color:${j.activo ? 'var(--red)' : 'var(--green)'};
+          border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;">
+          ${j.activo ? '🚫 Desactivar' : '✅ Activar'}
+        </button>
+      </div>
+
+      <div class="field-row" style="margin-bottom:10px;">
+        <div class="field-label">Nombre visible</div>
+        <div class="field-input-wrap"><input type="text" class="form-input" id="juego-nombre-${j.clave}" value="${j.nombre_visible}"></div>
+      </div>
+
+      <div class="game-fields">
+        ${campos.map(c => `
+          <div>
+            <span class="mini-label">${c.label}</span>
+            <input type="text" inputmode="decimal" class="form-input" id="juego-param-${j.clave}-${c.key}" value="${j.parametros[c.key] ?? ''}">
+          </div>
+        `).join('')}
+      </div>
+
+      <button class="btn btn-ghost" style="font-size:12px;" onclick="guardarJuego('${j.clave}')">💾 Guardar cambios</button>
+    </div>`;
+  }).join('');
+}
+
+function mostrarFormNuevoJuego() {
+  document.getElementById('form-nuevo-juego').style.display = 'block';
+  document.getElementById('nuevo-juego-clave').focus();
+}
+
+async function crearJuego() {
+  const clave = document.getElementById('nuevo-juego-clave').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const nombre = document.getElementById('nuevo-juego-nombre').value.trim();
+  const tipo = document.getElementById('nuevo-juego-tipo').value;
+  if (!clave || !nombre) { showToast('Completá clave y nombre','err'); return; }
+
+  const parametrosDefault = tipo === 'bono'
+    ? { valor_unitario:0, comision_pct:0, atp_pct:4.1, atp_adicional_pct:10 }
+    : { cupones_por_paquete:0, cupones_sin_cargo:0, valor_cupon:0, comision_pct:0, premios_menores:0, atp_pct:4.1, atp_adicional_pct:10 };
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ clave, nombre_visible: nombre, tipo_formula: tipo, parametros: parametrosDefault, activo: true })
+    });
+    if (res.ok) {
+      showToast('✅ Juego creado — completá sus parámetros', 'ok');
+      document.getElementById('form-nuevo-juego').style.display = 'none';
+      document.getElementById('nuevo-juego-clave').value = '';
+      document.getElementById('nuevo-juego-nombre').value = '';
+      cargarJuegosConfig();
+      cargarJuegosActivos();
+    } else {
+      showToast('Error al crear (¿la clave ya existe?)', 'err');
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+async function guardarJuego(clave) {
+  const juego = juegosConfigCache.find(j => j.clave === clave);
+  const campos = juego.tipo_formula === 'bono' ? CAMPOS_BONO : CAMPOS_RASPADITA;
+  const parametros = {};
+  campos.forEach(c => {
+    parametros[c.key] = parseMonto(document.getElementById(`juego-param-${clave}-${c.key}`).value);
+  });
+  const payload = {
+    nombre_visible: document.getElementById(`juego-nombre-${clave}`).value.trim(),
+    parametros
+  };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      showToast('✅ Juego guardado', 'ok');
+      cargarJuegosConfig();
+      cargarJuegosActivos();
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+async function toggleActivoJuego(clave, activoActual) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ activo: !activoActual })
+    });
+    if (res.ok) {
+      showToast(activoActual ? '🚫 Juego desactivado' : '✅ Juego activado', 'ok');
+      cargarJuegosConfig();
+      cargarJuegosActivos();
     }
   } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
 }
