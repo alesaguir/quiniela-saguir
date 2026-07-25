@@ -626,8 +626,11 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   // salvo el que está en pantalla ahora mismo (ese se saca de la lista, no se repite)
   const slotsAMostrar = sorteoKeys.filter(s => s !== sorteoEfectivo);
 
-  const datosPorSlot = [];
-  for (const slot of slotsAMostrar) {
+  // Antes esto era un "for" con "await" adentro: una consulta detrás de la otra, una por cada
+  // sorteo (hasta 4 seguidas). Son completamente independientes entre sí, así que ahora se
+  // disparan todas juntas con Promise.all — Promise.all respeta el orden del array de entrada,
+  // así que el resultado sigue llegando en el mismo orden fijo de siempre.
+  const datosPorSlot = await Promise.all(slotsAMostrar.map(async (slot) => {
     const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
     let entrada = { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
     try {
@@ -654,8 +657,8 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
     const nombreDia = diasNombres[d.getDay()];
     const labelSorteo = LABELS_SORTEO[slot];
     const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
-    datosPorSlot.push({ sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada });
-  }
+    return { sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada };
+  }));
 
   // Ya vienen en el orden fijo correcto (Previa→Primera→Matutina→Vespertina→Nocturna, sin el actual)
   cabezasParaMostrar = datosPorSlot;
@@ -725,25 +728,30 @@ let bloqueCartelesEnCurso = false;
 function esperarMs(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 async function cargarConfigCarteles() {
-  try {
-    const resFrec = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await resFrec.json();
-    cartelesConfig.frecuenciaMin = (filas && filas[0] && parseInt(filas[0].valor, 10)) || 60;
-  } catch(e) { console.error('Error frecuencia carteles:', e); }
-
-  try {
-    const resCarteles = await fetch(
-      `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await resCarteles.json();
-    // Un cartel sin texto no entra en la rotación
-    // Un cartel sin ninguna línea con texto no entra en la rotación
-    cartelesConfig.lista = (filas || []).filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
-  } catch(e) { console.error('Error cargando carteles:', e); cartelesConfig.lista = []; }
+  // Las 2 son independientes — antes se traían una atrás de la otra.
+  await Promise.all([
+    (async () => {
+      try {
+        const resFrec = await fetch(
+          `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`,
+          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+        );
+        const filas = await resFrec.json();
+        cartelesConfig.frecuenciaMin = (filas && filas[0] && parseInt(filas[0].valor, 10)) || 60;
+      } catch(e) { console.error('Error frecuencia carteles:', e); }
+    })(),
+    (async () => {
+      try {
+        const resCarteles = await fetch(
+          `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`,
+          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+        );
+        const filas = await resCarteles.json();
+        // Un cartel sin ninguna línea con texto no entra en la rotación
+        cartelesConfig.lista = (filas || []).filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
+      } catch(e) { console.error('Error cargando carteles:', e); cartelesConfig.lista = []; }
+    })()
+  ]);
 }
 
 function escaparHtml(str) {
@@ -888,12 +896,16 @@ function getFechaConsulta() {
 // INIT
 // =====================
 async function calcularYCargarSlotEfectivo() {
-  await cargarDuracionSorteando(); // hay que tenerlo ANTES de llamar a getSorteoActual()
-  await cargarDuracionVerde();
-  const natural = getSorteoActual();
+  // Las 3 son independientes entre sí (ninguna necesita el resultado de otra) — antes se traían
+  // en fila, ahora se disparan juntas y se espera solo a la más lenta de las tres.
+  await Promise.all([
+    cargarDuracionSorteando(),
+    cargarDuracionVerde(),
+    cargarMapaSorteosActivos(fechaLocalStr(new Date()))
+  ]);
+  const natural = getSorteoActual(); // necesita que cargarDuracionSorteando ya haya terminado — lo hizo, arriba
   const fechaNatural = getFechaConsulta();
 
-  await cargarMapaSorteosActivos(fechaLocalStr(new Date()));
   const resuelto = resolverSlotEfectivo(fechaNatural, natural.key);
   const huboFeriado = (resuelto.fecha !== fechaNatural || resuelto.sorteoKey !== natural.key);
 
@@ -911,11 +923,17 @@ async function init() {
 
   await calcularYCargarSlotEfectivo();
 
-  datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
-  await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
-  await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
-  await aplicarConfigVisual();
-  await cargarCantidadTV(slotEfectivo.key);
+  // Estas 5 son independientes entre sí — ninguna necesita el resultado de otra, solo hace
+  // falta que las 5 hayan terminado antes de dibujar la pantalla con render(). Antes se traían
+  // una atrás de la otra (5 viajes de red seguidos); ahora corren todas al mismo tiempo.
+  const [datosResultado] = await Promise.all([
+    cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key),
+    cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key),
+    cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key),
+    aplicarConfigVisual(),
+    cargarCantidadTV(slotEfectivo.key)
+  ]);
+  datos[slotEfectivo.key] = datosResultado;
   render();
 
   await cargarConfigCarteles();
@@ -924,11 +942,14 @@ async function init() {
   // Actualizar cada 30 segundos
   setInterval(async () => {
     await calcularYCargarSlotEfectivo();
-    datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
-    await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
-    await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
-    await aplicarConfigVisual();
-    await cargarCantidadTV(slotEfectivo.key);
+    const [datosResultado] = await Promise.all([
+      cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key),
+      cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key),
+      cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key),
+      aplicarConfigVisual(),
+      cargarCantidadTV(slotEfectivo.key)
+    ]);
+    datos[slotEfectivo.key] = datosResultado;
     render();
     await intentarMostrarBloqueCarteles();
   }, 30000);
