@@ -121,6 +121,8 @@
   .pill-red{background:rgba(230,57,70,0.15);color:var(--red);}
   .pill-yellow{background:rgba(240,180,41,0.15);color:var(--gold);}
 
+  .chip-numero{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;}
+
   .search-box{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end;}
   .search-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:18px;letter-spacing:2px;outline:none;width:160px;text-align:center;}
   .search-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
@@ -186,7 +188,7 @@
       <div class="tab active" id="tab-salidores" onclick="mostrarTab('salidores')">🏆 Salidores / Atrasados</div>
       <div class="tab" id="tab-rachas" onclick="mostrarTab('rachas')">🔥 Rachas</div>
       <div class="tab" id="tab-buscar" onclick="mostrarTab('buscar')">🔍 Buscar número</div>
-      <div class="tab proximamente" onclick="mostrarProximamente()">📅 Comparación del día <span class="tag-prox">Próximamente</span></div>
+      <div class="tab" id="tab-comparar" onclick="mostrarTab('comparar')">📅 Comparación del día</div>
     </div>
 
     <div class="filters">
@@ -266,7 +268,18 @@
           <div class="stat-label">Nunca salió</div>
           <div class="stat-value blue" id="st-nunca">—</div>
           <div class="stat-sub" id="st-nunca-sub">sobre el universo posible</div>
+          <div style="margin-top:6px;">
+            <span id="link-ver-nunca" onclick="toggleListaNuncaSalio()" style="display:none;font-size:11.5px;color:var(--gold);cursor:pointer;text-decoration:underline;">Ver todos</span>
+          </div>
         </div>
+      </div>
+
+      <div class="card" id="card-nunca-salio" style="display:none;">
+        <div class="card-header">
+          <div class="card-title">🚫 Números que nunca salieron</div>
+          <span class="card-badge">Con este filtro</span>
+        </div>
+        <div id="lista-nunca-salio" style="padding:16px 20px;display:flex;flex-wrap:wrap;gap:8px;"></div>
       </div>
 
       <div class="main-grid">
@@ -336,6 +349,44 @@
 
     </div>
 
+    <!-- PANEL: COMPARACIÓN DEL DÍA -->
+    <div id="panel-comparar" style="display:none;">
+
+      <div class="nota">
+        <b>Cómo leer esto:</b> elegí una fecha puntual y una provincia. Se muestran los 5 sorteos de ese día
+        (Previa, Primera, Matutina, Vespertina, Nocturna) recortados al nivel de cifras elegido arriba, y se
+        resaltan con el mismo color los sorteos donde el número coincidió entre sí.
+      </div>
+
+      <div class="search-box">
+        <div class="filter-group">
+          <div class="filter-label">Fecha</div>
+          <input type="date" class="form-input" id="input-fecha-comparar" style="width:170px;">
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Provincia</div>
+          <select id="sel-provincia-comparar">
+            <option value="provincia">Provincia</option>
+            <option value="ciudad">Ciudad</option>
+            <option value="chaquena" selected>Chaqueña</option>
+            <option value="corrientes">Corrientes</option>
+            <option value="cordoba">Córdoba</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:auto;" onclick="compararDia()">Comparar</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📅 Sorteos del día</div>
+        </div>
+        <div id="resultado-comparacion">
+          <div class="lista-vacia">Elegí fecha y provincia, y presioná Comparar.</div>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 </div>
 
@@ -363,6 +414,7 @@ const SORTEOS = [
 
 let usuarioActual = null;
 let modoGlobal = false;
+let ultimaListaNuncaSalio = [];
 
 let filtro = {
   provincia: 'chaquena',
@@ -428,6 +480,7 @@ async function login() {
     document.getElementById('app').style.display = 'flex';
     document.getElementById('chip-user').textContent = usuarioActual.nombre + (esSuperadmin ? ' ⬟' : '');
     document.getElementById('login-error').style.display = 'none';
+    document.getElementById('input-fecha-comparar').value = new Date().toISOString().split('T')[0];
 
     cargarEstadisticas();
   } catch(e) {
@@ -460,9 +513,11 @@ function mostrarTab(nombre) {
   document.getElementById('tab-salidores').classList.toggle('active', nombre === 'salidores');
   document.getElementById('tab-rachas').classList.toggle('active', nombre === 'rachas');
   document.getElementById('tab-buscar').classList.toggle('active', nombre === 'buscar');
+  document.getElementById('tab-comparar').classList.toggle('active', nombre === 'comparar');
   document.getElementById('panel-salidores').style.display = nombre === 'salidores' ? 'block' : 'none';
   document.getElementById('panel-rachas').style.display = nombre === 'rachas' ? 'block' : 'none';
   document.getElementById('panel-buscar').style.display = nombre === 'buscar' ? 'block' : 'none';
+  document.getElementById('panel-comparar').style.display = nombre === 'comparar' ? 'block' : 'none';
 }
 function mostrarProximamente() {
   showToast('Esta vista se agrega en la próxima etapa', 'err');
@@ -563,6 +618,8 @@ function procesarYRenderizar(rows) {
     document.getElementById('list-atrasados').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
     document.getElementById('list-rachas').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
     ['st-salidor','st-atrasado','st-total','st-nunca'].forEach(id => document.getElementById(id).textContent = '—');
+    document.getElementById('link-ver-nunca').style.display = 'none';
+    document.getElementById('card-nunca-salio').style.display = 'none';
     return;
   }
 
@@ -577,7 +634,13 @@ function procesarYRenderizar(rows) {
 
   const distintos = Object.keys(freq).length;
   const universo = Math.pow(10, cifras);
-  const nuncaSalio = universo - distintos;
+
+  const faltantes = [];
+  for (let i = 0; i < universo; i++) {
+    const n = String(i).padStart(cifras, '0');
+    if (!freq[n]) faltantes.push(n);
+  }
+  ultimaListaNuncaSalio = faltantes;
 
   // SALIDORES
   const salidores = Object.entries(freq)
@@ -602,8 +665,13 @@ function procesarYRenderizar(rows) {
   document.getElementById('st-total').textContent = total;
   document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · ${etiquetaProvincia()} / ${etiquetaSorteo()}`;
 
-  document.getElementById('st-nunca').textContent = nuncaSalio;
-  document.getElementById('st-nunca-sub').textContent = `de ${universo} combinaciones posibles`;
+  document.getElementById('st-nunca').textContent = faltantes[0] || '✓';
+  document.getElementById('st-nunca-sub').textContent = faltantes.length
+    ? `1 de ${faltantes.length} que nunca salieron (de ${universo} posibles)`
+    : `Salieron los ${universo} números posibles`;
+  const linkNunca = document.getElementById('link-ver-nunca');
+  linkNunca.style.display = faltantes.length ? 'inline' : 'none';
+  document.getElementById('card-nunca-salio').style.display = 'none';
 
   renderLista('list-salidores', salidores, maxSalidor, 'veces', 'salidor');
   renderLista('list-atrasados', atrasados, maxAtrasado, 'sorteos', 'atrasado');
@@ -765,6 +833,83 @@ function renderBusqueda(numero, cifras, combosConDatos) {
 }
 
 // =====================
+// COMPARACIÓN ENTRE SORTEOS DEL MISMO DÍA
+// =====================
+async function compararDia() {
+  const fecha = document.getElementById('input-fecha-comparar').value;
+  const provincia = document.getElementById('sel-provincia-comparar').value;
+  const el = document.getElementById('resultado-comparacion');
+
+  if (!fecha) { showToast('Elegí una fecha', 'err'); return; }
+
+  el.innerHTML = '<div class="cargando-panel">Cargando…</div>';
+
+  const url = `${SUPABASE_URL}/rest/v1/resultados?agencia_id=eq.${AGENCIA_ID}&posicion=eq.1`
+    + `&provincia=eq.${provincia}&fecha=eq.${fecha}&select=sorteo,numero`;
+
+  try {
+    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+    const rows = await res.json() || [];
+    renderComparacion(rows, filtro.cifras, fecha, provincia);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar la comparación', 'err');
+  }
+}
+
+function renderComparacion(rows, cifras, fecha, provinciaKey) {
+  const el = document.getElementById('resultado-comparacion');
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="lista-vacia">No hay ningún sorteo cargado para esa fecha y provincia.</div>';
+    return;
+  }
+
+  const porSorteo = {};
+  rows.forEach(r => { porSorteo[r.sorteo] = recorte(r.numero, cifras); });
+
+  const conteo = {};
+  Object.values(porSorteo).forEach(v => { conteo[v] = (conteo[v] || 0) + 1; });
+
+  const paleta = ['#f0b429','#4361ee','#2ec4b6','#e63946','#9d4edd'];
+  let idxColor = 0;
+  const colorPorValor = {};
+  Object.entries(conteo).forEach(([v, c]) => {
+    if (c > 1) { colorPorValor[v] = paleta[idxColor % paleta.length]; idxColor++; }
+  });
+
+  const provinciaLabel = (PROVINCIAS.find(p => p.key === provinciaKey) || {}).label || provinciaKey;
+
+  el.innerHTML = `
+    <div class="nota" style="margin:20px 20px 0;">
+      <b>${provinciaLabel}</b> · ${formatearFecha(fecha)} · ${cifras} cifras a la cabeza.
+      ${idxColor === 0 ? 'No hubo coincidencias entre sorteos ese día.' : 'Los sorteos resaltados con el mismo color coincidieron.'}
+    </div>
+    <div class="number-list">
+      ${SORTEOS.map(s => {
+        const val = porSorteo[s.key];
+        if (!val) {
+          return `
+            <div class="number-row">
+              <div style="width:110px;font-size:13px;color:var(--muted);">${s.label}</div>
+              <div style="flex:1;color:var(--muted);font-size:13px;">Sin carga para esa fecha</div>
+            </div>`;
+        }
+        const color = colorPorValor[val];
+        return `
+          <div class="number-row">
+            <div style="width:110px;font-size:13px;">${s.label}</div>
+            <div class="number-badge" style="${color ? `color:${color};` : ''}">${val}</div>
+            <div style="flex:1;">
+              ${color ? `<span class="pill" style="background:${color}22;color:${color};">Coincide con otro sorteo</span>` : ''}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// =====================
 // CARGA Y CÁLCULO — TODAS LAS COMBINACIONES
 // =====================
 async function cargarGlobal() {
@@ -845,7 +990,9 @@ function procesarGlobalYRenderizar(combosConDatos) {
   document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · las 25 combinaciones`;
 
   document.getElementById('st-nunca').textContent = nuncaSalioGeneral;
-  document.getElementById('st-nunca-sub').textContent = `sumado entre las 25 combinaciones`;
+  document.getElementById('st-nunca-sub').textContent = `sumado entre las 25 combinaciones — usá "Buscar número" para el detalle puntual`;
+  document.getElementById('link-ver-nunca').style.display = 'none';
+  document.getElementById('card-nunca-salio').style.display = 'none';
 
   renderListaGlobal('list-salidores', topSalidores, 'veces', 'salidor');
   renderListaGlobal('list-atrasados', topAtrasados, 'sorteos', 'atrasado');
@@ -916,6 +1063,21 @@ function renderLista(id, data, max, unidad, tipo) {
       </div>
     </div>
   `).join('');
+}
+
+function toggleListaNuncaSalio() {
+  const card = document.getElementById('card-nunca-salio');
+  const abierta = card.style.display !== 'none';
+  if (abierta) { card.style.display = 'none'; return; }
+
+  const cont = document.getElementById('lista-nunca-salio');
+  const LIMITE = 300;
+  const mostrar = ultimaListaNuncaSalio.slice(0, LIMITE);
+  cont.innerHTML = mostrar.map(n => `<span class="chip-numero">${n}</span>`).join('')
+    + (ultimaListaNuncaSalio.length > LIMITE
+        ? `<span class="chip-numero" style="color:var(--muted);">+${ultimaListaNuncaSalio.length - LIMITE} más</span>`
+        : '');
+  card.style.display = 'block';
 }
 
 function etiquetaPeriodo() {
