@@ -213,11 +213,16 @@
             <button class="btn btn-ghost" id="btn-borrar-todos" style="padding:8px 10px;color:var(--red);border-color:rgba(230,57,70,.4);" onclick="borrarTodosLosReportesDelDia()" title="Borrar todos los reportes guardados de esta fecha">🗑</button>
           </div>
 
-          <div id="agency-tabs" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:5px;padding-bottom:6px;scrollbar-width:thin;">Cargando subagencias...</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button type="button" class="btn btn-ghost" id="btn-scroll-izq" onclick="scrollTabsSubagencia(-1)" title="Ver anteriores" style="flex-shrink:0;padding:6px 10px;font-size:13px;">◀</button>
+            <div id="agency-tabs" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:5px;padding-bottom:2px;scrollbar-width:none;-ms-overflow-style:none;">Cargando subagencias...</div>
+            <button type="button" class="btn btn-ghost" id="btn-scroll-der" onclick="scrollTabsSubagencia(1)" title="Ver siguientes" style="flex-shrink:0;padding:6px 10px;font-size:13px;">▶</button>
+          </div>
 
         </div>
       </div>
       <style>
+        #agency-tabs::-webkit-scrollbar{display:none;}
         .agency-tab{padding:7px 13px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);
           color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;transition:.1s;
           white-space:nowrap;flex:0 0 auto;}
@@ -620,6 +625,12 @@ function filtrarSubagencias() {
   });
 }
 
+// Desplaza la fila de pestañas de subagencia con las flechitas, en vez de arrastrar la barra de scroll
+function scrollTabsSubagencia(direccion) {
+  const cont = document.getElementById('agency-tabs');
+  cont.scrollBy({ left: direccion * 220, behavior: 'smooth' });
+}
+
 // Atajos de teclado: 1-9 y 0 seleccionan la subagencia visible en esa posición (igual que en el prototipo)
 document.addEventListener('keydown', (e) => {
   if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
@@ -823,6 +834,20 @@ document.addEventListener('focus', (e) => {
   }
 }, true);
 
+// Impide que se tipeen o peguen letras (u otros caracteres) en los casilleros de importe —
+// solo se permiten dígitos, punto, coma y signo menos. Corre antes que el recálculo de cada campo.
+document.addEventListener('input', (e) => {
+  if (e.target.classList && e.target.classList.contains('amount')) {
+    const original = e.target.value;
+    const filtrado = original.replace(/[^\d.,-]/g, '');
+    if (filtrado !== original) {
+      const posCursor = e.target.selectionStart - (original.length - filtrado.length);
+      e.target.value = filtrado;
+      e.target.setSelectionRange(Math.max(0, posCursor), Math.max(0, posCursor));
+    }
+  }
+}, true);
+
 function parseMonto(v) {
   if (!v) return 0;
   let s = v.toString().trim();
@@ -830,8 +855,29 @@ function parseMonto(v) {
   // junto con el símbolo "$", espacios, o espacios "no separables" invisibles — los descartamos
   // antes de interpretar el número, dejando solo dígitos, punto, coma y signo menos.
   s = s.replace(/[^\d.,-]/g, '');
-  // Formato argentino: punto = separador de miles, coma = separador decimal
-  s = s.replace(/\./g, '').replace(',', '.');
+  if (!s) return 0;
+
+  const ultimaComa = s.lastIndexOf(',');
+  const ultimoPunto = s.lastIndexOf('.');
+
+  if (ultimaComa > -1 && ultimoPunto > -1) {
+    // Están los dos: el que aparece más a la derecha es el separador decimal (formato AR: 1.234,56)
+    if (ultimaComa > ultimoPunto) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (ultimaComa > -1) {
+    // Solo coma → es el separador decimal
+    s = s.replace(',', '.');
+  } else if (ultimoPunto > -1) {
+    // Solo punto(s): si es uno solo y quedan exactamente 2 dígitos después, es decimal (ej: "264820.55").
+    // Si son 3 dígitos, o hay más de un punto, es separador de miles (ej: "264.820" o "1.234.567").
+    const decimales = s.length - ultimoPunto - 1;
+    const esUnicoDecimal = decimales === 2 && s.indexOf('.') === ultimoPunto;
+    if (!esUnicoDecimal) s = s.replace(/\./g, '');
+  }
+
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 }
