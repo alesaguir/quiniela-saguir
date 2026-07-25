@@ -447,7 +447,7 @@ async function login() {
     }
 
     const rolRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,puede_ver_estadisticas`,
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,puede_ver_estadisticas,puede_ver_rachas,puede_ver_comparacion`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
     );
     const rolData = await rolRes.json();
@@ -473,6 +473,8 @@ async function login() {
       nombre: rolData[0].nombre,
       rol: rolData[0].rol,
       esSuperadmin,
+      puedeVerRachas: esSuperadmin || rolData[0].puede_ver_rachas === true,
+      puedeVerComparacion: esSuperadmin || rolData[0].puede_ver_comparacion === true,
       token: data.access_token
     };
 
@@ -481,6 +483,9 @@ async function login() {
     document.getElementById('chip-user').textContent = usuarioActual.nombre + (esSuperadmin ? ' ⬟' : '');
     document.getElementById('login-error').style.display = 'none';
     document.getElementById('input-fecha-comparar').value = new Date().toISOString().split('T')[0];
+
+    document.getElementById('tab-rachas').style.display = usuarioActual.puedeVerRachas ? '' : 'none';
+    document.getElementById('tab-comparar').style.display = usuarioActual.puedeVerComparacion ? '' : 'none';
 
     cargarEstadisticas();
   } catch(e) {
@@ -510,6 +515,8 @@ function logout() {
 // TABS
 // =====================
 function mostrarTab(nombre) {
+  if (nombre === 'rachas' && !usuarioActual.puedeVerRachas) return;
+  if (nombre === 'comparar' && !usuarioActual.puedeVerComparacion) return;
   document.getElementById('tab-salidores').classList.toggle('active', nombre === 'salidores');
   document.getElementById('tab-rachas').classList.toggle('active', nombre === 'rachas');
   document.getElementById('tab-buscar').classList.toggle('active', nombre === 'buscar');
