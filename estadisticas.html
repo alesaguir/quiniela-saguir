@@ -795,6 +795,13 @@ function renderBusqueda(numero, cifras, combosConDatos) {
     return 0;
   });
 
+  const coincidencias = filas.filter(f => f.estado === 'salio');
+
+  if (!coincidencias.length) {
+    el.innerHTML = '<div class="lista-vacia">No se encontraron coincidencias en ninguna combinación para este período.</div>';
+    return;
+  }
+
   el.innerHTML = `
     <table class="tabla-busqueda">
       <thead>
@@ -807,31 +814,15 @@ function renderBusqueda(numero, cifras, combosConDatos) {
         </tr>
       </thead>
       <tbody>
-        ${filas.map(f => {
-          if (f.estado === 'salio') {
-            const nivel = f.sorteosSinRepetir > 20 ? 'pill-red' : f.sorteosSinRepetir > 5 ? 'pill-yellow' : 'pill-green';
-            return `
-              <tr>
-                <td>${f.provincia}</td>
-                <td>${f.sorteo}</td>
-                <td style="font-family:'JetBrains Mono',monospace;">${formatearFecha(f.ultimaFecha)}</td>
-                <td><span class="pill ${nivel}">${f.sorteosSinRepetir}</span></td>
-                <td style="font-family:'JetBrains Mono',monospace;">${f.veces}x</td>
-              </tr>`;
-          }
-          if (f.estado === 'nunca') {
-            return `
-              <tr>
-                <td>${f.provincia}</td>
-                <td>${f.sorteo}</td>
-                <td colspan="3" style="color:var(--muted);">No apareció en el período elegido (${f.total} sorteo(s) analizados).</td>
-              </tr>`;
-          }
+        ${coincidencias.map(f => {
+          const nivel = f.sorteosSinRepetir > 20 ? 'pill-red' : f.sorteosSinRepetir > 5 ? 'pill-yellow' : 'pill-green';
           return `
             <tr>
               <td>${f.provincia}</td>
               <td>${f.sorteo}</td>
-              <td colspan="3" style="color:var(--muted);">Sin sorteos cargados en este período.</td>
+              <td style="font-family:'JetBrains Mono',monospace;">${formatearFecha(f.ultimaFecha)}</td>
+              <td><span class="pill ${nivel}">${f.sorteosSinRepetir}</span></td>
+              <td style="font-family:'JetBrains Mono',monospace;">${f.veces}x</td>
             </tr>`;
         }).join('')}
       </tbody>
