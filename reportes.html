@@ -791,10 +791,17 @@ function addPremioLine(focus=true, valor='') {
   input.addEventListener('input', recalcularTicket);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPremioLine(); } });
   row.querySelector('.add-inline-btn').addEventListener('click', () => addPremioLine());
-  row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
+  row.querySelector('.remove-line').addEventListener('click', () => {
+    // Si es la última fila, no la elimina (si no, se pierde el único "+" para volver a agregar) — solo la vacía.
+    if (cont.querySelectorAll('.field-row').length <= 1) {
+      input.value = '';
+    } else {
+      row.remove();
+    }
+    recalcularTicket();
+  });
   if (focus) input.focus();
 }
-
 function addFavorLine(focus=true, valor='') {
   const cont = document.getElementById('favor-container');
   const row = document.createElement('div');
@@ -813,7 +820,14 @@ function addFavorLine(focus=true, valor='') {
   input.addEventListener('input', recalcularTicket);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFavorLine(); } });
   row.querySelector('.add-inline-btn').addEventListener('click', () => addFavorLine());
-  row.querySelector('.remove-line').addEventListener('click', () => { row.remove(); recalcularTicket(); });
+  row.querySelector('.remove-line').addEventListener('click', () => {
+    if (cont.querySelectorAll('.field-row').length <= 1) {
+      input.value = '';
+    } else {
+      row.remove();
+    }
+    recalcularTicket();
+  });
   if (focus) input.focus();
 }
 
