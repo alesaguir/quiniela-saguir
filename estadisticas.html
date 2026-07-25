@@ -170,9 +170,50 @@
 
     <div class="tabs">
       <div class="tab active" id="tab-salidores" onclick="mostrarTab('salidores')">🏆 Salidores / Atrasados</div>
-      <div class="tab proximamente" onclick="mostrarProximamente()">🔥 Rachas <span class="tag-prox">Próximamente</span></div>
+      <div class="tab" id="tab-rachas" onclick="mostrarTab('rachas')">🔥 Rachas</div>
       <div class="tab proximamente" onclick="mostrarProximamente()">📅 Comparación del día <span class="tag-prox">Próximamente</span></div>
     </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <div class="filter-label">Provincia</div>
+        <select id="sel-provincia" onchange="onFiltroCambio()">
+          <option value="provincia">Provincia</option>
+          <option value="ciudad">Ciudad</option>
+          <option value="chaquena" selected>Chaqueña</option>
+          <option value="corrientes">Corrientes</option>
+          <option value="cordoba">Córdoba</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Sorteo</div>
+        <select id="sel-sorteo" onchange="onFiltroCambio()">
+          <option value="previa">Previa</option>
+          <option value="primera">Primera</option>
+          <option value="matutina">Matutina</option>
+          <option value="vespertina">Vespertina</option>
+          <option value="nocturna" selected>Nocturna</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Cifras (a la cabeza)</div>
+        <div class="btn-group">
+          <button onclick="setCifras(4,this)">4</button>
+          <button onclick="setCifras(3,this)">3</button>
+          <button onclick="setCifras(2,this)" class="active">2</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Período</div>
+        <div class="btn-group">
+          <button onclick="setPeriodo('semanal',this)">Semanal</button>
+          <button onclick="setPeriodo('mensual',this)">Mensual</button>
+          <button onclick="setPeriodo('historico',this)" class="active">Histórico</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="nota" id="nota-muestra" style="display:none;"></div>
 
     <!-- PANEL: SALIDORES / ATRASADOS -->
     <div id="panel-salidores">
@@ -183,47 +224,6 @@
         pero hace más sorteos que no repite. <b>Nunca salió</b> = no apareció ni una vez en el período — con pocos
         sorteos cargados esto es normal, sobre todo en 3 y 4 cifras, y no significa que "esté por salir".
       </div>
-
-      <div class="filters">
-        <div class="filter-group">
-          <div class="filter-label">Provincia</div>
-          <select id="sel-provincia" onchange="onFiltroCambio()">
-            <option value="provincia">Provincia</option>
-            <option value="ciudad">Ciudad</option>
-            <option value="chaquena" selected>Chaqueña</option>
-            <option value="corrientes">Corrientes</option>
-            <option value="cordoba">Córdoba</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <div class="filter-label">Sorteo</div>
-          <select id="sel-sorteo" onchange="onFiltroCambio()">
-            <option value="previa">Previa</option>
-            <option value="primera">Primera</option>
-            <option value="matutina">Matutina</option>
-            <option value="vespertina">Vespertina</option>
-            <option value="nocturna" selected>Nocturna</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <div class="filter-label">Cifras (a la cabeza)</div>
-          <div class="btn-group">
-            <button onclick="setCifras(4,this)">4</button>
-            <button onclick="setCifras(3,this)">3</button>
-            <button onclick="setCifras(2,this)" class="active">2</button>
-          </div>
-        </div>
-        <div class="filter-group">
-          <div class="filter-label">Período</div>
-          <div class="btn-group">
-            <button onclick="setPeriodo('semanal',this)">Semanal</button>
-            <button onclick="setPeriodo('mensual',this)">Mensual</button>
-            <button onclick="setPeriodo('historico',this)" class="active">Histórico</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="nota" id="nota-muestra" style="display:none;"></div>
 
       <div class="stats-grid">
         <div class="stat-card gold">
@@ -263,6 +263,25 @@
           </div>
           <div class="number-list" id="list-atrasados"><div class="cargando-panel">Cargando…</div></div>
         </div>
+      </div>
+
+    </div>
+
+    <!-- PANEL: RACHAS -->
+    <div id="panel-rachas" style="display:none;">
+
+      <div class="nota">
+        <b>Cómo leer esto:</b> una racha es cuando el mismo número (al nivel de cifras elegido) salió en
+        <b>sorteos consecutivos</b> de este mismo sorteo — por ejemplo, Nocturna del lunes y Nocturna del martes,
+        sin importar qué pasó en los demás sorteos en el medio. No se cuentan repeticiones salteadas.
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔥 Repeticiones Consecutivas</div>
+          <span class="card-badge">Ordenadas de mayor a menor racha</span>
+        </div>
+        <div class="number-list" id="list-rachas"><div class="cargando-panel">Cargando…</div></div>
       </div>
 
     </div>
@@ -373,7 +392,10 @@ function logout() {
 // TABS
 // =====================
 function mostrarTab(nombre) {
-  // Solo hay un panel implementado por ahora
+  document.getElementById('tab-salidores').classList.toggle('active', nombre === 'salidores');
+  document.getElementById('tab-rachas').classList.toggle('active', nombre === 'rachas');
+  document.getElementById('panel-salidores').style.display = nombre === 'salidores' ? 'block' : 'none';
+  document.getElementById('panel-rachas').style.display = nombre === 'rachas' ? 'block' : 'none';
 }
 function mostrarProximamente() {
   showToast('Esta vista se agrega en la próxima etapa', 'err');
@@ -453,6 +475,7 @@ function procesarYRenderizar(rows) {
   if (total === 0) {
     document.getElementById('list-salidores').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
     document.getElementById('list-atrasados').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
+    document.getElementById('list-rachas').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
     ['st-salidor','st-atrasado','st-total','st-nunca'].forEach(id => document.getElementById(id).textContent = '—');
     return;
   }
@@ -498,6 +521,56 @@ function procesarYRenderizar(rows) {
 
   renderLista('list-salidores', salidores, maxSalidor, 'veces', 'salidor');
   renderLista('list-atrasados', atrasados, maxAtrasado, 'sorteos', 'atrasado');
+
+  const rachas = calcularRachas(rows, cifras);
+  renderRachas(rachas);
+}
+
+function calcularRachas(rows, cifras) {
+  const rachas = [];
+  let actual = null;
+
+  rows.forEach(r => {
+    const n = recorte(r.numero, cifras);
+    if (actual && actual.numero === n) {
+      actual.cantidad++;
+      actual.hasta = r.fecha;
+    } else {
+      if (actual && actual.cantidad >= 2) rachas.push(actual);
+      actual = { numero: n, cantidad: 1, desde: r.fecha, hasta: r.fecha };
+    }
+  });
+  if (actual && actual.cantidad >= 2) rachas.push(actual);
+
+  return rachas.sort((a,b) => b.cantidad - a.cantidad);
+}
+
+function renderRachas(rachas) {
+  const el = document.getElementById('list-rachas');
+  if (!rachas.length) {
+    el.innerHTML = '<div class="lista-vacia">No se detectaron repeticiones en sorteos consecutivos para este filtro.</div>';
+    return;
+  }
+  const max = rachas[0].cantidad;
+  el.innerHTML = rachas.map((r, i) => `
+    <div class="number-row">
+      <div class="rank">${i+1}</div>
+      <div class="number-badge">${r.numero}</div>
+      <div class="bar-wrap">
+        <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(r.cantidad/max*100)}%"></div></div>
+        <div class="stat-sub" style="margin-top:4px;">${formatearFecha(r.desde)} → ${formatearFecha(r.hasta)}</div>
+      </div>
+      <div>
+        <div class="count">${r.cantidad}</div>
+        <div class="count-label">seguidas</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function formatearFecha(fecha) {
+  const [y,m,d] = fecha.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function renderLista(id, data, max, unidad, tipo) {
