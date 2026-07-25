@@ -445,6 +445,15 @@ const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 
 let usuarioActual = null;
 
+// Fecha local real (no UTC) — toISOString() se corre al día siguiente después de las 21hs en Argentina
+function fechaLocalHoy() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function showToast(msg, tipo) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -575,7 +584,7 @@ let borradores = {}; // guarda lo que se va tipeando por (fecha+subagencia) mien
 let contextoActual = null; // {fecha, agencia_id} de lo que está mostrado ahora mismo en el formulario
 
 async function initCarga() {
-  document.getElementById('fecha-reporte').value = new Date().toISOString().slice(0,10);
+  document.getElementById('fecha-reporte').value = fechaLocalHoy();
   await Promise.all([cargarSubagenciasSelect(), cargarJuegosActivos()]);
 }
 
@@ -806,9 +815,24 @@ function addFreeLine(concepto='', valor='') {
 }
 
 // --- Cálculo ---
+// Al enfocar cualquier casillero de importe, seleccionar todo su contenido —
+// así pegar con Ctrl+V siempre reemplaza el valor entero, sin mezclarse con lo anterior.
+document.addEventListener('focus', (e) => {
+  if (e.target.classList && e.target.classList.contains('amount')) {
+    e.target.select();
+  }
+}, true);
+
 function parseMonto(v) {
   if (!v) return 0;
-  const n = parseFloat(v.toString().replace(/\./g,'').replace(',', '.'));
+  let s = v.toString().trim();
+  // Al copiar desde el reporte de Lotería Chaqueña (o cualquier PDF/web) a veces se pega
+  // junto con el símbolo "$", espacios, o espacios "no separables" invisibles — los descartamos
+  // antes de interpretar el número, dejando solo dígitos, punto, coma y signo menos.
+  s = s.replace(/[^\d.,-]/g, '');
+  // Formato argentino: punto = separador de miles, coma = separador decimal
+  s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 }
 function formatARS(n) {
@@ -1399,7 +1423,7 @@ function previsualizarDiseno() {
     nombreTitular: 'Ejemplo de subagencia',
     ciudad: 'Presidencia Roque Sáenz Peña',
     domicilio: 'Calle de ejemplo 123',
-    fecha: new Date().toISOString().slice(0,10),
+    fecha: fechaLocalHoy(),
     items: [
       {label:'Reporte (Lotería Chaqueña)', amount: 250000},
       {label:'Premio (otra sucursal)', amount: 5000},
