@@ -256,11 +256,11 @@
     <div id="seccion-subagencias" style="display:none;" data-rol="superadmin">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="seccion-toggle" id="toggle-subagencias" onclick="toggleSeccionColapsable('contenido-subagencias', this)">▸</button>
+          <button class="seccion-toggle" id="toggle-subagencias" onclick="toggleSeccionColapsable('contenido-subagencias', this, cargarSubagencias)">▸</button>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🏪 Gestión de Subagencias</div>
           <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
         </div>
-        <button class="btn btn-primary" onclick="document.getElementById('contenido-subagencias').style.display=''; document.getElementById('toggle-subagencias').textContent='▾'; mostrarFormNuevaAgencia();" style="font-size:13px;">➕ Nueva subagencia</button>
+        <button class="btn btn-primary" onclick="if(document.getElementById('contenido-subagencias').style.display==='none'){toggleSeccionColapsable('contenido-subagencias', document.getElementById('toggle-subagencias'), cargarSubagencias);} mostrarFormNuevaAgencia();" style="font-size:13px;">➕ Nueva subagencia</button>
       </div>
 
       <div id="contenido-subagencias" style="display:none;">
@@ -333,7 +333,7 @@
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:10px;">
-            <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-actividad', this)">▸</button>
+            <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-actividad', this, cargarActividad)">▸</button>
             <div class="card-title">📋 Registro de actividad</div>
           </div>
           <button class="btn btn-ghost" onclick="cargarActividad()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
@@ -347,7 +347,7 @@
     <!-- CÓDIGOS DE ACCESO — solo superadmin -->
     <div id="seccion-codigos-acceso" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
-        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-codigos-acceso', this)">▸</button>
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-codigos-acceso', this, cargarCodigosAcceso)">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🔗 Códigos de Acceso (URL)</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
@@ -368,7 +368,7 @@
     <!-- CONFIGURACIÓN VISUAL — solo superadmin -->
     <div id="seccion-visual" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
-        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-visual', this)">▸</button>
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-visual', this, () => { buildNombresProvinciaGrid(); cargarAgenciasEnSelectorUnaVez(); cargarConfigVisual(); })">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🎨 Apariencia de la Pantalla</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
@@ -574,7 +574,7 @@
     <!-- PROGRAMACIONES DE CANTIDAD DE NÚMEROS — solo superadmin -->
     <div id="seccion-programaciones" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
-        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones', this)">▸</button>
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones', this, () => { buildProgProvinciasGrid(); cargarAgenciasEnSelectorUnaVez(); })">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📅 Programar Cambios de Cantidad</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
@@ -633,7 +633,7 @@
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:10px;">
-            <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones-guardadas', this)">▸</button>
+            <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones-guardadas', this, cargarProgramaciones)">▸</button>
             <div class="card-title">📋 Programaciones guardadas</div>
           </div>
           <button class="btn btn-ghost" onclick="cargarProgramaciones()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
@@ -648,7 +648,7 @@
     <!-- CONFIGURACIÓN DE SORTEOS — solo superadmin -->
     <div id="seccion-config" style="display:none;">
       <div style="margin-top:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
-        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this)">▸</button>
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this, () => { buildConfigGrids(); buildCantidadProvinciasGrid(); cargarConfiguraciones(); })">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">⚙️ Configuración de Sorteos</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
@@ -1377,9 +1377,14 @@ async function initApp() {
   const idx = SORTEOS.indexOf(sorteoActual);
   if (tabs[idx]) tabs[idx].classList.add('active');
 
-  await cargarNumerosPorProvincia(); // hay que tenerlo ANTES de armar el formulario
-  await cargarNombresProvincia();
-  await cargarConfigCarga();
+  // Estas 3 son independientes entre sí — no hace falta esperar una para arrancar la siguiente.
+  // Antes se hacían en fila (await, await, await), sumando el tiempo de las 3; ahora corren
+  // al mismo tiempo y se espera solo a la más lenta de las tres.
+  await Promise.all([
+    cargarNumerosPorProvincia(),
+    cargarNombresProvincia(),
+    cargarConfigCarga()
+  ]);
   buildForm();
   actualizarTitulos();
   actualizarEstadoDia();
@@ -1712,23 +1717,34 @@ async function actualizarEstadoDia() {
   if (!fecha) return;
   const nombres = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
   const container = document.getElementById('estado-dia');
-  let html = '';
-  for (const s of SORTEOS) {
+
+  // Antes esto hacía 5 consultas en fila (un for con await adentro) — una por cada sorteo del día.
+  // Son totalmente independientes entre sí, así que ahora se disparan las 5 juntas y se arma
+  // el HTML final una vez que todas terminaron, respetando el orden original de SORTEOS.
+  const resultadosPorSorteo = await Promise.all(SORTEOS.map(async (s) => {
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${s}&agencia_id=eq.${usuarioActual.agencia_id}&select=count`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer':'count=exact' } }
       );
       const count = parseInt(res.headers.get('content-range')?.split('/')[1] || '0');
-      const tieneDatos = count > 0;
-      html += `<div class="estado-cell">
-        <div class="estado-nombre">${nombres[s]}</div>
-        <span class="pill ${tieneDatos?'pill-green':'pill-gray'}">${tieneDatos?'✓ Cargado':'Pendiente'}</span>
-      </div>`;
+      return { sorteo: s, tieneDatos: count > 0, error: false };
     } catch(e) {
-      html += `<div class="estado-cell"><div class="estado-nombre">${nombres[s]}</div><span class="pill pill-gray">—</span></div>`;
+      return { sorteo: s, tieneDatos: false, error: true };
     }
-  }
+  }));
+
+  let html = '';
+  resultadosPorSorteo.forEach(r => {
+    if (r.error) {
+      html += `<div class="estado-cell"><div class="estado-nombre">${nombres[r.sorteo]}</div><span class="pill pill-gray">—</span></div>`;
+    } else {
+      html += `<div class="estado-cell">
+        <div class="estado-nombre">${nombres[r.sorteo]}</div>
+        <span class="pill ${r.tieneDatos?'pill-green':'pill-gray'}">${r.tieneDatos?'✓ Cargado':'Pendiente'}</span>
+      </div>`;
+    }
+  });
   container.innerHTML = html;
 }
 
@@ -2503,17 +2519,8 @@ function verificarSuperadmin() {
     document.getElementById('seccion-visual').style.display = 'block';
     document.getElementById('seccion-programaciones').style.display = 'block';
     document.getElementById('seccion-codigos-acceso').style.display = 'block';
-    buildConfigGrids();
-    buildCantidadProvinciasGrid();
-    buildProgProvinciasGrid();
-    buildNombresProvinciaGrid();
-    cargarConfiguraciones();
-    cargarSubagencias();
-    cargarActividad();
-    cargarConfigVisual();
-    cargarAgenciasEnSelector();
-    cargarProgramaciones();
-    cargarCodigosAcceso();
+    // Los datos de cada panel se cargan recién cuando se abre ese panel puntual (ver toggleSeccionColapsable),
+    // no todos de una al loguearse — antes esto disparaba 7+ consultas aunque los paneles estuvieran contraídos.
   } else {
     document.getElementById('seccion-config').style.display = 'none';
     document.getElementById('seccion-subagencias').style.display = 'none';
@@ -2697,12 +2704,28 @@ function showToast(msg, tipo='ok') {
   toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
-// Colapsar/expandir paneles grandes — arrancan contraídos para que el panel no sea tan extenso
-function toggleSeccionColapsable(contenidoId, btnEl) {
+// Colapsar/expandir paneles grandes — arrancan contraídos para que el panel no sea tan extenso.
+// Además, cargarFn (si se pasa) solo se ejecuta la PRIMERA vez que se abre ese panel puntual,
+// en vez de traer los datos de los 7 paneles de una al loguearse.
+const seccionesYaCargadas = new Set();
+function toggleSeccionColapsable(contenidoId, btnEl, cargarFn) {
   const el = document.getElementById(contenidoId);
   const colapsado = el.style.display === 'none';
   el.style.display = colapsado ? '' : 'none';
   btnEl.textContent = colapsado ? '▾' : '▸';
+  if (colapsado && cargarFn && !seccionesYaCargadas.has(contenidoId)) {
+    seccionesYaCargadas.add(contenidoId);
+    cargarFn();
+  }
+}
+
+// cargarAgenciasEnSelector() llena selectores usados tanto en "Apariencia" como en
+// "Programar Cambios" — se trae una sola vez, la dispare cual sea de las dos secciones primero.
+let agenciasSelectorCargado = false;
+function cargarAgenciasEnSelectorUnaVez() {
+  if (agenciasSelectorCargado) return;
+  agenciasSelectorCargado = true;
+  cargarAgenciasEnSelector();
 }
 </script>
 </body>
