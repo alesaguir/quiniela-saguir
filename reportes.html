@@ -540,7 +540,10 @@ async function login() {
       cargarDisenoImagenForm();
     }
 
-    await cargarImagenConfig();
+    // cargarImagenConfig() no tiene nada que ver con las subagencias — antes su "await" frenaba
+    // que initCarga() (que trae las pestañas de subagencia) ni siquiera arrancara hasta que
+    // terminara. Ahora las tres corren al mismo tiempo, sin esperarse entre sí.
+    cargarImagenConfig();
     initCarga();
     cargarSubagenciasContactos();
 
