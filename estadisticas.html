@@ -77,6 +77,7 @@
   .filter-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;}
   select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;outline:none;transition:all .2s;}
   select:hover, select:focus{border-color:var(--gold);}
+  select:disabled{opacity:.4;cursor:not-allowed;}
   .btn-group{display:flex;gap:4px;}
   .btn-group button{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .2s;}
   .btn-group button:hover{border-color:var(--gold);}
@@ -114,6 +115,19 @@
   .count{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text);width:40px;text-align:right;}
   .count-label{font-size:10px;color:var(--muted);text-align:right;}
   .lista-vacia{padding:24px 20px;color:var(--muted);font-size:13px;text-align:center;}
+
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;}
+  .pill-green{background:rgba(46,196,182,0.15);color:var(--green);}
+  .pill-red{background:rgba(230,57,70,0.15);color:var(--red);}
+  .pill-yellow{background:rgba(240,180,41,0.15);color:var(--gold);}
+
+  .search-box{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end;}
+  .search-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:18px;letter-spacing:2px;outline:none;width:160px;text-align:center;}
+  .search-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
+  .table-scroll{overflow-x:auto;}
+  .tabla-busqueda{width:100%;border-collapse:collapse;}
+  .tabla-busqueda th{padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;border-bottom:1px solid var(--border);}
+  .tabla-busqueda td{padding:10px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);}
 
   /* TOAST */
   .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;}
@@ -171,6 +185,7 @@
     <div class="tabs">
       <div class="tab active" id="tab-salidores" onclick="mostrarTab('salidores')">🏆 Salidores / Atrasados</div>
       <div class="tab" id="tab-rachas" onclick="mostrarTab('rachas')">🔥 Rachas</div>
+      <div class="tab" id="tab-buscar" onclick="mostrarTab('buscar')">🔍 Buscar número</div>
       <div class="tab proximamente" onclick="mostrarProximamente()">📅 Comparación del día <span class="tag-prox">Próximamente</span></div>
     </div>
 
@@ -209,6 +224,12 @@
           <button onclick="setPeriodo('semanal',this)">Semanal</button>
           <button onclick="setPeriodo('mensual',this)">Mensual</button>
           <button onclick="setPeriodo('historico',this)" class="active">Histórico</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Vista</div>
+        <div class="btn-group">
+          <button id="btn-modo-global" onclick="toggleModoGlobal()">🌐 Ver todas las combinaciones</button>
         </div>
       </div>
     </div>
@@ -286,6 +307,35 @@
 
     </div>
 
+    <!-- PANEL: BUSCAR NÚMERO -->
+    <div id="panel-buscar" style="display:none;">
+
+      <div class="nota">
+        <b>Cómo leer esto:</b> escribí un número de 2, 3 o 4 cifras (la cantidad de dígitos define el nivel —
+        no hace falta tocar el filtro de "Cifras" de arriba). La búsqueda recorre las 25 combinaciones de
+        provincia × sorteo y respeta el <b>período</b> elegido arriba (semanal/mensual/histórico).
+      </div>
+
+      <div class="search-box">
+        <div class="filter-group">
+          <div class="filter-label">Número</div>
+          <input class="search-input" id="input-buscar" maxlength="4" placeholder="Ej: 32"
+            onkeydown="if(event.key==='Enter')buscarNumero()">
+        </div>
+        <button class="btn btn-primary" style="width:auto;" onclick="buscarNumero()">Buscar</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔍 Resultado por combinación</div>
+        </div>
+        <div class="table-scroll" id="resultado-busqueda">
+          <div class="lista-vacia">Escribí un número y presioná Buscar.</div>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 </div>
 
@@ -296,7 +346,23 @@ const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 const AGENCIA_ID = '670-00';
 
+const PROVINCIAS = [
+  { key:'provincia',  label:'Provincia' },
+  { key:'ciudad',     label:'Ciudad' },
+  { key:'chaquena',   label:'Chaqueña' },
+  { key:'corrientes', label:'Corrientes' },
+  { key:'cordoba',    label:'Córdoba' },
+];
+const SORTEOS = [
+  { key:'previa',     label:'Previa' },
+  { key:'primera',    label:'Primera' },
+  { key:'matutina',   label:'Matutina' },
+  { key:'vespertina', label:'Vespertina' },
+  { key:'nocturna',   label:'Nocturna' },
+];
+
 let usuarioActual = null;
+let modoGlobal = false;
 
 let filtro = {
   provincia: 'chaquena',
@@ -364,7 +430,6 @@ async function login() {
     document.getElementById('login-error').style.display = 'none';
 
     cargarEstadisticas();
-
   } catch(e) {
     console.error(e);
     mostrarErrorLogin('Error de conexión. Probá de nuevo.');
@@ -394,8 +459,10 @@ function logout() {
 function mostrarTab(nombre) {
   document.getElementById('tab-salidores').classList.toggle('active', nombre === 'salidores');
   document.getElementById('tab-rachas').classList.toggle('active', nombre === 'rachas');
+  document.getElementById('tab-buscar').classList.toggle('active', nombre === 'buscar');
   document.getElementById('panel-salidores').style.display = nombre === 'salidores' ? 'block' : 'none';
   document.getElementById('panel-rachas').style.display = nombre === 'rachas' ? 'block' : 'none';
+  document.getElementById('panel-buscar').style.display = nombre === 'buscar' ? 'block' : 'none';
 }
 function mostrarProximamente() {
   showToast('Esta vista se agrega en la próxima etapa', 'err');
@@ -407,19 +474,33 @@ function mostrarProximamente() {
 function onFiltroCambio() {
   filtro.provincia = document.getElementById('sel-provincia').value;
   filtro.sorteo = document.getElementById('sel-sorteo').value;
-  cargarEstadisticas();
+  actualizarVista();
 }
 function setCifras(n, btn) {
   filtro.cifras = n;
   btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  cargarEstadisticas();
+  actualizarVista();
 }
 function setPeriodo(p, btn) {
   filtro.periodo = p;
   btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  cargarEstadisticas();
+  actualizarVista();
+}
+
+function toggleModoGlobal() {
+  modoGlobal = !modoGlobal;
+  const btn = document.getElementById('btn-modo-global');
+  btn.classList.toggle('active', modoGlobal);
+  btn.textContent = modoGlobal ? '🔎 Volver a un solo filtro' : '🌐 Ver todas las combinaciones';
+  document.getElementById('sel-provincia').disabled = modoGlobal;
+  document.getElementById('sel-sorteo').disabled = modoGlobal;
+  actualizarVista();
+}
+
+function actualizarVista() {
+  if (modoGlobal) cargarGlobal(); else cargarEstadisticas();
 }
 
 function fechaDesde(periodo) {
@@ -431,23 +512,28 @@ function fechaDesde(periodo) {
 }
 
 // =====================
-// CARGA Y CÁLCULO
+// CARGA Y CÁLCULO — UN SOLO FILTRO
 // =====================
-async function cargarEstadisticas() {
-  document.getElementById('list-salidores').innerHTML = '<div class="cargando-panel">Cargando…</div>';
-  document.getElementById('list-atrasados').innerHTML = '<div class="cargando-panel">Cargando…</div>';
-
+async function fetchResultados(provincia, sorteo) {
   let url = `${SUPABASE_URL}/rest/v1/resultados?agencia_id=eq.${AGENCIA_ID}&posicion=eq.1`
-    + `&provincia=eq.${filtro.provincia}&sorteo=eq.${filtro.sorteo}`
+    + `&provincia=eq.${provincia}&sorteo=eq.${sorteo}`
     + `&select=fecha,numero&order=fecha.asc`;
 
   const desde = fechaDesde(filtro.periodo);
   if (desde) url += `&fecha=gte.${desde}`;
 
+  const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+  return (await res.json()) || [];
+}
+
+async function cargarEstadisticas() {
+  document.getElementById('list-salidores').innerHTML = '<div class="cargando-panel">Cargando…</div>';
+  document.getElementById('list-atrasados').innerHTML = '<div class="cargando-panel">Cargando…</div>';
+  document.getElementById('list-rachas').innerHTML = '<div class="cargando-panel">Cargando…</div>';
+
   try {
-    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
-    const rows = await res.json();
-    procesarYRenderizar(rows || []);
+    const rows = await fetchResultados(filtro.provincia, filtro.sorteo);
+    procesarYRenderizar(rows);
   } catch(e) {
     console.error(e);
     showToast('Error al cargar estadísticas', 'err');
@@ -559,6 +645,247 @@ function renderRachas(rachas) {
       <div class="bar-wrap">
         <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(r.cantidad/max*100)}%"></div></div>
         <div class="stat-sub" style="margin-top:4px;">${formatearFecha(r.desde)} → ${formatearFecha(r.hasta)}</div>
+      </div>
+      <div>
+        <div class="count">${r.cantidad}</div>
+        <div class="count-label">seguidas</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// =====================
+// BUSCAR NÚMERO PUNTUAL
+// =====================
+async function buscarNumero() {
+  const input = document.getElementById('input-buscar').value.trim();
+  const el = document.getElementById('resultado-busqueda');
+
+  if (!/^\d{2,4}$/.test(input)) {
+    showToast('Ingresá un número de 2 a 4 cifras', 'err');
+    return;
+  }
+  const cifrasBusqueda = input.length;
+
+  el.innerHTML = '<div class="cargando-panel">Buscando en las 25 combinaciones…</div>';
+
+  const combos = [];
+  PROVINCIAS.forEach(p => SORTEOS.forEach(s => combos.push({ provincia: p, sorteo: s })));
+
+  try {
+    const resultadosPorCombo = await Promise.all(combos.map(async c => ({
+      provincia: c.provincia,
+      sorteo: c.sorteo,
+      rows: await fetchResultados(c.provincia.key, c.sorteo.key)
+    })));
+    renderBusqueda(input, cifrasBusqueda, resultadosPorCombo);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al buscar', 'err');
+  }
+}
+
+function renderBusqueda(numero, cifras, combosConDatos) {
+  const el = document.getElementById('resultado-busqueda');
+  const filas = [];
+
+  combosConDatos.forEach(({ provincia, sorteo, rows }) => {
+    const total = rows.length;
+    if (total === 0) {
+      filas.push({ provincia: provincia.label, sorteo: sorteo.label, estado: 'sindatos' });
+      return;
+    }
+    let ultimaFecha = null, ultimoIdx = -1, veces = 0;
+    rows.forEach((r, i) => {
+      if (recorte(r.numero, cifras) === numero) {
+        veces++;
+        ultimaFecha = r.fecha;
+        ultimoIdx = i;
+      }
+    });
+    if (veces === 0) {
+      filas.push({ provincia: provincia.label, sorteo: sorteo.label, estado: 'nunca', total });
+    } else {
+      filas.push({
+        provincia: provincia.label, sorteo: sorteo.label, estado: 'salio',
+        veces, ultimaFecha, sorteosSinRepetir: (total - 1) - ultimoIdx
+      });
+    }
+  });
+
+  filas.sort((a,b) => {
+    const orden = { salio: 0, nunca: 1, sindatos: 2 };
+    if (orden[a.estado] !== orden[b.estado]) return orden[a.estado] - orden[b.estado];
+    if (a.estado === 'salio') return b.sorteosSinRepetir - a.sorteosSinRepetir;
+    return 0;
+  });
+
+  el.innerHTML = `
+    <table class="tabla-busqueda">
+      <thead>
+        <tr>
+          <th>Provincia</th>
+          <th>Sorteo</th>
+          <th>Última vez</th>
+          <th>Sorteos sin repetir</th>
+          <th>Veces en el período</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filas.map(f => {
+          if (f.estado === 'salio') {
+            const nivel = f.sorteosSinRepetir > 20 ? 'pill-red' : f.sorteosSinRepetir > 5 ? 'pill-yellow' : 'pill-green';
+            return `
+              <tr>
+                <td>${f.provincia}</td>
+                <td>${f.sorteo}</td>
+                <td style="font-family:'JetBrains Mono',monospace;">${formatearFecha(f.ultimaFecha)}</td>
+                <td><span class="pill ${nivel}">${f.sorteosSinRepetir}</span></td>
+                <td style="font-family:'JetBrains Mono',monospace;">${f.veces}x</td>
+              </tr>`;
+          }
+          if (f.estado === 'nunca') {
+            return `
+              <tr>
+                <td>${f.provincia}</td>
+                <td>${f.sorteo}</td>
+                <td colspan="3" style="color:var(--muted);">No apareció en el período elegido (${f.total} sorteo(s) analizados).</td>
+              </tr>`;
+          }
+          return `
+            <tr>
+              <td>${f.provincia}</td>
+              <td>${f.sorteo}</td>
+              <td colspan="3" style="color:var(--muted);">Sin sorteos cargados en este período.</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// =====================
+// CARGA Y CÁLCULO — TODAS LAS COMBINACIONES
+// =====================
+async function cargarGlobal() {
+  ['list-salidores','list-atrasados','list-rachas'].forEach(id => {
+    document.getElementById(id).innerHTML = '<div class="cargando-panel">Consultando las 25 combinaciones…</div>';
+  });
+
+  const combos = [];
+  PROVINCIAS.forEach(p => SORTEOS.forEach(s => combos.push({ provincia: p, sorteo: s })));
+
+  try {
+    const resultadosPorCombo = await Promise.all(combos.map(async c => ({
+      provincia: c.provincia,
+      sorteo: c.sorteo,
+      rows: await fetchResultados(c.provincia.key, c.sorteo.key)
+    })));
+    procesarGlobalYRenderizar(resultadosPorCombo);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar la vista global', 'err');
+  }
+}
+
+function procesarGlobalYRenderizar(combosConDatos) {
+  const cifras = filtro.cifras;
+  let totalGeneral = 0;
+  let nuncaSalioGeneral = 0;
+  const todosSalidores = [];
+  const todosAtrasados = [];
+  const todasRachas = [];
+
+  combosConDatos.forEach(({ provincia, sorteo, rows }) => {
+    const total = rows.length;
+    totalGeneral += total;
+    if (total === 0) return;
+
+    const freq = {};
+    const ultimoIdx = {};
+    rows.forEach((r, i) => {
+      const n = recorte(r.numero, cifras);
+      freq[n] = (freq[n] || 0) + 1;
+      ultimoIdx[n] = i;
+    });
+
+    nuncaSalioGeneral += Math.pow(10, cifras) - Object.keys(freq).length;
+
+    Object.entries(freq).forEach(([n, count]) => {
+      todosSalidores.push({ numero: n, valor: count, provincia: provincia.label, sorteo: sorteo.label });
+    });
+    Object.entries(ultimoIdx).forEach(([n, idx]) => {
+      todosAtrasados.push({ numero: n, valor: (total - 1) - idx, provincia: provincia.label, sorteo: sorteo.label });
+    });
+    calcularRachas(rows, cifras).forEach(r => {
+      todasRachas.push({ ...r, provincia: provincia.label, sorteo: sorteo.label });
+    });
+  });
+
+  todosSalidores.sort((a,b) => b.valor - a.valor);
+  todosAtrasados.sort((a,b) => b.valor - a.valor);
+  todasRachas.sort((a,b) => b.cantidad - a.cantidad);
+
+  const topSalidores = todosSalidores.slice(0,10);
+  const topAtrasados = todosAtrasados.slice(0,10);
+  const topRachas = todasRachas.slice(0,10);
+
+  const notaMuestra = document.getElementById('nota-muestra');
+  notaMuestra.style.display = 'block';
+  notaMuestra.classList.remove('aviso');
+  notaMuestra.innerHTML = `🌐 <b>Vista global:</b> se analizaron ${totalGeneral} sorteo(s) en total, combinando las 5 provincias × 5 sorteos (${etiquetaPeriodo()}). Cada resultado indica a qué provincia y sorteo pertenece — son juegos independientes, no se suman entre sí.`;
+
+  document.getElementById('st-salidor').textContent = topSalidores[0] ? topSalidores[0].numero : '—';
+  document.getElementById('st-salidor-sub').textContent = topSalidores[0] ? `${topSalidores[0].provincia} · ${topSalidores[0].sorteo} — ${topSalidores[0].valor} veces` : '—';
+
+  document.getElementById('st-atrasado').textContent = topAtrasados[0] ? topAtrasados[0].numero : '—';
+  document.getElementById('st-atrasado-sub').textContent = topAtrasados[0] ? `${topAtrasados[0].provincia} · ${topAtrasados[0].sorteo} — ${topAtrasados[0].valor} sorteos sin repetir` : '—';
+
+  document.getElementById('st-total').textContent = totalGeneral;
+  document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · las 25 combinaciones`;
+
+  document.getElementById('st-nunca').textContent = nuncaSalioGeneral;
+  document.getElementById('st-nunca-sub').textContent = `sumado entre las 25 combinaciones`;
+
+  renderListaGlobal('list-salidores', topSalidores, 'veces', 'salidor');
+  renderListaGlobal('list-atrasados', topAtrasados, 'sorteos', 'atrasado');
+  renderRachasGlobal(topRachas);
+}
+
+function renderListaGlobal(id, data, unidad, tipo) {
+  const el = document.getElementById(id);
+  if (!data.length) { el.innerHTML = '<div class="lista-vacia">Sin datos.</div>'; return; }
+  const max = data[0].valor;
+  el.innerHTML = data.map((d, i) => `
+    <div class="number-row">
+      <div class="rank">${i+1}</div>
+      <div class="number-badge ${tipo==='atrasado'?'atrasado':''}">${d.numero}</div>
+      <div class="bar-wrap">
+        <div class="bar-bg"><div class="bar-fill ${tipo==='atrasado'?'atrasado':''}" style="width:${Math.round(d.valor/max*100)}%"></div></div>
+        <div class="stat-sub" style="margin-top:4px;">${d.provincia} · ${d.sorteo}</div>
+      </div>
+      <div>
+        <div class="count">${d.valor}</div>
+        <div class="count-label">${unidad}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRachasGlobal(rachas) {
+  const el = document.getElementById('list-rachas');
+  if (!rachas.length) {
+    el.innerHTML = '<div class="lista-vacia">No se detectaron repeticiones consecutivas en ninguna combinación.</div>';
+    return;
+  }
+  const max = rachas[0].cantidad;
+  el.innerHTML = rachas.map((r, i) => `
+    <div class="number-row">
+      <div class="rank">${i+1}</div>
+      <div class="number-badge">${r.numero}</div>
+      <div class="bar-wrap">
+        <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(r.cantidad/max*100)}%"></div></div>
+        <div class="stat-sub" style="margin-top:4px;">${r.provincia} · ${r.sorteo} — ${formatearFecha(r.desde)} → ${formatearFecha(r.hasta)}</div>
       </div>
       <div>
         <div class="count">${r.cantidad}</div>
