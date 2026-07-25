@@ -1900,7 +1900,7 @@ async function cargarSubagencias() {
                   </span>
                 </label>
               </td>
-              <td style="padding:12px 10px;">
+              <td style="padding:12px 10px;min-width:190px;">
                 <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
                   <input type="checkbox" ${r.puede_ver_estadisticas ? 'checked' : ''}
                     onchange="toggleEstadisticas('${r.user_id}', ${r.puede_ver_estadisticas === true})"
@@ -1909,6 +1909,20 @@ async function cargarSubagencias() {
                     ${r.puede_ver_estadisticas ? 'Habilitado' : 'Deshabilitado'}
                   </span>
                 </label>
+                <div style="margin-top:8px;padding-left:26px;display:flex;flex-direction:column;gap:5px;${r.puede_ver_estadisticas ? '' : 'opacity:.35;pointer-events:none;'}">
+                  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                    <input type="checkbox" ${r.puede_ver_rachas ? 'checked' : ''}
+                      onchange="toggleSubPermiso('${r.user_id}', 'puede_ver_rachas', ${r.puede_ver_rachas === true})"
+                      style="width:14px;height:14px;cursor:pointer;accent-color:var(--gold);">
+                    <span style="font-size:10px;color:var(--muted);">Pestaña Rachas</span>
+                  </label>
+                  <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                    <input type="checkbox" ${r.puede_ver_comparacion ? 'checked' : ''}
+                      onchange="toggleSubPermiso('${r.user_id}', 'puede_ver_comparacion', ${r.puede_ver_comparacion === true})"
+                      style="width:14px;height:14px;cursor:pointer;accent-color:var(--gold);">
+                    <span style="font-size:10px;color:var(--muted);">Pestaña Comparación del día</span>
+                  </label>
+                </div>
               </td>
               <td style="padding:12px 10px;">
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -2008,6 +2022,30 @@ async function toggleEstadisticas(user_id, actual) {
     );
     if (res.ok) {
       showToast(nuevoEstado ? '✅ Permiso de estadísticas habilitado' : '🚫 Permiso de estadísticas deshabilitado','ok');
+      cargarSubagencias();
+    }
+  } catch(e) { showToast('Error','err'); }
+}
+
+async function toggleSubPermiso(user_id, campo, actual) {
+  const nuevoEstado = !actual;
+  const etiquetas = { puede_ver_rachas: 'Rachas', puede_ver_comparacion: 'Comparación del día' };
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [campo]: nuevoEstado })
+      }
+    );
+    if (res.ok) {
+      const nombre = etiquetas[campo] || campo;
+      showToast(nuevoEstado ? `✅ Pestaña "${nombre}" habilitada` : `🚫 Pestaña "${nombre}" deshabilitada`,'ok');
       cargarSubagencias();
     }
   } catch(e) { showToast('Error','err'); }
