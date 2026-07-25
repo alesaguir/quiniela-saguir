@@ -209,7 +209,8 @@
               <input type="date" class="form-input" id="fecha-reporte" onchange="onCambioFecha()" style="padding:8px 10px;width:auto;">
             </div>
             <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Filtrar subagencia" oninput="filtrarSubagencias()" style="padding:8px 10px;flex:1;min-width:160px;max-width:240px;">
-            <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
+            <button class="btn btn-primary" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-guardar-todos" onclick="guardarTodosLosReportes()">💾 Guardar todos</button>
+            <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
             <button class="btn btn-ghost" id="btn-borrar-todos" style="padding:8px 10px;color:var(--red);border-color:rgba(230,57,70,.4);" onclick="borrarTodosLosReportesDelDia()" title="Borrar todos los reportes guardados de esta fecha">🗑</button>
           </div>
 
@@ -218,6 +219,8 @@
             <div id="agency-tabs" style="display:flex;flex-wrap:nowrap;overflow-x:auto;gap:5px;padding-bottom:2px;scrollbar-width:none;-ms-overflow-style:none;">Cargando subagencias...</div>
             <button type="button" class="btn btn-ghost" id="btn-scroll-der" onclick="scrollTabsSubagencia(1)" title="Ver siguientes" style="flex-shrink:0;padding:6px 10px;font-size:13px;">▶</button>
           </div>
+
+          <div id="aviso-faltantes" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
 
         </div>
       </div>
@@ -625,7 +628,38 @@ async function cargarSubagenciasSelect() {
       </button>
     `;
     }).join('');
+    actualizarAvisoFaltantes();
   } catch(e) { console.error(e); showToast('Error al cargar subagencias','err'); }
+}
+
+// Muestra qué subagencias activas todavía no tienen un reporte guardado para la fecha elegida.
+// Es solo informativo: no bloquea nada, porque hay días en que una subagencia legítimamente
+// no tiene nada que traer o retirar (no trabajó, o no hubo movimiento).
+async function actualizarAvisoFaltantes() {
+  const aviso = document.getElementById('aviso-faltantes');
+  if (!aviso || subagenciasCache.length === 0) { if (aviso) aviso.textContent = ''; return; }
+  const fecha = document.getElementById('fecha-reporte').value;
+  if (!fecha) { aviso.textContent = ''; return; }
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&select=agencia_id`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    const yaReportaron = new Set((rows || []).map(r => r.agencia_id));
+    const faltantes = subagenciasCache.filter(a => !yaReportaron.has(a.agencia_id));
+
+    if (faltantes.length === 0) {
+      aviso.innerHTML = '<span style="color:#7CD992;">✓ Todas las subagencias ya tienen reporte cargado hoy.</span>';
+    } else {
+      const numeros = faltantes.map(a => a.agencia_id.split('-')[1] || a.agencia_id).join(', ');
+      aviso.innerHTML = `⏳ Falta reportar (${faltantes.length}): <span style="color:var(--text);">${numeros}</span>`;
+    }
+  } catch(e) {
+    console.error(e);
+    aviso.textContent = '';
+  }
 }
 
 function filtrarSubagencias() {
@@ -703,6 +737,7 @@ function seleccionarAgencia(agenciaId) {
 function onCambioFecha() {
   guardarBorradorActual();
   cargarFormularioParaContexto();
+  actualizarAvisoFaltantes();
 }
 
 async function cargarFormularioParaContexto() {
@@ -1307,6 +1342,124 @@ async function eliminarJuego(clave, nombre) {
   } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
 }
 
+// Arma el mismo payload que guardarReporte(), pero a partir de un borrador en memoria
+// (fecha+subagencia) en vez de leer directo del formulario en pantalla — lo usa "Guardar todos".
+function construirPayloadDesdeDraft(fecha, agenciaId, draft) {
+  const reporte = parseMonto(draft.monto_reporte_loteria);
+
+  const premios = [];
+  let premiosTotal = 0;
+  (draft.premios || []).forEach(p => {
+    const v = parseMonto(p.monto);
+    if (v !== 0) { premios.push({concepto:'Premio', monto:v}); premiosTotal += v; }
+  });
+
+  const favorDetalle = [];
+  let favorTotal = 0;
+  (draft.a_favor_detalle || []).forEach(f => {
+    const v = Math.abs(parseMonto(f.monto));
+    if (v !== 0) { favorDetalle.push({concepto:'A favor', monto:v}); favorTotal += v; }
+  });
+
+  const conceptosLibres = [];
+  let extrasTotal = 0;
+  (draft.conceptos_libres || []).forEach(c => {
+    const v = parseMonto(c.monto);
+    if (v !== 0) { conceptosLibres.push({concepto: (c.concepto || '').trim() || 'Concepto libre', monto:v}); extrasTotal += v; }
+  });
+
+  const juegos = [];
+  let juegosTotal = 0;
+  (draft.juegos || []).forEach(j => {
+    const cantidad = parseMonto(j.cantidad);
+    if (!cantidad) return;
+    const juego = juegosCache.find(g => g.clave === j.clave);
+    if (!juego) return;
+    const monto = calcularMontoJuego(juego, cantidad);
+    juegos.push({clave: j.clave, cantidad, monto_calculado: monto});
+    juegosTotal += monto;
+  });
+
+  const subtotal = reporte + premiosTotal - favorTotal + juegosTotal + extrasTotal;
+  const redondeado = Math.round(subtotal / 100) * 100;
+  const redondeo = redondeado - subtotal;
+  const vacio = reporte === 0 && premios.length === 0 && favorDetalle.length === 0 && juegos.length === 0 && conceptosLibres.length === 0;
+
+  return {
+    vacio,
+    payload: {
+      fecha, agencia_id: agenciaId,
+      monto_reporte_loteria: reporte,
+      premios,
+      a_favor: favorTotal,
+      a_favor_detalle: favorDetalle,
+      juegos,
+      conceptos_libres: conceptosLibres,
+      subtotal, redondeo,
+      monto_final: Math.abs(redondeado),
+      color: redondeado >= 0 ? 'negro' : 'rojo'
+    }
+  };
+}
+
+// Guarda de una sola vez todas las subagencias que tengan algo cargado en el borrador de esta
+// fecha (aunque no las hayas guardado una por una) — las que estén sin tocar, no se tocan.
+async function guardarTodosLosReportes() {
+  guardarBorradorActual(); // que la subagencia abierta ahora mismo también entre en el guardado
+
+  const fecha = document.getElementById('fecha-reporte').value;
+  const prefijo = `${fecha}_`;
+  const claves = Object.keys(borradores).filter(k => k.startsWith(prefijo));
+
+  if (claves.length === 0) {
+    showToast('No hay ningún reporte cargado todavía para guardar', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar-todos');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+
+  try {
+    const resultados = await Promise.all(claves.map(async (clave) => {
+      const agenciaId = clave.slice(prefijo.length);
+      const { vacio, payload } = construirPayloadDesdeDraft(fecha, agenciaId, borradores[clave]);
+      if (vacio) return { clave, estado: 'vacio' };
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+            'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal'
+          },
+          body: JSON.stringify(payload)
+        });
+        return { clave, estado: res.ok ? 'ok' : 'error' };
+      } catch(e) { console.error(e); return { clave, estado: 'error' }; }
+    }));
+
+    resultados.forEach(r => { if (r.estado === 'ok') delete borradores[r.clave]; });
+    const guardados = resultados.filter(r => r.estado === 'ok').length;
+    const errores = resultados.filter(r => r.estado === 'error').length;
+
+    if (errores > 0) {
+      showToast(`✅ ${guardados} guardado(s) — ⚠️ ${errores} con error`, 'err');
+    } else if (guardados === 0) {
+      showToast('No había ningún reporte con datos para guardar', 'err');
+    } else {
+      showToast(`✅ ${guardados} reporte(s) guardado(s)`, 'ok');
+    }
+
+    actualizarAvisoFaltantes();
+    // Si la subagencia que tenías abierta se guardó, refresco su estado (el "hint" de arriba, etc.)
+    if (agenciaSeleccionada) cargarFormularioParaContexto();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
+
 async function guardarReporte() {
   if (!agenciaSeleccionada) { showToast('Elegí una subagencia primero','err'); return; }
   const calc = recalcularTicket();
@@ -1378,6 +1531,7 @@ async function guardarReporte() {
       delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`]; // ya está guardado en Supabase, no hace falta el borrador local
       showToast('✅ Reporte guardado', 'ok');
       document.getElementById('hint-estado').textContent = '✏️ Reporte guardado — si volvés a entrar hoy a esta subagencia, lo vas a ver para corregirlo.';
+      actualizarAvisoFaltantes();
     } else {
       const err = await res.json().catch(()=>({}));
       console.error(err);
@@ -1811,6 +1965,7 @@ async function borrarTodosLosReportesDelDia() {
       Object.keys(borradores).forEach(k => { if (k.startsWith(fecha + '_')) delete borradores[k]; });
       if (agenciaSeleccionada) { limpiarFormulario(); recalcularTicket(); }
       showToast(`🗑 Reportes del ${fechaLegible} eliminados`, 'ok');
+      actualizarAvisoFaltantes();
     } else {
       showToast('Error al borrar los reportes', 'err');
     }
