@@ -936,7 +936,7 @@ async function cargarGlobal() {
 function procesarGlobalYRenderizar(combosConDatos) {
   const cifras = filtro.cifras;
   let totalGeneral = 0;
-  let nuncaSalioGeneral = 0;
+  let ejemploNuncaSalio = null;
   const todosSalidores = [];
   const todosAtrasados = [];
   const todasRachas = [];
@@ -954,7 +954,13 @@ function procesarGlobalYRenderizar(combosConDatos) {
       ultimoIdx[n] = i;
     });
 
-    nuncaSalioGeneral += Math.pow(10, cifras) - Object.keys(freq).length;
+    if (!ejemploNuncaSalio) {
+      const universo = Math.pow(10, cifras);
+      for (let i = 0; i < universo; i++) {
+        const n = String(i).padStart(cifras, '0');
+        if (!freq[n]) { ejemploNuncaSalio = { numero: n, provincia: provincia.label, sorteo: sorteo.label }; break; }
+      }
+    }
 
     Object.entries(freq).forEach(([n, count]) => {
       todosSalidores.push({ numero: n, valor: count, provincia: provincia.label, sorteo: sorteo.label });
@@ -989,8 +995,10 @@ function procesarGlobalYRenderizar(combosConDatos) {
   document.getElementById('st-total').textContent = totalGeneral;
   document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · las 25 combinaciones`;
 
-  document.getElementById('st-nunca').textContent = nuncaSalioGeneral;
-  document.getElementById('st-nunca-sub').textContent = `sumado entre las 25 combinaciones — usá "Buscar número" para el detalle puntual`;
+  document.getElementById('st-nunca').textContent = ejemploNuncaSalio ? ejemploNuncaSalio.numero : '✓';
+  document.getElementById('st-nunca-sub').textContent = ejemploNuncaSalio
+    ? `${ejemploNuncaSalio.provincia} · ${ejemploNuncaSalio.sorteo} — un ejemplo entre muchos. Usá "Buscar número" para el detalle completo.`
+    : 'Salieron todos los números posibles en las 25 combinaciones';
   document.getElementById('link-ver-nunca').style.display = 'none';
   document.getElementById('card-nunca-salio').style.display = 'none';
 
