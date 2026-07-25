@@ -415,6 +415,13 @@
               <span class="mini-label">Tamaño del texto (px)</span>
               <input type="text" inputmode="numeric" class="form-input" id="dc-tamano-texto">
             </div>
+            <div>
+              <span class="mini-label">Alineación del encabezado</span>
+              <select class="form-input" id="dc-alineacion">
+                <option value="left">Izquierda</option>
+                <option value="center">Centro</option>
+              </select>
+            </div>
           </div>
 
           <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
@@ -436,8 +443,8 @@
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:92vw;max-height:92vh;overflow-y:auto;text-align:center;">
     <img id="imagen-modal-img" style="max-width:100%;border-radius:8px;display:block;margin:0 auto 14px;">
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-      <a id="imagen-modal-download" class="btn btn-primary" download="reporte.png" style="text-decoration:none;">⬇ Descargar</a>
-      <button class="btn btn-ghost" id="imagen-modal-copy">📋 Copiar</button>
+      <button class="btn btn-primary" id="imagen-modal-copy">📋 Copiar</button>
+      <a id="imagen-modal-download" class="btn btn-ghost" download="reporte.png" style="text-decoration:none;">⬇ Descargar</a>
       <button class="btn btn-ghost" id="imagen-modal-share" style="display:none;">📲 Compartir</button>
       <button class="btn btn-ghost" onclick="document.getElementById('imagen-modal').style.display='none'">Cerrar</button>
     </div>
@@ -835,11 +842,16 @@ document.addEventListener('focus', (e) => {
 }, true);
 
 // Impide que se tipeen o peguen letras (u otros caracteres) en los casilleros de importe —
-// solo se permiten dígitos, punto, coma y signo menos. Corre antes que el recálculo de cada campo.
+// solo se permiten dígitos, punto y coma en cualquier posición, y el signo menos SOLO al inicio.
+// Corre antes que el recálculo de cada campo.
 document.addEventListener('input', (e) => {
   if (e.target.classList && e.target.classList.contains('amount')) {
     const original = e.target.value;
-    const filtrado = original.replace(/[^\d.,-]/g, '');
+    let filtrado = original.replace(/[^\d.,-]/g, '');
+    // El signo menos solo vale si es el primer caracter; cualquier otro "-" se descarta
+    const negativo = filtrado.charAt(0) === '-';
+    filtrado = filtrado.replace(/-/g, '');
+    if (negativo) filtrado = '-' + filtrado;
     if (filtrado !== original) {
       const posCursor = e.target.selectionStart - (original.length - filtrado.length);
       e.target.value = filtrado;
@@ -899,7 +911,9 @@ function recalcularTicket() {
   let favor = 0;
   const favorItems = [];
   document.querySelectorAll('.favor-input').forEach(i => {
-    const v = parseMonto(i.value);
+    // "A favor" siempre resta: si por error se tipea un signo "-", se usa el valor absoluto
+    // para que nunca termine sumando en vez de restar.
+    const v = Math.abs(parseMonto(i.value));
     favor += v;
     if (v !== 0) favorItems.push({label:'A favor del subagente', amount:-v});
   });
@@ -1289,7 +1303,7 @@ async function guardarReporte() {
 
   const favorDetalle = [];
   document.querySelectorAll('.favor-input').forEach(i => {
-    const v = parseMonto(i.value);
+    const v = Math.abs(parseMonto(i.value));
     if (v !== 0) favorDetalle.push({concepto:'A favor', monto:v});
   });
 
@@ -1402,7 +1416,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 let imagenConfigCache = {
   color_fondo: '#12151A', color_texto: '#E9E7E1', color_texto_secundario: '#8B93A3',
   color_acento: '#f0b429', color_negativo: '#e15353', fuente: 'sans-serif',
-  tamano_titulo: 26, tamano_texto: 14
+  tamano_titulo: 26, tamano_texto: 14, alineacion_encabezado: 'left'
 };
 
 async function cargarImagenConfig() {
@@ -1425,6 +1439,7 @@ function cargarDisenoImagenForm() {
   document.getElementById('dc-fuente').value = imagenConfigCache.fuente;
   document.getElementById('dc-tamano-titulo').value = imagenConfigCache.tamano_titulo;
   document.getElementById('dc-tamano-texto').value = imagenConfigCache.tamano_texto;
+  document.getElementById('dc-alineacion').value = imagenConfigCache.alineacion_encabezado || 'left';
 }
 
 function leerFormDiseno() {
@@ -1436,7 +1451,8 @@ function leerFormDiseno() {
     color_negativo: document.getElementById('dc-negativo').value,
     fuente: document.getElementById('dc-fuente').value,
     tamano_titulo: parseInt(document.getElementById('dc-tamano-titulo').value) || 26,
-    tamano_texto: parseInt(document.getElementById('dc-tamano-texto').value) || 14
+    tamano_texto: parseInt(document.getElementById('dc-tamano-texto').value) || 14,
+    alineacion_encabezado: document.getElementById('dc-alineacion').value
   };
 }
 
@@ -1490,11 +1506,13 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   const fuente = cfg.fuente || 'sans-serif';
   const tTitulo = cfg.tamano_titulo || 26;
   const tTexto = cfg.tamano_texto || 14;
+  const alineacion = cfg.alineacion_encabezado === 'center' ? 'center' : 'left';
 
   const width = 680;
   const padding = 32;
+  const xEncabezado = alineacion === 'center' ? width / 2 : padding;
   const lineHeight = Math.round(tTexto * 1.85);
-  const headerHeight = 136;
+  const headerHeight = 160;
   const footerHeight = 70;
   const height = headerHeight + Math.max(items.length, 1) * lineHeight + 110 + footerHeight;
 
@@ -1506,27 +1524,30 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   ctx.fillStyle = cfg.color_fondo;
   ctx.fillRect(0, 0, width, height);
 
+  ctx.textAlign = alineacion;
+
   ctx.fillStyle = cfg.color_acento;
   ctx.font = `bold ${tTitulo}px ${fuente}`;
-  ctx.fillText('QUINIELA SAGUIR', padding, 42);
+  ctx.fillText('QUINIELA SAGUIR', xEncabezado, 42);
 
   ctx.fillStyle = cfg.color_texto_secundario;
   ctx.font = `${tTexto}px ${fuente}`;
-  ctx.fillText('Reporte digital de subagencias', padding, 62);
+  ctx.fillText('Reporte digital de subagencias', xEncabezado, 68);
 
   ctx.fillStyle = cfg.color_texto;
   ctx.font = `bold ${tTexto + 3}px ${fuente}`;
-  ctx.fillText(`Subagencia ${agenciaId} — ${nombreTitular || ''}`, padding, 86);
+  ctx.fillText(`Subagencia ${agenciaId} — ${nombreTitular || ''}`, xEncabezado, 96);
 
   const detalleUbicacion = [ciudad, domicilio].filter(Boolean).join(' · ');
   ctx.fillStyle = cfg.color_texto_secundario;
   ctx.font = `${Math.max(tTexto - 1.5, 9)}px ${fuente}`;
-  if (detalleUbicacion) ctx.fillText(detalleUbicacion, padding, 105);
+  if (detalleUbicacion) ctx.fillText(detalleUbicacion, xEncabezado, 118);
 
   ctx.font = `${tTexto}px ${fuente}`;
   const [y1,m1,d1] = fecha.split('-');
-  ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, padding, 126);
+  ctx.fillText(`Fecha: ${d1}/${m1}/${y1}`, xEncabezado, 142);
 
+  ctx.textAlign = 'left';
   ctx.strokeStyle = '#22262f';
   ctx.beginPath(); ctx.moveTo(padding, headerHeight - 8); ctx.lineTo(width - padding, headerHeight - 8); ctx.stroke();
 
