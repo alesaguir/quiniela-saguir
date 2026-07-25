@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0b429">
+<link rel="manifest" href="/quiniela-saguir/manifest.json">
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link rel="apple-touch-icon" href="/quiniela-saguir/icon-192.png">
+<title>Estadísticas — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* Mismo sistema de diseño que admin.html y reportes.html */
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --gold2:#ffd166; --red:#e63946;
+    --green:#2ec4b6; --blue:#4361ee; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+  /* LOGIN */
+  .login-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;}
+  .login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
+  .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
+  .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
+  .btn-primary:hover{background:#ffd166;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);text-decoration:none;}
+  .btn-ghost:hover{border-color:var(--gold);}
+  .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+  /* APP */
+  .app{display:none;flex-direction:column;min-height:100vh;}
+
+  /* TOPBAR */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:10px;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-logo span{color:var(--text);}
+  .topbar-right{display:flex;align-items:center;gap:12px;}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
+
+  /* CONTENT */
+  .content{padding:24px;max-width:960px;margin:0 auto;width:100%;}
+
+  /* TABS */
+  .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+  .tab{padding:8px 20px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.2s;}
+  .tab:hover{border-color:var(--gold);color:var(--text);}
+  .tab.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700;}
+  .tab.proximamente{opacity:.55;}
+  .tab .tag-prox{font-size:9px;background:rgba(255,255,255,0.08);color:var(--muted);padding:2px 6px;border-radius:999px;margin-left:6px;text-transform:uppercase;letter-spacing:.5px;}
+
+  /* CARD */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+  .card-badge{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;padding:4px 10px;border-radius:999px;font-weight:600;background:rgba(240,180,41,0.15);color:var(--gold);}
+  .card-badge.rojo{background:rgba(230,57,70,0.15);color:var(--red);}
+
+  /* NOTA EXPLICATIVA */
+  .nota{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:8px;padding:12px 16px;font-size:12.5px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
+  .nota b{color:var(--text);}
+  .nota.aviso{border-left-color:var(--red);}
+
+  /* FILTROS */
+  .filters{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+  .filter-group{display:flex;flex-direction:column;gap:6px;}
+  .filter-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;}
+  select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;outline:none;transition:all .2s;}
+  select:hover, select:focus{border-color:var(--gold);}
+  .btn-group{display:flex;gap:4px;}
+  .btn-group button{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .2s;}
+  .btn-group button:hover{border-color:var(--gold);}
+  .btn-group button.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600;}
+
+  /* STAT CARDS */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+  .stat-card.gold::before{background:var(--gold);}
+  .stat-card.red::before{background:var(--red);}
+  .stat-card.green::before{background:var(--green);}
+  .stat-card.blue::before{background:var(--blue);}
+  .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;}
+  .stat-value{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:2px;line-height:1;}
+  .stat-value.gold{color:var(--gold);} .stat-value.red{color:var(--red);}
+  .stat-value.green{color:var(--green);} .stat-value.blue{color:var(--blue);font-size:20px;padding-top:8px;}
+  .stat-sub{font-size:11.5px;color:var(--muted);margin-top:6px;}
+
+  /* MAIN GRID */
+  .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+  @media (max-width:768px){.main-grid{grid-template-columns:1fr;}}
+
+  /* NUMBER LIST */
+  .number-list{padding:8px 0;}
+  .number-row{display:flex;align-items:center;gap:14px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.04);}
+  .number-row:last-child{border-bottom:none;}
+  .number-badge{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;width:52px;text-align:center;color:var(--gold);}
+  .number-badge.atrasado{color:var(--red);}
+  .rank{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);width:18px;text-align:center;}
+  .bar-wrap{flex:1;}
+  .bar-bg{background:var(--border);border-radius:999px;height:6px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .5s cubic-bezier(.16,1,.3,1);}
+  .bar-fill.atrasado{background:linear-gradient(90deg,var(--red),#ff6b6b);}
+  .count{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text);width:40px;text-align:right;}
+  .count-label{font-size:10px;color:var(--muted);text-align:right;}
+  .lista-vacia{padding:24px 20px;color:var(--muted);font-size:13px;text-align:center;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast-ok{background:var(--surface);border-color:var(--green);color:var(--green);}
+  .toast-err{background:var(--surface);border-color:var(--red);color:var(--red);}
+
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cargando-panel{padding:40px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
+
+  @media (max-width:640px){
+    .main-grid{grid-template-columns:1fr;}
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-title">Estadísticas</div>
+    <div class="login-sub">Quiniela Agencia N° 670 · Sáenz Peña</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="inp-user" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos</div>
+    <br>
+    <button class="btn btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="admin.html" style="font-size:13px;color:var(--muted);">← Volver al Admin</a>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Estadísticas<span> Saguir</span></div>
+    <div class="topbar-right">
+      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;">← Admin</a>
+      <span class="user-chip" id="chip-user"></span>
+      <button class="btn btn-ghost" style="padding:7px 14px;font-size:13px;" onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="tabs">
+      <div class="tab active" id="tab-salidores" onclick="mostrarTab('salidores')">🏆 Salidores / Atrasados</div>
+      <div class="tab proximamente" onclick="mostrarProximamente()">🔥 Rachas <span class="tag-prox">Próximamente</span></div>
+      <div class="tab proximamente" onclick="mostrarProximamente()">📅 Comparación del día <span class="tag-prox">Próximamente</span></div>
+    </div>
+
+    <!-- PANEL: SALIDORES / ATRASADOS -->
+    <div id="panel-salidores">
+
+      <div class="nota" id="nota-explicativa">
+        <b>Cómo leer esto:</b> se analiza siempre la posición 1 (primer lugar) de la provincia y el sorteo elegidos.
+        <b>Salidor</b> = número que más veces apareció en el período. <b>Atrasado</b> = número que ya salió alguna vez
+        pero hace más sorteos que no repite. <b>Nunca salió</b> = no apareció ni una vez en el período — con pocos
+        sorteos cargados esto es normal, sobre todo en 3 y 4 cifras, y no significa que "esté por salir".
+      </div>
+
+      <div class="filters">
+        <div class="filter-group">
+          <div class="filter-label">Provincia</div>
+          <select id="sel-provincia" onchange="onFiltroCambio()">
+            <option value="provincia">Provincia</option>
+            <option value="ciudad">Ciudad</option>
+            <option value="chaquena" selected>Chaqueña</option>
+            <option value="corrientes">Corrientes</option>
+            <option value="cordoba">Córdoba</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Sorteo</div>
+          <select id="sel-sorteo" onchange="onFiltroCambio()">
+            <option value="previa">Previa</option>
+            <option value="primera">Primera</option>
+            <option value="matutina">Matutina</option>
+            <option value="vespertina">Vespertina</option>
+            <option value="nocturna" selected>Nocturna</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Cifras (a la cabeza)</div>
+          <div class="btn-group">
+            <button onclick="setCifras(4,this)">4</button>
+            <button onclick="setCifras(3,this)">3</button>
+            <button onclick="setCifras(2,this)" class="active">2</button>
+          </div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Período</div>
+          <div class="btn-group">
+            <button onclick="setPeriodo('semanal',this)">Semanal</button>
+            <button onclick="setPeriodo('mensual',this)">Mensual</button>
+            <button onclick="setPeriodo('historico',this)" class="active">Histórico</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="nota" id="nota-muestra" style="display:none;"></div>
+
+      <div class="stats-grid">
+        <div class="stat-card gold">
+          <div class="stat-label">Más salidor</div>
+          <div class="stat-value gold" id="st-salidor">—</div>
+          <div class="stat-sub" id="st-salidor-sub">—</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">Más atrasado</div>
+          <div class="stat-value red" id="st-atrasado">—</div>
+          <div class="stat-sub" id="st-atrasado-sub">—</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Sorteos analizados</div>
+          <div class="stat-value green" id="st-total">—</div>
+          <div class="stat-sub" id="st-total-sub">—</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Nunca salió</div>
+          <div class="stat-value blue" id="st-nunca">—</div>
+          <div class="stat-sub" id="st-nunca-sub">sobre el universo posible</div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🏆 Más Salidores</div>
+            <span class="card-badge">Top 10</span>
+          </div>
+          <div class="number-list" id="list-salidores"><div class="cargando-panel">Cargando…</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⏳ Más Atrasados</div>
+            <span class="card-badge rojo">Top 10</span>
+          </div>
+          <div class="number-list" id="list-atrasados"><div class="cargando-panel">Cargando…</div></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+const AGENCIA_ID = '670';
+
+let usuarioActual = null;
+
+let filtro = {
+  provincia: 'chaquena',
+  sorteo: 'nocturna',
+  cifras: 2,
+  periodo: 'historico'
+};
+
+// =====================
+// LOGIN / LOGOUT
+// =====================
+async function login() {
+  const email = document.getElementById('inp-user').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<div class="loading"></div> Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.access_token) {
+      mostrarErrorLogin('Usuario o contraseña incorrectos');
+      return;
+    }
+
+    const rolRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,puede_ver_estadisticas`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
+    );
+    const rolData = await rolRes.json();
+
+    if (!rolData || rolData.length === 0 || !rolData[0].activo) {
+      mostrarErrorLogin('Usuario sin acceso al sistema.');
+      return;
+    }
+
+    const esSuperadmin = rolData[0].rol === 'superadmin';
+    const tienePermiso = rolData[0].puede_ver_estadisticas === true;
+
+    if (!esSuperadmin && !tienePermiso) {
+      mostrarErrorLogin('Tu usuario no tiene permiso para acceder a Estadísticas.');
+      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` }
+      }).catch(()=>{});
+      return;
+    }
+
+    usuarioActual = {
+      nombre: rolData[0].nombre,
+      rol: rolData[0].rol,
+      esSuperadmin,
+      token: data.access_token
+    };
+
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('chip-user').textContent = usuarioActual.nombre + (esSuperadmin ? ' ⬟' : '');
+    document.getElementById('login-error').style.display = 'none';
+
+    cargarEstadisticas();
+
+  } catch(e) {
+    console.error(e);
+    mostrarErrorLogin('Error de conexión. Probá de nuevo.');
+  } finally {
+    btn.innerHTML = 'Ingresar';
+    btn.disabled = false;
+  }
+}
+
+function mostrarErrorLogin(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function logout() {
+  usuarioActual = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('inp-pass').value = '';
+}
+
+// =====================
+// TABS
+// =====================
+function mostrarTab(nombre) {
+  // Solo hay un panel implementado por ahora
+}
+function mostrarProximamente() {
+  showToast('Esta vista se agrega en la próxima etapa', 'err');
+}
+
+// =====================
+// FILTROS
+// =====================
+function onFiltroCambio() {
+  filtro.provincia = document.getElementById('sel-provincia').value;
+  filtro.sorteo = document.getElementById('sel-sorteo').value;
+  cargarEstadisticas();
+}
+function setCifras(n, btn) {
+  filtro.cifras = n;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  cargarEstadisticas();
+}
+function setPeriodo(p, btn) {
+  filtro.periodo = p;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  cargarEstadisticas();
+}
+
+function fechaDesde(periodo) {
+  if (periodo === 'historico') return null;
+  const dias = periodo === 'semanal' ? 7 : 30;
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  return d.toISOString().split('T')[0];
+}
+
+// =====================
+// CARGA Y CÁLCULO
+// =====================
+async function cargarEstadisticas() {
+  document.getElementById('list-salidores').innerHTML = '<div class="cargando-panel">Cargando…</div>';
+  document.getElementById('list-atrasados').innerHTML = '<div class="cargando-panel">Cargando…</div>';
+
+  let url = `${SUPABASE_URL}/rest/v1/resultados?agencia_id=eq.${AGENCIA_ID}&posicion=eq.1`
+    + `&provincia=eq.${filtro.provincia}&sorteo=eq.${filtro.sorteo}`
+    + `&select=fecha,numero&order=fecha.asc`;
+
+  const desde = fechaDesde(filtro.periodo);
+  if (desde) url += `&fecha=gte.${desde}`;
+
+  try {
+    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+    const rows = await res.json();
+    procesarYRenderizar(rows || []);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar estadísticas', 'err');
+  }
+}
+
+function recorte(numero, cifras) {
+  return numero.slice(-cifras);
+}
+
+function procesarYRenderizar(rows) {
+  const cifras = filtro.cifras;
+  const total = rows.length;
+
+  // nota de tamaño de muestra
+  const notaMuestra = document.getElementById('nota-muestra');
+  if (total < 40) {
+    notaMuestra.style.display = 'block';
+    notaMuestra.classList.add('aviso');
+    notaMuestra.innerHTML = `⚠️ <b>Muestra chica:</b> solo ${total} sorteo(s) cargado(s) para este filtro. Con pocos datos, los rankings de "salidor" y "atrasado" son poco confiables — van a ganar estabilidad a medida que se cargue más historial.`;
+  } else {
+    notaMuestra.style.display = 'none';
+  }
+
+  if (total === 0) {
+    document.getElementById('list-salidores').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
+    document.getElementById('list-atrasados').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
+    ['st-salidor','st-atrasado','st-total','st-nunca'].forEach(id => document.getElementById(id).textContent = '—');
+    return;
+  }
+
+  const freq = {};      // numero -> cantidad de apariciones
+  const ultimoIdx = {}; // numero -> índice (0-based) de su última aparición en la secuencia ordenada
+
+  rows.forEach((r, i) => {
+    const n = recorte(r.numero, cifras);
+    freq[n] = (freq[n] || 0) + 1;
+    ultimoIdx[n] = i; // como recorremos en orden, el último que pisa el valor es el más reciente
+  });
+
+  const distintos = Object.keys(freq).length;
+  const universo = Math.pow(10, cifras);
+  const nuncaSalio = universo - distintos;
+
+  // SALIDORES
+  const salidores = Object.entries(freq)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,10);
+  const maxSalidor = salidores.length ? salidores[0][1] : 1;
+
+  // ATRASADOS: sorteos transcurridos desde la última vez que salió
+  const atrasados = Object.entries(ultimoIdx)
+    .map(([n, idx]) => [n, (total - 1) - idx])
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,10);
+  const maxAtrasado = atrasados.length ? atrasados[0][1] : 1;
+
+  // STAT CARDS
+  document.getElementById('st-salidor').textContent = salidores[0] ? salidores[0][0] : '—';
+  document.getElementById('st-salidor-sub').textContent = salidores[0] ? `Salió ${salidores[0][1]} vez(veces)` : '—';
+
+  document.getElementById('st-atrasado').textContent = atrasados[0] ? atrasados[0][0] : '—';
+  document.getElementById('st-atrasado-sub').textContent = atrasados[0] ? `${atrasados[0][1]} sorteo(s) sin repetir` : '—';
+
+  document.getElementById('st-total').textContent = total;
+  document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · ${etiquetaProvincia()} / ${etiquetaSorteo()}`;
+
+  document.getElementById('st-nunca').textContent = nuncaSalio;
+  document.getElementById('st-nunca-sub').textContent = `de ${universo} combinaciones posibles`;
+
+  renderLista('list-salidores', salidores, maxSalidor, 'veces', 'salidor');
+  renderLista('list-atrasados', atrasados, maxAtrasado, 'sorteos', 'atrasado');
+}
+
+function renderLista(id, data, max, unidad, tipo) {
+  const el = document.getElementById(id);
+  if (!data.length) { el.innerHTML = '<div class="lista-vacia">Sin datos.</div>'; return; }
+  el.innerHTML = data.map(([num, val], i) => `
+    <div class="number-row">
+      <div class="rank">${i+1}</div>
+      <div class="number-badge ${tipo==='atrasado'?'atrasado':''}">${num}</div>
+      <div class="bar-wrap">
+        <div class="bar-bg"><div class="bar-fill ${tipo==='atrasado'?'atrasado':''}" style="width:${Math.round(val/max*100)}%"></div></div>
+      </div>
+      <div>
+        <div class="count">${val}</div>
+        <div class="count-label">${unidad}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function etiquetaPeriodo() {
+  return { historico:'Histórico', mensual:'Últimos 30 días', semanal:'Últimos 7 días' }[filtro.periodo];
+}
+function etiquetaProvincia() {
+  const el = document.getElementById('sel-provincia');
+  return el.options[el.selectedIndex].text;
+}
+function etiquetaSorteo() {
+  const el = document.getElementById('sel-sorteo');
+  return el.options[el.selectedIndex].text;
+}
+
+// =====================
+// TOAST
+// =====================
+let toastTimer;
+function showToast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${tipo} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>
