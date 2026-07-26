@@ -178,6 +178,7 @@
       <a href="#" id="btn-ir-tablero" class="btn btn-ghost" target="_blank" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;" title="Ver el tablero en vivo de esta agencia">📺 Ver tablero</a>
       <a href="reportes.html" id="btn-ir-reportes" class="btn btn-ghost" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;">📊 Reportes</a>
       <a href="estadisticas.html" id="btn-ir-estadisticas" class="btn btn-ghost" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;">📈 Estadísticas</a>
+      <a href="registros.html" id="btn-ir-registros" class="btn btn-ghost" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;">📦 Registros</a>
       <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
     </div>
   </div>
@@ -266,11 +267,11 @@
     <div id="seccion-subagencias" style="display:none;" data-rol="superadmin">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="seccion-toggle" id="toggle-subagencias" onclick="toggleSeccionColapsable('contenido-subagencias', this, cargarSubagencias)">▸</button>
+          <button class="seccion-toggle" id="toggle-subagencias" onclick="toggleSeccionColapsable('contenido-subagencias', this, cargarSubagenciasYControlCarga)">▸</button>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🏪 Gestión de Subagencias</div>
           <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
         </div>
-        <button class="btn btn-primary" onclick="if(document.getElementById('contenido-subagencias').style.display==='none'){toggleSeccionColapsable('contenido-subagencias', document.getElementById('toggle-subagencias'), cargarSubagencias);} mostrarFormNuevaAgencia();" style="font-size:13px;">➕ Nueva subagencia</button>
+        <button class="btn btn-primary" onclick="if(document.getElementById('contenido-subagencias').style.display==='none'){toggleSeccionColapsable('contenido-subagencias', document.getElementById('toggle-subagencias'), cargarSubagenciasYControlCarga);} mostrarFormNuevaAgencia();" style="font-size:13px;">➕ Nueva subagencia</button>
       </div>
 
       <div id="contenido-subagencias" style="display:none;">
@@ -336,6 +337,28 @@
           <button class="btn btn-ghost" onclick="cargarSubagencias()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
         </div>
         <div id="lista-subagencias" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+      </div>
+
+      <!-- CONTROL DE CARGA — REGISTROS DE STOCK -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🔒 Control de carga — Registros de Stock</div>
+          <button class="btn btn-ghost" onclick="cargarControlCarga()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div style="padding:16px;">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+            Solo la persona habilitada acá puede cargar movimientos en <b>registros.html</b> en este momento
+            (vos, como superadmin, siempre podés cargar sin necesitar habilitación).
+          </div>
+          <div id="estado-control-carga" style="margin-bottom:14px;font-size:14px;">Cargando...</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <select class="form-input" id="sel-usuario-carga" style="width:auto;min-width:220px;">
+              <option value="">Cargando usuarios...</option>
+            </select>
+            <button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="habilitarUsuarioCarga()">✅ Habilitar para cargar ahora</button>
+            <button class="btn btn-ghost" style="padding:10px 20px;color:var(--red);" onclick="bloquearTodosCarga()">🚫 Bloquear a todos</button>
+          </div>
+        </div>
       </div>
       </div>
 
@@ -1876,6 +1899,7 @@ async function cargarSubagencias() {
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Estado</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Reportes</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Estadísticas</th>
+            <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Registros</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">URL Smart TV</th>
             <th style="padding:10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;">Acciones</th>
           </tr>
@@ -1936,6 +1960,16 @@ async function cargarSubagencias() {
                 </div>
               </td>
               <td style="padding:12px 10px;">
+                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" ${r.puede_cargar_registros ? 'checked' : ''}
+                    onchange="toggleCargaRegistros('${r.user_id}', ${r.puede_cargar_registros === true})"
+                    style="width:18px;height:18px;cursor:pointer;accent-color:var(--gold);">
+                  <span style="font-size:11px;color:var(--muted);">
+                    ${r.puede_cargar_registros ? 'Habilitado' : 'Deshabilitado'}
+                  </span>
+                </label>
+              </td>
+              <td style="padding:12px 10px;">
                 <div style="display:flex;align-items:center;gap:6px;">
                   <span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;">
                     .../?agencia=${r.agencia_id}
@@ -1963,6 +1997,87 @@ async function cargarSubagencias() {
       </table>
     `;
   } catch(e) { console.error(e); }
+}
+
+async function cargarSubagenciasYControlCarga() {
+  await Promise.all([cargarSubagencias(), cargarControlCarga()]);
+}
+
+// =====================
+// CONTROL DE CARGA — REGISTROS DE STOCK
+// =====================
+async function cargarControlCarga() {
+  const estadoDiv = document.getElementById('estado-control-carga');
+  const sel = document.getElementById('sel-usuario-carga');
+  if (!estadoDiv || !sel) return;
+  try {
+    const [ctrlRes, usuariosRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true&select=usuario_habilitado,nombre_habilitado,actualizado_en`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }),
+      fetch(`${SUPABASE_URL}/rest/v1/usuarios_roles?puede_cargar_registros=eq.true&activo=eq.true&select=user_id,nombre,agencia_id`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } })
+    ]);
+    const ctrl = (await ctrlRes.json())?.[0];
+    const usuarios = await usuariosRes.json() || [];
+
+    sel.innerHTML = usuarios.length === 0
+      ? '<option value="">No hay usuarios con permiso de Registros</option>'
+      : usuarios.map(u => `<option value="${u.user_id}">${u.nombre} (${u.agencia_id})</option>`).join('');
+
+    if (ctrl && ctrl.usuario_habilitado) {
+      estadoDiv.innerHTML = `✅ Habilitado ahora: <b style="color:var(--gold);">${ctrl.nombre_habilitado || ctrl.usuario_habilitado}</b>
+        <span style="color:var(--muted);font-size:12px;"> — desde ${new Date(ctrl.actualizado_en).toLocaleString('es-AR')}</span>`;
+    } else {
+      estadoDiv.innerHTML = `🚫 Nadie habilitado ahora mismo (solo superadmin puede cargar).`;
+    }
+  } catch(e) {
+    console.error(e);
+    estadoDiv.innerHTML = '<span style="color:var(--red);">Error al cargar el estado.</span>';
+  }
+}
+
+async function habilitarUsuarioCarga() {
+  const sel = document.getElementById('sel-usuario-carga');
+  const user_id = sel.value;
+  if (!user_id) { showToast('Elegí un usuario', 'err'); return; }
+  const nombre = sel.options[sel.selectedIndex].textContent;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ usuario_habilitado: user_id, nombre_habilitado: nombre, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      showToast(`✅ ${nombre} habilitado para cargar`, 'ok');
+      registrarActividad('Control de carga', `${usuarioActual.nombre} habilitó a ${nombre} para cargar registros de stock`);
+      cargarControlCarga();
+    } else {
+      showToast('Error al habilitar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+async function bloquearTodosCarga() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ usuario_habilitado: null, nombre_habilitado: null, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      showToast('🚫 Bloqueado — nadie puede cargar salvo superadmin', 'ok');
+      registrarActividad('Control de carga', `${usuarioActual.nombre} bloqueó la carga de registros de stock para todos`);
+      cargarControlCarga();
+    } else {
+      showToast('Error al bloquear', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
 }
 
 function copiarURL(agencia_id) {
@@ -2012,6 +2127,29 @@ async function toggleReportes(user_id, actual) {
     if (res.ok) {
       showToast(nuevoEstado ? '✅ Permiso de reportes habilitado' : '🚫 Permiso de reportes deshabilitado','ok');
       cargarSubagencias();
+    }
+  } catch(e) { showToast('Error','err'); }
+}
+
+async function toggleCargaRegistros(user_id, actual) {
+  const nuevoEstado = !actual;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ puede_cargar_registros: nuevoEstado })
+      }
+    );
+    if (res.ok) {
+      showToast(nuevoEstado ? '✅ Permiso de registros habilitado' : '🚫 Permiso de registros deshabilitado','ok');
+      cargarSubagencias();
+      if (typeof cargarControlCarga === 'function') cargarControlCarga();
     }
   } catch(e) { showToast('Error','err'); }
 }
@@ -2632,6 +2770,7 @@ function verificarSuperadmin() {
     document.getElementById('seccion-visual').style.display = 'block';
     document.getElementById('seccion-programaciones').style.display = 'block';
     document.getElementById('seccion-codigos-acceso').style.display = 'block';
+    document.getElementById('btn-ir-registros').style.display = 'inline-block';
     // Los datos de cada panel se cargan recién cuando se abre ese panel puntual (ver toggleSeccionColapsable),
     // no todos de una al loguearse — antes esto disparaba 7+ consultas aunque los paneles estuvieran contraídos.
   } else {
@@ -2640,6 +2779,7 @@ function verificarSuperadmin() {
     document.getElementById('seccion-visual').style.display = 'none';
     document.getElementById('seccion-codigos-acceso').style.display = 'none';
     document.getElementById('seccion-programaciones').style.display = 'none';
+    document.getElementById('btn-ir-registros').style.display = 'none';
   }
 }
 
