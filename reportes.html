@@ -209,8 +209,8 @@
               <input type="date" class="form-input" id="fecha-reporte" onchange="onCambioFecha()" style="padding:8px 10px;width:auto;">
             </div>
             <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Filtrar subagencia" oninput="filtrarSubagencias()" style="padding:8px 10px;flex:1;min-width:160px;max-width:240px;">
-            <button class="btn btn-primary" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-guardar-todos" onclick="guardarTodosLosReportes()">💾 Guardar todos</button>
-            <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
+            <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-guardar-todos" onclick="guardarTodosLosReportes()">💾 Guardar todos</button>
+            <button class="btn btn-primary" style="font-size:12.5px;padding:8px 12px;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
             <button class="btn btn-ghost" id="btn-borrar-todos" style="padding:8px 10px;color:var(--red);border-color:rgba(230,57,70,.4);" onclick="borrarTodosLosReportesDelDia()" title="Borrar todos los reportes guardados de esta fecha">🗑</button>
           </div>
 
@@ -252,9 +252,10 @@
                   <div class="field-label">🧾 Reporte Lotería Chaqueña</div>
                   <div class="field-input-wrap">
                     <span class="peso">$</span>
-                    <input type="text" inputmode="decimal" class="amount" id="inp-reporte" placeholder="0,00" oninput="recalcularTicket()">
+                    <input type="text" inputmode="decimal" class="amount" id="inp-reporte" placeholder="0,00" oninput="recalcularTicket(); verificarMontoInusual();">
                   </div>
                 </div>
+                <div id="aviso-monto-inusual" style="display:none;font-size:11.5px;margin-top:4px;"></div>
 
                 <div id="premios-container" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);"></div>
 
@@ -291,8 +292,8 @@
             <span class="result-amount negro" id="out-monto">$ 0</span>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <button class="btn btn-primary" style="flex:1;" id="btn-guardar-reporte" onclick="guardarReporte()">💾 Guardar reporte</button>
-            <button class="btn btn-ghost" style="flex:0 0 auto;padding:12px 16px;" onclick="generarImagenActual()">🖼 Imagen</button>
+            <button class="btn btn-ghost" style="flex:0 0 auto;padding:12px 16px;" id="btn-guardar-reporte" onclick="guardarReporte()">💾 Guardar</button>
+            <button class="btn btn-primary" style="flex:1;" onclick="generarImagenActual()">🖼 Generar Imagen</button>
             <button class="btn btn-ghost" style="flex:0 0 auto;padding:12px 14px;" onclick="limpiarFormularioActualConfirmado()" title="Vaciar este formulario">🧹</button>
           </div>
           <div class="hint" id="hint-estado" style="text-align:center;margin-top:6px;"></div>
@@ -338,6 +339,40 @@
     </div>
 
     <div id="panel-juegos" style="display:none;">
+      <div class="card">
+        <div class="card-header"><div class="card-title">⚙️ Ajustes generales de reportes</div></div>
+        <div class="card-body">
+          <div class="game-fields" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+            <div>
+              <span class="mini-label">Retención de reportes (días)</span>
+              <input type="text" inputmode="numeric" class="form-input" id="aj-retencion-dias">
+              <div class="hint" style="margin-top:4px;">Después de este período, los reportes viejos se borran solos.</div>
+            </div>
+            <div>
+              <span class="mini-label">Historial para el promedio (días)</span>
+              <input type="text" inputmode="numeric" class="form-input" id="aj-dias-historial">
+              <div class="hint" style="margin-top:4px;">Cuántos días atrás mirar para calcular el promedio de cada subagencia.</div>
+            </div>
+            <div>
+              <span class="mini-label">Mínimo de días para avisar</span>
+              <input type="text" inputmode="numeric" class="form-input" id="aj-minimo-dias">
+              <div class="hint" style="margin-top:4px;">Con menos historial que esto, todavía no se muestra ningún aviso.</div>
+            </div>
+            <div>
+              <span class="mini-label">Umbral bajo (%) — aviso rojo</span>
+              <input type="text" inputmode="numeric" class="form-input" id="aj-umbral-bajo">
+              <div class="hint" style="margin-top:4px;">Por debajo de este % del promedio, avisa fuerte.</div>
+            </div>
+            <div>
+              <span class="mini-label">Umbral alto (%) — aviso discreto</span>
+              <input type="text" inputmode="numeric" class="form-input" id="aj-umbral-alto">
+              <div class="hint" style="margin-top:4px;">Por encima de este % del promedio, avisa suave.</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:12px;" onclick="guardarAjustesGenerales()">💾 Guardar ajustes</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div class="card-title">🎯 Configuración de juegos</div>
@@ -547,6 +582,7 @@ async function login() {
     // que initCarga() (que trae las pestañas de subagencia) ni siquiera arrancara hasta que
     // terminara. Ahora las tres corren al mismo tiempo, sin esperarse entre sí.
     cargarImagenConfig();
+    cargarAjustesGenerales().then(() => { if (esSuperadmin) cargarFormAjustesGenerales(); });
     initCarga();
     cargarSubagenciasContactos();
 
@@ -632,6 +668,39 @@ async function cargarSubagenciasSelect() {
   } catch(e) { console.error(e); showToast('Error al cargar subagencias','err'); }
 }
 
+// --- Aviso combinado: "faltan reportar" (se consulta a Supabase) + "cambios sin guardar" (local, instantáneo) ---
+let faltantesCache = []; // subagencias sin ningún reporte guardado hoy — se actualiza contra Supabase
+const sinGuardarCambios = new Set(); // agencia_id con cambios en pantalla que todavía no se guardaron
+
+function marcarCambioSinGuardar(agenciaId) {
+  if (!agenciaId || sinGuardarCambios.has(agenciaId)) return;
+  sinGuardarCambios.add(agenciaId);
+  renderAvisoCombinado();
+}
+
+function renderAvisoCombinado() {
+  const aviso = document.getElementById('aviso-faltantes');
+  if (!aviso) return;
+
+  const partes = [];
+
+  if (faltantesCache.length === 0) {
+    partes.push('<span style="color:#7CD992;">✓ Todas las subagencias ya tienen reporte cargado hoy.</span>');
+  } else {
+    const numeros = faltantesCache.map(a => a.agencia_id.split('-')[1] || a.agencia_id).join(', ');
+    partes.push(`⏳ Falta reportar (${faltantesCache.length}): <span style="color:var(--text);">${numeros}</span>`);
+  }
+
+  if (sinGuardarCambios.size > 0) {
+    const numerosSinGuardar = Array.from(sinGuardarCambios)
+      .map(id => id.split('-')[1] || id)
+      .join(', ');
+    partes.push(`<span style="color:var(--gold);">✏️ Cambios sin guardar (${sinGuardarCambios.size}): ${numerosSinGuardar}</span>`);
+  }
+
+  aviso.innerHTML = partes.join(' &nbsp;·&nbsp; ');
+}
+
 // Muestra qué subagencias activas todavía no tienen un reporte guardado para la fecha elegida.
 // Es solo informativo: no bloquea nada, porque hay días en que una subagencia legítimamente
 // no tiene nada que traer o retirar (no trabajó, o no hubo movimiento).
@@ -648,14 +717,8 @@ async function actualizarAvisoFaltantes() {
     );
     const rows = await res.json();
     const yaReportaron = new Set((rows || []).map(r => r.agencia_id));
-    const faltantes = subagenciasCache.filter(a => !yaReportaron.has(a.agencia_id));
-
-    if (faltantes.length === 0) {
-      aviso.innerHTML = '<span style="color:#7CD992;">✓ Todas las subagencias ya tienen reporte cargado hoy.</span>';
-    } else {
-      const numeros = faltantes.map(a => a.agencia_id.split('-')[1] || a.agencia_id).join(', ');
-      aviso.innerHTML = `⏳ Falta reportar (${faltantes.length}): <span style="color:var(--text);">${numeros}</span>`;
-    }
+    faltantesCache = subagenciasCache.filter(a => !yaReportaron.has(a.agencia_id));
+    renderAvisoCombinado();
   } catch(e) {
     console.error(e);
     aviso.textContent = '';
@@ -732,12 +795,14 @@ function seleccionarAgencia(agenciaId) {
   agenciaSeleccionada = subagenciasCache.find(a => a.agencia_id === agenciaId);
   document.getElementById('form-reporte').style.display = 'block';
   cargarFormularioParaContexto();
+  cargarPromedioHistorico(agenciaId);
 }
 
 function onCambioFecha() {
   guardarBorradorActual();
   cargarFormularioParaContexto();
   actualizarAvisoFaltantes();
+  if (agenciaSeleccionada) cargarPromedioHistorico(agenciaSeleccionada.agencia_id);
 }
 
 async function cargarFormularioParaContexto() {
@@ -750,9 +815,14 @@ async function cargarFormularioParaContexto() {
   if (borradores[key]) {
     cargarReporteEnFormulario(borradores[key]);
     document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
+    sinGuardarCambios.add(agenciaSeleccionada.agencia_id); // el borrador ES un cambio todavía no guardado
+    renderAvisoCombinado();
     recalcularTicket();
     return;
   }
+
+  sinGuardarCambios.delete(agenciaSeleccionada.agencia_id); // lo que sigue viene de la base, está al día
+  renderAvisoCombinado();
 
   try {
     const res = await fetch(
@@ -911,6 +981,122 @@ document.addEventListener('input', (e) => {
     }
   }
 }, true);
+
+// El evento 'input' solo se dispara con tipeo/pegado real del usuario, nunca cuando el propio
+// sistema carga valores por código — por eso es seguro usarlo para marcar "cambios sin guardar"
+// sin que se marque solo por cargar o corregir un reporte ya guardado.
+document.addEventListener('input', (e) => {
+  if (agenciaSeleccionada && (e.target.classList.contains('amount') || e.target.classList.contains('concept'))
+      && e.target.closest('#form-reporte')) {
+    marcarCambioSinGuardar(agenciaSeleccionada.agencia_id);
+  }
+}, true);
+
+// =====================
+// AVISO DE MONTO INUSUAL — asimétrico a propósito:
+// Un monto INFLADO por error se autocorrige solo (el subagente lo nota y pregunta, como pasó
+// con la subagencia 09), pero un monto ACHICADO por error nadie lo va a señalar — el subagente
+// no tiene motivo para avisar que le están cobrando de menos. Por eso el aviso es mucho más
+// sensible hacia abajo (donde está el riesgo real de pérdida silenciosa) que hacia arriba
+// (donde alertar todo el tiempo solo generaría que se empiece a ignorar el aviso).
+// =====================
+let promedioReporteAgencia = null;
+
+// Ajustes generales (retención + parámetros del aviso de monto inusual) — configurables desde
+// Super Admin en vez de estar fijos en el código.
+let ajustesGeneralesCache = {
+  retencion_dias: 7,
+  dias_historial_promedio: 10,
+  minimo_dias_historial: 3,
+  umbral_bajo_pct: 50,
+  umbral_alto_pct: 300
+};
+
+async function cargarAjustesGenerales() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_ajustes?id=eq.true`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0) ajustesGeneralesCache = { ...ajustesGeneralesCache, ...rows[0] };
+  } catch(e) { console.error(e); }
+}
+
+function cargarFormAjustesGenerales() {
+  document.getElementById('aj-retencion-dias').value = ajustesGeneralesCache.retencion_dias;
+  document.getElementById('aj-dias-historial').value = ajustesGeneralesCache.dias_historial_promedio;
+  document.getElementById('aj-minimo-dias').value = ajustesGeneralesCache.minimo_dias_historial;
+  document.getElementById('aj-umbral-bajo').value = ajustesGeneralesCache.umbral_bajo_pct;
+  document.getElementById('aj-umbral-alto').value = ajustesGeneralesCache.umbral_alto_pct;
+}
+
+async function guardarAjustesGenerales() {
+  const payload = {
+    retencion_dias: parseInt(document.getElementById('aj-retencion-dias').value) || 7,
+    dias_historial_promedio: parseInt(document.getElementById('aj-dias-historial').value) || 10,
+    minimo_dias_historial: parseInt(document.getElementById('aj-minimo-dias').value) || 3,
+    umbral_bajo_pct: parseFloat(document.getElementById('aj-umbral-bajo').value.replace(',','.')) || 50,
+    umbral_alto_pct: parseFloat(document.getElementById('aj-umbral-alto').value.replace(',','.')) || 300
+  };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_ajustes?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      ajustesGeneralesCache = { ...ajustesGeneralesCache, ...payload };
+      showToast('✅ Ajustes guardados', 'ok');
+      if (agenciaSeleccionada) verificarMontoInusual();
+    } else {
+      showToast('Error al guardar los ajustes', 'err');
+    }
+  } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
+}
+
+async function cargarPromedioHistorico(agenciaId) {
+  promedioReporteAgencia = null;
+  try {
+    const fecha = document.getElementById('fecha-reporte').value;
+    const dias = ajustesGeneralesCache.dias_historial_promedio;
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_diarios?agencia_id=eq.${agenciaId}&fecha=lt.${fecha}&order=fecha.desc&limit=${dias}&select=monto_reporte_loteria`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = (await res.json() || []).filter(r => r.monto_reporte_loteria > 0);
+    if (rows.length >= ajustesGeneralesCache.minimo_dias_historial) {
+      promedioReporteAgencia = rows.reduce((sum, r) => sum + r.monto_reporte_loteria, 0) / rows.length;
+    }
+  } catch(e) { console.error(e); }
+  verificarMontoInusual();
+}
+
+function verificarMontoInusual() {
+  const aviso = document.getElementById('aviso-monto-inusual');
+  if (!aviso) return;
+  const valor = parseMonto(document.getElementById('inp-reporte').value);
+
+  if (!promedioReporteAgencia || valor === 0) { aviso.style.display = 'none'; return; }
+
+  const umbralBajo = promedioReporteAgencia * (ajustesGeneralesCache.umbral_bajo_pct / 100);
+  const umbralAlto = promedioReporteAgencia * (ajustesGeneralesCache.umbral_alto_pct / 100);
+
+  if (valor < umbralBajo) {
+    aviso.style.display = 'block';
+    aviso.style.color = 'var(--red)';
+    aviso.innerHTML = `⚠️ Bastante más bajo de lo habitual en esta subagencia (promedio reciente: ${formatARS(promedioReporteAgencia)}) — revisalo antes de guardar.`;
+  } else if (valor > umbralAlto) {
+    aviso.style.display = 'block';
+    aviso.style.color = 'var(--muted)';
+    aviso.innerHTML = `ℹ️ Más alto de lo habitual (promedio reciente: ${formatARS(promedioReporteAgencia)}). Si es correcto, no hace falta hacer nada.`;
+  } else {
+    aviso.style.display = 'none';
+  }
+}
 
 function parseMonto(v) {
   if (!v) return 0;
@@ -1405,56 +1591,71 @@ function construirPayloadDesdeDraft(fecha, agenciaId, draft) {
 
 // Guarda de una sola vez todas las subagencias que tengan algo cargado en el borrador de esta
 // fecha (aunque no las hayas guardado una por una) — las que estén sin tocar, no se tocan.
-async function guardarTodosLosReportes() {
+// Guarda todo lo que haya en borrador para la fecha elegida. Devuelve {guardados, errores} —
+// sin tocar ningún botón — para poder usarse tanto desde "Guardar todos" como, en silencio,
+// antes de generar el PDF combinado (así el PDF nunca deja afuera algo que ya estaba cargado
+// en pantalla pero todavía sin guardar).
+async function guardarTodosSilencioso() {
   guardarBorradorActual(); // que la subagencia abierta ahora mismo también entre en el guardado
 
   const fecha = document.getElementById('fecha-reporte').value;
   const prefijo = `${fecha}_`;
   const claves = Object.keys(borradores).filter(k => k.startsWith(prefijo));
 
-  if (claves.length === 0) {
-    showToast('No hay ningún reporte cargado todavía para guardar', 'err');
-    return;
-  }
+  if (claves.length === 0) return { guardados: 0, errores: 0, huboAlgo: false };
 
+  const resultados = await Promise.all(claves.map(async (clave) => {
+    const agenciaId = clave.slice(prefijo.length);
+    const { vacio, payload } = construirPayloadDesdeDraft(fecha, agenciaId, borradores[clave]);
+    if (vacio) return { clave, estado: 'vacio' };
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(payload)
+      });
+      return { clave, estado: res.ok ? 'ok' : 'error' };
+    } catch(e) { console.error(e); return { clave, estado: 'error' }; }
+  }));
+
+  resultados.forEach(r => {
+    if (r.estado === 'ok') {
+      delete borradores[r.clave];
+      const agenciaId = r.clave.slice(prefijo.length);
+      sinGuardarCambios.delete(agenciaId);
+    }
+  });
+  renderAvisoCombinado();
+  actualizarAvisoFaltantes();
+  if (agenciaSeleccionada) cargarFormularioParaContexto();
+
+  return {
+    guardados: resultados.filter(r => r.estado === 'ok').length,
+    errores: resultados.filter(r => r.estado === 'error').length,
+    huboAlgo: true
+  };
+}
+
+async function guardarTodosLosReportes() {
   const btn = document.getElementById('btn-guardar-todos');
   const original = btn.textContent;
   btn.disabled = true;
   btn.innerHTML = '<div class="loading"></div> Guardando...';
 
   try {
-    const resultados = await Promise.all(claves.map(async (clave) => {
-      const agenciaId = clave.slice(prefijo.length);
-      const { vacio, payload } = construirPayloadDesdeDraft(fecha, agenciaId, borradores[clave]);
-      if (vacio) return { clave, estado: 'vacio' };
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
-            'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal'
-          },
-          body: JSON.stringify(payload)
-        });
-        return { clave, estado: res.ok ? 'ok' : 'error' };
-      } catch(e) { console.error(e); return { clave, estado: 'error' }; }
-    }));
-
-    resultados.forEach(r => { if (r.estado === 'ok') delete borradores[r.clave]; });
-    const guardados = resultados.filter(r => r.estado === 'ok').length;
-    const errores = resultados.filter(r => r.estado === 'error').length;
-
-    if (errores > 0) {
+    const { guardados, errores, huboAlgo } = await guardarTodosSilencioso();
+    if (!huboAlgo) {
+      showToast('No hay ningún reporte cargado todavía para guardar', 'err');
+    } else if (errores > 0) {
       showToast(`✅ ${guardados} guardado(s) — ⚠️ ${errores} con error`, 'err');
     } else if (guardados === 0) {
       showToast('No había ningún reporte con datos para guardar', 'err');
     } else {
       showToast(`✅ ${guardados} reporte(s) guardado(s)`, 'ok');
     }
-
-    actualizarAvisoFaltantes();
-    // Si la subagencia que tenías abierta se guardó, refresco su estado (el "hint" de arriba, etc.)
-    if (agenciaSeleccionada) cargarFormularioParaContexto();
   } finally {
     btn.disabled = false;
     btn.innerHTML = original;
@@ -1530,6 +1731,8 @@ async function guardarReporteDesdeFormulario() {
       const data = await res.json();
       reporteExistenteId = data[0]?.id || reporteExistenteId;
       delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`];
+      sinGuardarCambios.delete(agenciaSeleccionada.agencia_id);
+      renderAvisoCombinado();
       actualizarAvisoFaltantes();
       return true;
     } else {
@@ -1561,7 +1764,7 @@ async function guardarReporte() {
   }
 
   btn.disabled = false;
-  btn.innerHTML = '💾 Guardar reporte';
+  btn.innerHTML = '💾 Guardar';
 }
 
 // =====================
@@ -1846,7 +2049,7 @@ async function generarImagenActual() {
   // de más que todavía no se guardó.
   const ok = await guardarReporteDesdeFormulario();
 
-  if (btnImagen) { btnImagen.disabled = false; btnImagen.innerHTML = '🖼 Imagen'; }
+  if (btnImagen) { btnImagen.disabled = false; btnImagen.innerHTML = '🖼 Generar Imagen'; }
 
   if (!ok) {
     showToast('No se pudo guardar antes de generar la imagen — no se generó nada', 'err');
@@ -1909,10 +2112,19 @@ async function descargarPdfCombinado() {
   const fecha = document.getElementById('fecha-reporte').value;
   const btn = document.getElementById('btn-pdf-combinado');
   const original = btn.textContent;
-  btn.textContent = '⏳ Generando...';
+  btn.textContent = '⏳ Guardando pendientes...';
   btn.disabled = true;
 
   try {
+    // Guarda primero todo lo que esté cargado en pantalla/borradores para esta fecha —
+    // así el PDF nunca deja afuera un dato que ya estaba escrito pero sin guardar todavía.
+    const { errores: erroresGuardado } = await guardarTodosSilencioso();
+    if (erroresGuardado > 0) {
+      showToast(`⚠️ ${erroresGuardado} reporte(s) no se pudieron guardar — revisalos antes de generar el PDF`, 'err');
+      return;
+    }
+
+    btn.textContent = '⏳ Generando...';
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&order=agencia_id.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
@@ -1983,6 +2195,7 @@ function limpiarFormularioActualConfirmado() {
   delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`];
   limpiarFormulario();
   recalcularTicket();
+  marcarCambioSinGuardar(agenciaSeleccionada.agencia_id);
   showToast('🧹 Formulario limpiado', 'ok');
 }
 
@@ -2012,6 +2225,8 @@ async function borrarTodosLosReportesDelDia() {
     if (res.ok) {
       Object.keys(borradores).forEach(k => { if (k.startsWith(fecha + '_')) delete borradores[k]; });
       if (agenciaSeleccionada) { limpiarFormulario(); recalcularTicket(); }
+      sinGuardarCambios.clear();
+      renderAvisoCombinado();
       showToast(`🗑 Reportes del ${fechaLegible} eliminados`, 'ok');
       actualizarAvisoFaltantes();
     } else {
