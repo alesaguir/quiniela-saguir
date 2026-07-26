@@ -342,6 +342,10 @@
       <div class="card">
         <div class="card-header"><div class="card-title">⚙️ Ajustes generales de reportes</div></div>
         <div class="card-body">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;">
+            <input type="checkbox" id="aj-avisos-activos" style="width:18px;height:18px;accent-color:var(--gold);">
+            <span style="font-size:13.5px;">Avisar cuando un monto sea inusual (bajo o alto) respecto al promedio de esa subagencia</span>
+          </label>
           <div class="game-fields" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
             <div>
               <span class="mini-label">Retención de reportes (días)</span>
@@ -1009,7 +1013,8 @@ let ajustesGeneralesCache = {
   dias_historial_promedio: 10,
   minimo_dias_historial: 3,
   umbral_bajo_pct: 50,
-  umbral_alto_pct: 300
+  umbral_alto_pct: 300,
+  avisos_monto_inusual_activo: true
 };
 
 async function cargarAjustesGenerales() {
@@ -1024,6 +1029,7 @@ async function cargarAjustesGenerales() {
 }
 
 function cargarFormAjustesGenerales() {
+  document.getElementById('aj-avisos-activos').checked = ajustesGeneralesCache.avisos_monto_inusual_activo;
   document.getElementById('aj-retencion-dias').value = ajustesGeneralesCache.retencion_dias;
   document.getElementById('aj-dias-historial').value = ajustesGeneralesCache.dias_historial_promedio;
   document.getElementById('aj-minimo-dias').value = ajustesGeneralesCache.minimo_dias_historial;
@@ -1033,6 +1039,7 @@ function cargarFormAjustesGenerales() {
 
 async function guardarAjustesGenerales() {
   const payload = {
+    avisos_monto_inusual_activo: document.getElementById('aj-avisos-activos').checked,
     retencion_dias: parseInt(document.getElementById('aj-retencion-dias').value) || 7,
     dias_historial_promedio: parseInt(document.getElementById('aj-dias-historial').value) || 10,
     minimo_dias_historial: parseInt(document.getElementById('aj-minimo-dias').value) || 3,
@@ -1060,6 +1067,7 @@ async function guardarAjustesGenerales() {
 
 async function cargarPromedioHistorico(agenciaId) {
   promedioReporteAgencia = null;
+  if (!ajustesGeneralesCache.avisos_monto_inusual_activo) { verificarMontoInusual(); return; }
   try {
     const fecha = document.getElementById('fecha-reporte').value;
     const dias = ajustesGeneralesCache.dias_historial_promedio;
@@ -1078,6 +1086,9 @@ async function cargarPromedioHistorico(agenciaId) {
 function verificarMontoInusual() {
   const aviso = document.getElementById('aviso-monto-inusual');
   if (!aviso) return;
+
+  if (!ajustesGeneralesCache.avisos_monto_inusual_activo) { aviso.style.display = 'none'; return; }
+
   const valor = parseMonto(document.getElementById('inp-reporte').value);
 
   if (!promedioReporteAgencia || valor === 0) { aviso.style.display = 'none'; return; }
