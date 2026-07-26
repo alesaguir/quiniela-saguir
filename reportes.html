@@ -1460,8 +1460,12 @@ async function guardarTodosLosReportes() {
   }
 }
 
-async function guardarReporte() {
-  if (!agenciaSeleccionada) { showToast('Elegí una subagencia primero','err'); return; }
+// Guarda el reporte de la subagencia/fecha abiertas en pantalla. Devuelve true/false según
+// si se guardó con éxito — la usan tanto el botón "Guardar reporte" como "Generar Imagen"
+// (que ahora SIEMPRE guarda primero, para garantizar que la imagen nunca pueda mostrar algo
+// distinto de lo que quedó guardado en Supabase).
+async function guardarReporteDesdeFormulario() {
+  if (!agenciaSeleccionada) return false;
   const calc = recalcularTicket();
   const fecha = document.getElementById('fecha-reporte').value;
 
@@ -1507,10 +1511,6 @@ async function guardarReporte() {
     color: calc.redondeado >= 0 ? 'negro' : 'rojo'
   };
 
-  const btn = document.getElementById('btn-guardar-reporte');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="loading"></div> Guardando...';
-
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`,
@@ -1528,22 +1528,39 @@ async function guardarReporte() {
     if (res.ok) {
       const data = await res.json();
       reporteExistenteId = data[0]?.id || reporteExistenteId;
-      delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`]; // ya está guardado en Supabase, no hace falta el borrador local
-      showToast('✅ Reporte guardado', 'ok');
-      document.getElementById('hint-estado').textContent = '✏️ Reporte guardado — si volvés a entrar hoy a esta subagencia, lo vas a ver para corregirlo.';
+      delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`];
       actualizarAvisoFaltantes();
+      return true;
     } else {
       const err = await res.json().catch(()=>({}));
       console.error(err);
-      showToast('Error al guardar el reporte', 'err');
+      return false;
     }
   } catch(e) {
     console.error(e);
-    showToast('Error de conexión al guardar', 'err');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '💾 Guardar reporte';
+    return false;
   }
+}
+
+async function guardarReporte() {
+  if (!agenciaSeleccionada) { showToast('Elegí una subagencia primero','err'); return; }
+  const fecha = document.getElementById('fecha-reporte').value;
+
+  const btn = document.getElementById('btn-guardar-reporte');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+
+  const ok = await guardarReporteDesdeFormulario();
+
+  if (ok) {
+    showToast('✅ Reporte guardado', 'ok');
+    document.getElementById('hint-estado').textContent = '✏️ Reporte guardado — si volvés a entrar hoy a esta subagencia, lo vas a ver para corregirlo.';
+  } else {
+    showToast('Error al guardar el reporte', 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '💾 Guardar reporte';
 }
 
 // =====================
@@ -1815,23 +1832,53 @@ function mostrarImagenModal(canvas, nombreArchivo) {
   document.getElementById('imagen-modal').style.display = 'flex';
 }
 
-function generarImagenActual() {
+async function generarImagenActual() {
   if (!agenciaSeleccionada) { showToast('Elegí una subagencia primero', 'err'); return; }
-  const calc = recalcularTicket();
   const fecha = document.getElementById('fecha-reporte').value;
-  const canvas = crearCanvasReporte({
-    agenciaId: agenciaSeleccionada.agencia_id,
-    nombreTitular: agenciaSeleccionada.nombre_titular,
-    ciudad: agenciaSeleccionada.ciudad,
-    domicilio: agenciaSeleccionada.domicilio,
-    fecha,
-    items: calc.items,
-    subtotal: calc.subtotal,
-    redondeo: calc.redondeo,
-    montoFinal: Math.abs(calc.redondeado),
-    color: calc.redondeado >= 0 ? 'negro' : 'rojo'
-  });
-  mostrarImagenModal(canvas, `reporte_${agenciaSeleccionada.agencia_id}_${fecha}.png`);
+  const agenciaId = agenciaSeleccionada.agencia_id;
+
+  const btnImagen = document.querySelector('button[onclick="generarImagenActual()"]');
+  if (btnImagen) { btnImagen.disabled = true; btnImagen.innerHTML = '<div class="loading"></div>'; }
+
+  // Guarda primero (o confirma que ya está guardado) — así la imagen JAMÁS puede mostrar un valor
+  // distinto de lo que quedó persistido en Supabase, aunque en pantalla haya algo pegado/tipeado
+  // de más que todavía no se guardó.
+  const ok = await guardarReporteDesdeFormulario();
+
+  if (btnImagen) { btnImagen.disabled = false; btnImagen.innerHTML = '🖼 Imagen'; }
+
+  if (!ok) {
+    showToast('No se pudo guardar antes de generar la imagen — no se generó nada', 'err');
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaId}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (!rows || rows.length === 0) { showToast('No se encontró el reporte recién guardado', 'err'); return; }
+    const row = rows[0];
+
+    const canvas = crearCanvasReporte({
+      agenciaId,
+      nombreTitular: agenciaSeleccionada.nombre_titular,
+      ciudad: agenciaSeleccionada.ciudad,
+      domicilio: agenciaSeleccionada.domicilio,
+      fecha,
+      items: itemsDesdeRegistro(row),
+      subtotal: row.subtotal,
+      redondeo: row.redondeo,
+      montoFinal: row.monto_final,
+      color: row.color
+    });
+    mostrarImagenModal(canvas, `reporte_${agenciaId}_${fecha}.png`);
+    document.getElementById('hint-estado').textContent = '✏️ Reporte guardado — si volvés a entrar hoy a esta subagencia, lo vas a ver para corregirlo.';
+  } catch(e) {
+    console.error(e);
+    showToast('Error al generar la imagen', 'err');
+  }
 }
 
 async function guardarPdfConDialogo(pdf, nombreArchivo) {
