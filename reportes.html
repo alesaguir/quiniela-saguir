@@ -935,10 +935,11 @@ function parseMonto(v) {
     // Solo coma → es el separador decimal
     s = s.replace(',', '.');
   } else if (ultimoPunto > -1) {
-    // Solo punto(s): si es uno solo y quedan exactamente 2 dígitos después, es decimal (ej: "264820.55").
-    // Si son 3 dígitos, o hay más de un punto, es separador de miles (ej: "264.820" o "1.234.567").
+    // Solo punto(s): si es uno solo y quedan 1 o 2 dígitos después, es decimal
+    // (ej: "343312.4" o "264820.55" — Supabase guarda como número y a veces recorta el cero final).
+    // Si son 3 dígitos exactos, o hay más de un punto, es separador de miles (ej: "264.820" o "1.234.567").
     const decimales = s.length - ultimoPunto - 1;
-    const esUnicoDecimal = decimales === 2 && s.indexOf('.') === ultimoPunto;
+    const esUnicoDecimal = (decimales === 1 || decimales === 2) && s.indexOf('.') === ultimoPunto;
     if (!esUnicoDecimal) s = s.replace(/\./g, '');
   }
 
