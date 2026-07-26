@@ -566,7 +566,25 @@ async function resolverAgenciaDesdeCodigoAcceso() {
   }
 
   if (agenciaParam) {
-    // Compatibilidad con el link viejo (?agencia=670-XX), sin validar contra la base
+    // Compatibilidad con el link viejo (?agencia=670-XX) — SOLO se permite mientras esa agencia
+    // todavía NO tenga un código de acceso (?t=) generado. Apenas se le genera uno desde
+    // "Códigos de Acceso", el acceso por número queda bloqueado para forzar el uso del link seguro.
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaParam)}&clave=eq.url_token&select=valor`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      );
+      const filas = await res.json();
+      const yaTieneCodigo = filas && filas.length > 0 && filas[0].valor;
+      if (yaTieneCodigo) {
+        codigoAccesoValido = false; // esta agencia ya tiene código propio — el acceso por número queda cerrado
+        return;
+      }
+    } catch(e) {
+      console.error('Error verificando si la agencia ya tiene código de acceso:', e);
+      codigoAccesoValido = false; // si no se puede verificar, por seguridad no se deja pasar
+      return;
+    }
     URL_AGENCIA_ID = agenciaParam;
     URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
     codigoAccesoValido = true;
