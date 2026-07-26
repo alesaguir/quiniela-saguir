@@ -1324,8 +1324,8 @@ async function login() {
       (usuarioActual.rol === 'superadmin' || usuarioActual.puede_hacer_reportes) ? 'inline-block' : 'none';
     document.getElementById('btn-ir-estadisticas').style.display =
       (usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_estadisticas) ? 'inline-block' : 'none';
-    document.getElementById('btn-ir-tablero').href = `index.html?agencia=${encodeURIComponent(usuarioActual.agencia_id)}`;
     document.getElementById('btn-ir-tablero').style.display = 'inline-block';
+    configurarLinkTablero(usuarioActual.agencia_id);
     document.getElementById('login-error').style.display = 'none';
     document.getElementById('login-error').textContent = 'Usuario o contraseña incorrectos';
     await initApp();
@@ -2117,6 +2117,33 @@ function generarTokenAleatorio(longitud=6) {
   let token = '';
   for (let i=0;i<longitud;i++) token += letras.charAt(Math.floor(Math.random()*letras.length));
   return token;
+}
+
+// Busca el código de acceso (URL de 6 letras) de esta agencia puntual y arma el link del
+// botón "Ver tablero" con eso — nunca con el número de agencia, que es adivinable.
+async function configurarLinkTablero(agenciaId) {
+  const btn = document.getElementById('btn-ir-tablero');
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaId)}&clave=eq.url_token&select=valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0 && rows[0].valor) {
+      btn.href = `index.html?t=${encodeURIComponent(rows[0].valor)}`;
+      btn.title = 'Ver el tablero en vivo de esta agencia';
+    } else {
+      // Todavía no tiene código de acceso generado — usamos el acceso viejo por número
+      // como respaldo temporal (sigue funcionando en index.html hasta que se le genere un código).
+      btn.href = `index.html?agencia=${encodeURIComponent(agenciaId)}`;
+      btn.title = 'Esta agencia todavía no tiene código de acceso generado — usando el acceso temporal por número.';
+      btn.onclick = null;
+      btn.style.opacity = '';
+    }
+  } catch(e) {
+    console.error(e);
+    btn.style.display = 'none';
+  }
 }
 
 async function cargarCodigosAcceso() {
