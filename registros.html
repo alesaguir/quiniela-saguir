@@ -256,14 +256,58 @@
       <div class="card">
         <div class="card-header">
           <div class="card-title">🕒 Historial de movimientos</div>
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select class="form-input" id="historial-filtro-agencia" onchange="cargarHistorial()" style="width:auto;font-size:13px;padding:7px 12px;">
               <option value="">Todas las agencias</option>
+            </select>
+            <select class="form-input" id="historial-filtro-juego" onchange="cargarHistorial()" style="width:auto;font-size:13px;padding:7px 12px;">
+              <option value="">Todos los juegos</option>
             </select>
             <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
           </div>
         </div>
         <div id="lista-historial" style="max-height:420px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
+        <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface2);">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
+            <input type="checkbox" id="pdf-incluir-detalle" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;">
+            Incluir detalle de movimientos en el PDF de subagencia
+          </label>
+          <button class="btn btn-ghost" id="btn-pdf-subagencia" onclick="exportarPDFSubagencia()" style="font-size:12px;padding:7px 14px;">
+            📄 PDF de la subagencia
+          </button>
+          <button class="btn btn-ghost" onclick="exportarPDFConsolidado()" style="font-size:12px;padding:7px 14px;">
+            📄 PDF consolidado (todas)
+          </button>
+        </div>
+      </div>
+
+      <!-- EXPORTAR PDF -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📄 Exportar PDF</div>
+        </div>
+        <div class="card-body">
+          <div class="form-row-compact" style="margin-bottom:16px;">
+            <div class="field-compact" style="width:230px;">
+              <label class="form-label">Subagencia (para el PDF individual)</label>
+              <select class="form-input" id="export-agencia-sel"></select>
+            </div>
+            <div class="field-compact" style="width:auto;">
+              <label class="form-label">&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;height:38px;">
+                <input type="checkbox" id="export-incluir-detalle" checked style="width:16px;height:16px;accent-color:var(--gold);">
+                Incluir detalle de movimientos
+              </label>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="exportarPDFSubagencia()">📄 PDF de la subagencia</button>
+            <button class="btn btn-ghost" style="width:auto;padding:10px 20px;" onclick="exportarPDFConsolidado()">📄 PDF consolidado (todas)</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:10px;">
+            El consolidado siempre incluye resumen + detalle completo de todas las subagencias.
+          </div>
+        </div>
       </div>
 
       </div><!-- /panel-carga -->
@@ -488,7 +532,22 @@ async function initApp() {
   actualizarTiposSegunAgencia();
   await cargarJuegosStockConfig();
   recalcularCantidad();
-  await Promise.all([cargarResumen(), cargarHistorial(), cargarControlCarga()]);
+  await Promise.all([cargarResumen(), cargarHistorial(), cargarControlCarga(), cargarJuegosHistorialFiltro()]);
+}
+
+// Alimenta el filtro de juego del historial con todos los juegos que
+// alguna vez tuvieron movimientos (activos o no), no solo los activos.
+async function cargarJuegosHistorialFiltro() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=juego`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const data = await res.json() || [];
+    const juegos = [...new Set(data.map(r => r.juego))].sort();
+    document.getElementById('historial-filtro-juego').innerHTML =
+      '<option value="">Todos los juegos</option>' + juegos.map(j => `<option value="${j}">${j}</option>`).join('');
+  } catch(e) { console.error(e); }
 }
 
 // =====================
@@ -563,10 +622,14 @@ async function cargarSubagencias() {
 
     const sel = document.getElementById('mov-agencia');
     const filtroHist = document.getElementById('historial-filtro-agencia');
+    const exportSel = document.getElementById('export-agencia-sel');
     sel.innerHTML = subagenciasCache.map(a =>
       `<option value="${a.agencia_id}">${a.agencia_id}${a.agencia_id==='670-00' ? ' — Agencia Principal' : (a.nombre_titular ? ' — '+a.nombre_titular : '')}</option>`
     ).join('');
     filtroHist.innerHTML = '<option value="">Todas las agencias</option>' + subagenciasCache.map(a =>
+      `<option value="${a.agencia_id}">${a.agencia_id}${a.agencia_id==='670-00' ? ' — Agencia Principal' : (a.nombre_titular ? ' — '+a.nombre_titular : '')}</option>`
+    ).join('');
+    exportSel.innerHTML = subagenciasCache.map(a =>
       `<option value="${a.agencia_id}">${a.agencia_id}${a.agencia_id==='670-00' ? ' — Agencia Principal' : (a.nombre_titular ? ' — '+a.nombre_titular : '')}</option>`
     ).join('');
   } catch(e) {
@@ -914,10 +977,15 @@ async function borrarMovimiento(id) {
 
 async function cargarHistorial() {
   const cont = document.getElementById('lista-historial');
-  const filtro = document.getElementById('historial-filtro-agencia').value;
+  const filtroAgencia = document.getElementById('historial-filtro-agencia').value;
+  const filtroJuego = document.getElementById('historial-filtro-juego').value;
   try {
-    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?select=id,agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,creado_en&order=creado_en.desc&limit=100`;
-    if (filtro) url += `&agencia_id=eq.${filtro}`;
+    // Si se filtra por una subagencia puntual, no tiene sentido el límite de 100
+    // pensado para la vista general — ahí sí queremos "todos los movimientos".
+    const limite = filtroAgencia ? 1000 : 100;
+    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?select=id,agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,creado_en&order=creado_en.desc&limit=${limite}`;
+    if (filtroAgencia) url += `&agencia_id=eq.${filtroAgencia}`;
+    if (filtroJuego) url += `&juego=eq.${encodeURIComponent(filtroJuego)}`;
     const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
     const data = await res.json() || [];
 
@@ -952,6 +1020,175 @@ async function cargarHistorial() {
   } catch(e) {
     console.error(e);
     cont.innerHTML = '<div style="color:var(--red);">Error al cargar el historial.</div>';
+  }
+}
+
+// =====================
+// EXPORTAR A PDF (vía ventana de impresión del navegador)
+// Genera una vista imprimible en una pestaña nueva y dispara el diálogo
+// de impresión — el usuario elige "Guardar como PDF" ahí mismo. No
+// depende de librerías externas ni de conexión a ningún servidor.
+// =====================
+function agruparResumenDeMovs(movs) {
+  const grupos = {};
+  for (const m of movs) {
+    const key = `${m.agencia_id}|${m.juego}`;
+    if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
+    if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
+    else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
+    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
+  }
+  return Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
+}
+
+function nombreDeAgencia(agencia_id) {
+  if (agencia_id === '670-00') return 'Agencia Principal';
+  const info = subagenciasCache.find(a => a.agencia_id === agencia_id);
+  return info?.nombre_titular || '';
+}
+
+function abrirVentanaImpresion(titulo, htmlBody) {
+  const w = window.open('', '_blank');
+  if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
+  w.document.write(`
+    <html><head><title>${titulo}</title>
+    <meta charset="UTF-8">
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:24px;}
+      h1{font-size:19px;margin:0 0 4px;}
+      h2{font-size:13px;color:#555;margin:0 0 20px;font-weight:normal;}
+      .seccion-titulo{font-size:14px;font-weight:bold;margin:22px 0 8px;}
+      table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;}
+      th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}
+      th{background:#f0f0f0;text-transform:uppercase;font-size:9px;letter-spacing:.4px;}
+      .vendido{font-weight:bold;color:#0a7a5f;}
+      @media print { @page{margin:16mm;} }
+    </style>
+    </head><body>${htmlBody}
+    <script>window.onload = () => setTimeout(() => window.print(), 200);<\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
+
+async function exportarPDFSubagencia() {
+  const agenciaId = document.getElementById('historial-filtro-agencia').value;
+  if (!agenciaId) { showToast('Elegí una subagencia en el filtro del historial primero', 'err'); return; }
+  const juegoFiltro = document.getElementById('historial-filtro-juego').value;
+  const incluirDetalle = document.getElementById('pdf-incluir-detalle').checked;
+
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agenciaId}&select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion&order=fecha.asc`;
+    if (juegoFiltro) url += `&juego=eq.${encodeURIComponent(juegoFiltro)}`;
+    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    const movs = await res.json() || [];
+
+    if (movs.length === 0) { showToast('No hay movimientos para esa selección', 'err'); return; }
+
+    const nombre = nombreDeAgencia(agenciaId);
+    const resumen = agruparResumenDeMovs(movs);
+
+    let html = `
+      <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
+      <h2>Subagencia ${agenciaId}${nombre ? ' — ' + nombre : ''} · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
+      <div class="seccion-titulo">Resumen</div>
+      <table>
+        <thead><tr><th>Juego</th><th>Recibido inicial</th><th>Ampliación</th><th>Devuelto</th><th>Vendido</th></tr></thead>
+        <tbody>
+          ${resumen.map(f => `
+            <tr>
+              <td>${f.juego}</td>
+              <td>${f.recibido}</td>
+              <td>${f.ampliacion}</td>
+              <td>${f.devuelto}</td>
+              <td class="vendido">${(f.recibido + f.ampliacion) - f.devuelto}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    if (incluirDetalle) {
+      html += `
+        <div class="seccion-titulo">Detalle de movimientos</div>
+        <table>
+          <thead><tr><th>Fecha</th><th>Juego</th><th>Tipo</th><th>Rango</th><th>Cantidad</th><th>Observación</th></tr></thead>
+          <tbody>
+            ${movs.map(m => `
+              <tr>
+                <td>${m.fecha}</td>
+                <td>${m.juego}</td>
+                <td>${ETIQUETAS_TIPO[m.tipo] || m.tipo}</td>
+                <td>${String(m.numero_desde).padStart(5,'0')}–${String(m.numero_hasta).padStart(5,'0')}</td>
+                <td>${m.cantidad}</td>
+                <td>${m.observacion || ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    abrirVentanaImpresion(`Registros - ${agenciaId}`, html);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al generar el PDF', 'err');
+  }
+}
+
+async function exportarPDFConsolidado() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion&order=agencia_id.asc,fecha.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const movs = await res.json() || [];
+    if (movs.length === 0) { showToast('No hay movimientos cargados todavía', 'err'); return; }
+
+    const resumen = agruparResumenDeMovs(movs);
+
+    const html = `
+      <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
+      <h2>Consolidado — todas las agencias · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
+      <div class="seccion-titulo">Resumen</div>
+      <table>
+        <thead><tr><th>Agencia</th><th>Juego</th><th>Recibido inicial</th><th>Ampliación</th><th>Devuelto</th><th>Vendido</th></tr></thead>
+        <tbody>
+          ${resumen.map(f => `
+            <tr>
+              <td>${f.agencia_id}${nombreDeAgencia(f.agencia_id) ? ' — ' + nombreDeAgencia(f.agencia_id) : ''}</td>
+              <td>${f.juego}</td>
+              <td>${f.recibido}</td>
+              <td>${f.ampliacion}</td>
+              <td>${f.devuelto}</td>
+              <td class="vendido">${(f.recibido + f.ampliacion) - f.devuelto}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="seccion-titulo">Detalle completo de movimientos</div>
+      <table>
+        <thead><tr><th>Agencia</th><th>Fecha</th><th>Juego</th><th>Tipo</th><th>Rango</th><th>Cantidad</th><th>Observación</th></tr></thead>
+        <tbody>
+          ${movs.map(m => `
+            <tr>
+              <td>${m.agencia_id}</td>
+              <td>${m.fecha}</td>
+              <td>${m.juego}</td>
+              <td>${ETIQUETAS_TIPO[m.tipo] || m.tipo}</td>
+              <td>${String(m.numero_desde).padStart(5,'0')}–${String(m.numero_hasta).padStart(5,'0')}</td>
+              <td>${m.cantidad}</td>
+              <td>${m.observacion || ''}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    abrirVentanaImpresion('Registros - Consolidado', html);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al generar el PDF', 'err');
   }
 }
 </script>
