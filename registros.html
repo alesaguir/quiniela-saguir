@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0b429">
+<link rel="manifest" href="/quiniela-saguir/manifest.json">
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link rel="apple-touch-icon" href="/quiniela-saguir/icon-192.png">
+<title>Registros de Stock — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --red:#e63946;
+    --green:#2ec4b6; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+  /* LOGIN */
+  .login-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;}
+  .login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
+  .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
+  .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
+  .btn-primary:hover{background:#ffd166;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--gold);}
+  .btn-danger{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid rgba(230,57,70,0.3);}
+  .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+  /* APP */
+  .app{display:none;flex-direction:column;min-height:100vh;}
+
+  /* TOPBAR */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;row-gap:10px;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-logo span{color:var(--text);}
+  .topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:10px;}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
+
+  /* CONTENT */
+  .content{padding:28px;max-width:980px;margin:0 auto;width:100%;}
+
+  /* CARD */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-wrap:wrap;gap:8px;}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+  .card-body{padding:20px;}
+
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;max-width:340px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast-ok{background:var(--surface);border-color:var(--green);color:var(--green);}
+  .toast-err{background:var(--surface);border-color:var(--red);color:var(--red);}
+
+  /* LOADING */
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* TABLA RESUMEN */
+  .tabla-resumen{width:100%;border-collapse:collapse;font-size:13px;}
+  .tabla-resumen th{text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--border);}
+  .tabla-resumen td{padding:10px 12px;border-bottom:1px solid var(--border);}
+  .tabla-resumen tr:last-child td{border-bottom:none;}
+  .tabla-resumen tr:hover td{background:rgba(255,255,255,0.02);}
+  .num-mono{font-family:'JetBrains Mono',monospace;}
+  .badge-agencia{font-family:'JetBrains Mono',monospace;color:var(--gold);font-weight:700;}
+  .cell-vendido{color:var(--green);font-weight:700;}
+
+  /* HISTORIAL */
+  .historial-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;gap:10px;flex-wrap:wrap;}
+  .historial-item:last-child{border-bottom:none;}
+  .tipo-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
+  .tipo-entrada{background:rgba(46,196,182,0.12);color:var(--green);}
+  .tipo-salida{background:rgba(230,57,70,0.12);color:var(--red);}
+
+  .access-denied{text-align:center;padding:60px 20px;color:var(--muted);}
+  .access-denied h2{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--text);margin-bottom:10px;}
+
+  @media (max-width: 640px) {
+    .topbar{padding:12px 16px;}
+    .topbar-logo{font-size:18px;flex:1 1 100%;}
+    .topbar-right{width:100%;justify-content:flex-start;}
+    .form-grid, .form-grid-3{grid-template-columns:1fr;}
+    .tabla-resumen{display:block;overflow-x:auto;}
+    .tabla-resumen table{min-width:640px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-title">Registros</div>
+    <div class="login-sub">Quiniela Agencia N° 670 · Control de Stock</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="inp-user" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos</div>
+    <br>
+    <button class="btn btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <span onclick="mostrarReset()" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;">¿Olvidaste tu contraseña?</span>
+    </div>
+  </div>
+
+  <!-- PANEL RESET CONTRASEÑA -->
+  <div class="login-box" id="reset-box" style="display:none;">
+    <div class="login-title">Recuperar acceso</div>
+    <div class="login-sub">Te enviamos un link a tu email para restablecer tu contraseña.</div>
+    <div class="form-group">
+      <label class="form-label">Tu email</label>
+      <input class="form-input" id="reset-email" type="email" placeholder="tu@email.com"
+        onkeydown="if(event.key==='Enter')enviarReset()">
+    </div>
+    <div class="error-msg" id="reset-error">Ocurrió un error. Intentá de nuevo.</div>
+    <div id="reset-ok" style="display:none;background:rgba(46,196,182,0.12);border:1px solid var(--green);color:var(--green);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:12px;">
+      ✅ Email enviado. Revisá tu bandeja de entrada.
+    </div>
+    <br>
+    <button class="btn btn-primary" onclick="enviarReset()" id="btn-reset">Enviar link</button>
+    <div style="text-align:center;margin-top:16px;">
+      <span onclick="volverLogin()" style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline;">← Volver al login</span>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Quiniela<span>Saguir</span> — Registros</div>
+    <div class="topbar-right">
+      <span class="user-chip" id="chip-user">—</span>
+      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;text-decoration:none;">⚙ Admin</a>
+      <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- SIN PERMISO -->
+    <div id="sin-permiso" style="display:none;" class="access-denied">
+      <h2>Sin acceso a Registros</h2>
+      <div>Tu usuario no tiene el permiso habilitado para esta sección. Pedile a un superadmin que te lo active.</div>
+    </div>
+
+    <div id="contenido-registros" style="display:none;">
+
+      <!-- NUEVO MOVIMIENTO -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📦 Nuevo movimiento</div>
+        </div>
+        <div class="card-body">
+          <div class="form-grid" style="margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Agencia</label>
+              <select class="form-input" id="mov-agencia" onchange="actualizarTiposSegunAgencia()"></select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Juego</label>
+              <input class="form-input" id="mov-juego" list="lista-juegos" placeholder="Ej: Bono Bienal, Raspadita">
+              <datalist id="lista-juegos"></datalist>
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Tipo de movimiento</label>
+              <select class="form-input" id="mov-tipo"></select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Fecha</label>
+              <input type="date" class="form-input" id="mov-fecha">
+            </div>
+          </div>
+
+          <div class="form-grid-3" style="margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Número desde</label>
+              <input class="form-input num-mono" id="mov-desde" type="number" min="0" placeholder="00000">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Número hasta</label>
+              <input class="form-input num-mono" id="mov-hasta" type="number" min="0" placeholder="00019">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Cantidad (calculada)</label>
+              <input class="form-input num-mono" id="mov-cantidad" disabled placeholder="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Observación (opcional)</label>
+            <input class="form-input" id="mov-obs" placeholder="Ej: entregado en mano en la agencia">
+          </div>
+
+          <div class="error-msg" id="mov-error" style="margin-bottom:12px;"></div>
+
+          <button class="btn btn-primary" onclick="guardarMovimiento()" id="btn-guardar-mov" style="width:auto;padding:12px 28px;">
+            💾 Guardar movimiento
+          </button>
+        </div>
+      </div>
+
+      <!-- RESUMEN -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Resumen por agencia y juego</div>
+          <button class="btn btn-ghost" onclick="cargarResumen()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="tabla-resumen" id="tabla-resumen" style="padding:20px;color:var(--muted);font-size:13px;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🕒 Historial de movimientos</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select class="form-input" id="historial-filtro-agencia" onchange="cargarHistorial()" style="width:auto;font-size:13px;padding:7px 12px;">
+              <option value="">Todas las agencias</option>
+            </select>
+            <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+          </div>
+        </div>
+        <div id="lista-historial" style="max-height:420px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================
+// CONFIG (mismo proyecto Supabase que admin.html)
+// =====================
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+const TIPOS_CENTRAL = [
+  { value: 'ingreso_loteria', label: 'Ingreso desde Lotería Chaqueña', entrada: true },
+  { value: 'devolucion_loteria', label: 'Devolución a Lotería Chaqueña', entrada: false }
+];
+const TIPOS_SUBAGENCIA = [
+  { value: 'entrega_inicial', label: 'Entrega inicial', entrada: true },
+  { value: 'ampliacion', label: 'Ampliación (pidió más)', entrada: true },
+  { value: 'devolucion_subagencia', label: 'Devolución a la agencia', entrada: false }
+];
+
+let usuarioActual = null;
+let subagenciasCache = [];
+
+// =====================
+// TOAST
+// =====================
+function showToast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show toast-${tipo}`;
+  setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+
+// =====================
+// LOGIN / LOGOUT (mismo flujo que admin.html)
+// =====================
+async function login() {
+  const email = document.getElementById('inp-user').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<div class="loading"></div> Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.access_token) {
+      mostrarErrorLogin('Usuario o contraseña incorrectos');
+      return;
+    }
+
+    const rolRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_cargar_registros`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
+    );
+    const rolData = await rolRes.json();
+
+    if (!rolData || rolData.length === 0 || !rolData[0].activo) {
+      mostrarErrorLogin('Usuario sin acceso al sistema.');
+      return;
+    }
+
+    usuarioActual = {
+      nombre: rolData[0].nombre,
+      rol: rolData[0].rol,
+      agencia_id: rolData[0].agencia_id || '670-00',
+      puede_cargar_registros: rolData[0].puede_cargar_registros === true,
+      email: email,
+      token: data.access_token
+    };
+
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('chip-user').textContent = usuarioActual.nombre + (usuarioActual.rol==='superadmin'?' ⬟':'');
+
+    const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_cargar_registros;
+    document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
+    document.getElementById('contenido-registros').style.display = tienePermiso ? 'block' : 'none';
+
+    if (tienePermiso) {
+      await initApp();
+    }
+  } catch(e) {
+    console.error(e);
+    mostrarErrorLogin('Ocurrió un error de conexión.');
+  }
+  btn.innerHTML = 'Ingresar';
+  btn.disabled = false;
+}
+
+function mostrarErrorLogin(msg) {
+  const err = document.getElementById('login-error');
+  err.textContent = msg;
+  err.style.display = 'block';
+  document.getElementById('btn-login').innerHTML = 'Ingresar';
+  document.getElementById('btn-login').disabled = false;
+}
+
+async function logout() {
+  if (usuarioActual && usuarioActual.token) {
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    }).catch(()=>{});
+  }
+  usuarioActual = null;
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('inp-pass').value = '';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function mostrarReset() {
+  document.querySelector('.login-box').style.display = 'none';
+  document.getElementById('reset-box').style.display = 'block';
+}
+function volverLogin() {
+  document.getElementById('reset-box').style.display = 'none';
+  document.querySelector('.login-box').style.display = 'block';
+}
+async function enviarReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) return;
+  const btn = document.getElementById('btn-reset');
+  btn.innerHTML = '<div class="loading"></div> Enviando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (res.ok) {
+      document.getElementById('reset-ok').style.display = 'block';
+      document.getElementById('reset-error').style.display = 'none';
+    } else {
+      document.getElementById('reset-error').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('reset-error').style.display = 'block';
+  }
+  btn.innerHTML = 'Enviar link';
+  btn.disabled = false;
+}
+
+// =====================
+// LOG DE ACTIVIDAD (misma tabla que admin.html)
+// =====================
+async function registrarActividad(accion, detalle) {
+  try {
+    const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
+    await fetch(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual?.token || SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{
+        user_id: null,
+        email: usuarioActual?.email || '',
+        nombre: usuarioActual?.nombre || '',
+        accion,
+        detalle,
+        dispositivo
+      }])
+    });
+  } catch(e) { console.error('Error log:', e); }
+}
+
+// =====================
+// INIT
+// =====================
+async function initApp() {
+  document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+  await cargarSubagencias();
+  actualizarTiposSegunAgencia();
+  await cargarJuegosSugeridos();
+  recalcularCantidad();
+  document.getElementById('mov-desde').addEventListener('input', recalcularCantidad);
+  document.getElementById('mov-hasta').addEventListener('input', recalcularCantidad);
+  await Promise.all([cargarResumen(), cargarHistorial()]);
+}
+
+function recalcularCantidad() {
+  const desde = parseInt(document.getElementById('mov-desde').value);
+  const hasta = parseInt(document.getElementById('mov-hasta').value);
+  const cant = document.getElementById('mov-cantidad');
+  if (!isNaN(desde) && !isNaN(hasta) && hasta >= desde) {
+    cant.value = (hasta - desde + 1);
+  } else {
+    cant.value = '';
+  }
+}
+
+// =====================
+// SUBAGENCIAS (tabla ya existente, incluye 670-00)
+// =====================
+async function cargarSubagencias() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    subagenciasCache = await res.json() || [];
+
+    const sel = document.getElementById('mov-agencia');
+    const filtroHist = document.getElementById('historial-filtro-agencia');
+    sel.innerHTML = subagenciasCache.map(a =>
+      `<option value="${a.agencia_id}">${a.agencia_id}${a.agencia_id==='670-00' ? ' — Agencia Principal' : (a.nombre_titular ? ' — '+a.nombre_titular : '')}</option>`
+    ).join('');
+    filtroHist.innerHTML = '<option value="">Todas las agencias</option>' + subagenciasCache.map(a =>
+      `<option value="${a.agencia_id}">${a.agencia_id}${a.agencia_id==='670-00' ? ' — Agencia Principal' : (a.nombre_titular ? ' — '+a.nombre_titular : '')}</option>`
+    ).join('');
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar subagencias', 'err');
+  }
+}
+
+function actualizarTiposSegunAgencia() {
+  const agencia = document.getElementById('mov-agencia').value;
+  const tipos = agencia === '670-00' ? TIPOS_CENTRAL : TIPOS_SUBAGENCIA;
+  document.getElementById('mov-tipo').innerHTML = tipos.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+}
+
+// =====================
+// JUEGOS SUGERIDOS (autocompletado, texto libre)
+// =====================
+async function cargarJuegosSugeridos() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=juego`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const data = await res.json() || [];
+    const juegos = [...new Set(data.map(r => r.juego))].sort();
+    document.getElementById('lista-juegos').innerHTML = juegos.map(j => `<option value="${j}">`).join('');
+  } catch(e) { console.error(e); }
+}
+
+// =====================
+// VALIDACIÓN DE SUPERPOSICIÓN
+// Antes de una entrega/ampliación/ingreso, chequea que el rango no esté
+// actualmente "afuera" (entregado y no devuelto) en OTRA agencia para el
+// mismo juego.
+// =====================
+async function verificarSuperposicion(juego, desde, hasta, agenciaDestino) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?juego=eq.${encodeURIComponent(juego)}&select=agencia_id,tipo,numero_desde,numero_hasta`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const movimientos = await res.json() || [];
+
+    // Construyo, por cada OTRA agencia, el set de números actualmente afuera (entregado - devuelto)
+    const ocupados = {}; // agencia_id -> Set(numeros)
+    for (const m of movimientos) {
+      if (m.agencia_id === agenciaDestino) continue; // no me importa superponerme conmigo mismo
+      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria');
+      const esSalida = (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria');
+      if (!esEntrada && !esSalida) continue;
+      if (!ocupados[m.agencia_id]) ocupados[m.agencia_id] = new Set();
+      for (let n = m.numero_desde; n <= m.numero_hasta; n++) {
+        if (esEntrada) ocupados[m.agencia_id].add(n);
+        else ocupados[m.agencia_id].delete(n);
+      }
+    }
+
+    // Reviso si algún número del rango nuevo ya está ocupado en otra agencia
+    for (const [agencia, set] of Object.entries(ocupados)) {
+      for (let n = desde; n <= hasta; n++) {
+        if (set.has(n)) {
+          return { conflicto: true, agencia, numero: n };
+        }
+      }
+    }
+    return { conflicto: false };
+  } catch(e) {
+    console.error(e);
+    // Ante un error de red en la validación, no bloqueo la carga —
+    // pero aviso que no se pudo verificar, para que el usuario decida.
+    return { conflicto: false, noVerificado: true };
+  }
+}
+
+// =====================
+// GUARDAR MOVIMIENTO
+// =====================
+async function guardarMovimiento() {
+  const agencia = document.getElementById('mov-agencia').value;
+  const juego = document.getElementById('mov-juego').value.trim();
+  const tipo = document.getElementById('mov-tipo').value;
+  const fecha = document.getElementById('mov-fecha').value;
+  const desde = parseInt(document.getElementById('mov-desde').value);
+  const hasta = parseInt(document.getElementById('mov-hasta').value);
+  const obs = document.getElementById('mov-obs').value.trim();
+  const errBox = document.getElementById('mov-error');
+  errBox.style.display = 'none';
+
+  if (!juego) { errBox.textContent = 'Ingresá el nombre del juego.'; errBox.style.display = 'block'; return; }
+  if (isNaN(desde) || isNaN(hasta) || hasta < desde) { errBox.textContent = 'El rango de números no es válido.'; errBox.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-guardar-mov');
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+  btn.disabled = true;
+
+  try {
+    // Solo valido superposición para movimientos de ENTRADA (que "sacan" stock de otra agencia)
+    const esEntrada = (tipo === 'entrega_inicial' || tipo === 'ampliacion' || tipo === 'ingreso_loteria');
+    if (esEntrada) {
+      const chequeo = await verificarSuperposicion(juego, desde, hasta, agencia);
+      if (chequeo.conflicto) {
+        errBox.textContent = `El número ${chequeo.numero} de "${juego}" ya está entregado a la agencia ${chequeo.agencia} y no fue devuelto. Revisá el rango.`;
+        errBox.style.display = 'block';
+        btn.innerHTML = '💾 Guardar movimiento';
+        btn.disabled = false;
+        return;
+      }
+      if (chequeo.noVerificado) {
+        showToast('No se pudo verificar superposición (sin conexión). Se guardó igual.', 'err');
+      }
+    }
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos_stock`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        agencia_id: agencia,
+        juego,
+        tipo,
+        numero_desde: desde,
+        numero_hasta: hasta,
+        fecha,
+        registrado_por: null,
+        observacion: obs || null
+      })
+    });
+
+    if (res.ok) {
+      showToast('✅ Movimiento guardado', 'ok');
+      registrarActividad('Movimiento de stock', `${usuarioActual.nombre} cargó ${tipo} de "${juego}" (${desde}-${hasta}) para ${agencia}`);
+      document.getElementById('mov-desde').value = '';
+      document.getElementById('mov-hasta').value = '';
+      document.getElementById('mov-cantidad').value = '';
+      document.getElementById('mov-obs').value = '';
+      recalcularCantidad();
+      await cargarJuegosSugeridos();
+      await Promise.all([cargarResumen(), cargarHistorial()]);
+    } else {
+      const errData = await res.json().catch(()=>({}));
+      errBox.textContent = errData?.message || 'Error al guardar el movimiento.';
+      errBox.style.display = 'block';
+    }
+  } catch(e) {
+    console.error(e);
+    errBox.textContent = 'Error de conexión.';
+    errBox.style.display = 'block';
+  }
+  btn.innerHTML = '💾 Guardar movimiento';
+  btn.disabled = false;
+}
+
+// =====================
+// RESUMEN POR AGENCIA + JUEGO
+// =====================
+async function cargarResumen() {
+  const cont = document.getElementById('tabla-resumen');
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,cantidad`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const data = await res.json() || [];
+
+    if (data.length === 0) {
+      cont.innerHTML = '<div style="padding:20px;color:var(--muted);">Todavía no hay movimientos cargados.</div>';
+      return;
+    }
+
+    const grupos = {}; // "agencia|juego" -> {recibido, ampliacion, devuelto}
+    for (const m of data) {
+      const key = `${m.agencia_id}|${m.juego}`;
+      if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
+      if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
+      else if (m.tipo === 'ampliacion') grupos[key].ampliacion += m.cantidad;
+      else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
+    }
+
+    const filas = Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
+
+    cont.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Agencia</th>
+            <th>Juego</th>
+            <th>Recibido inicial</th>
+            <th>Ampliación</th>
+            <th>Devuelto</th>
+            <th>Vendido (calc.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas.map(f => {
+            const vendido = (f.recibido + f.ampliacion) - f.devuelto;
+            const nombreAg = (subagenciasCache.find(a => a.agencia_id === f.agencia_id) || {}).nombre_titular;
+            return `
+              <tr>
+                <td><span class="badge-agencia">${f.agencia_id}</span>${nombreAg ? ' — '+nombreAg : (f.agencia_id==='670-00' ? ' — Agencia Principal' : '')}</td>
+                <td>${f.juego}</td>
+                <td class="num-mono">${f.recibido}</td>
+                <td class="num-mono">${f.ampliacion}</td>
+                <td class="num-mono">${f.devuelto}</td>
+                <td class="num-mono cell-vendido">${vendido}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = '<div style="padding:20px;color:var(--red);">Error al cargar el resumen.</div>';
+  }
+}
+
+// =====================
+// HISTORIAL
+// =====================
+const ETIQUETAS_TIPO = {
+  ingreso_loteria: 'Ingreso de Lotería',
+  entrega_inicial: 'Entrega inicial',
+  ampliacion: 'Ampliación',
+  devolucion_subagencia: 'Devolución a agencia',
+  devolucion_loteria: 'Devolución a Lotería'
+};
+
+async function cargarHistorial() {
+  const cont = document.getElementById('lista-historial');
+  const filtro = document.getElementById('historial-filtro-agencia').value;
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,creado_en&order=creado_en.desc&limit=100`;
+    if (filtro) url += `&agencia_id=eq.${filtro}`;
+    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    const data = await res.json() || [];
+
+    if (data.length === 0) {
+      cont.innerHTML = '<div style="color:var(--muted);">Sin movimientos para mostrar.</div>';
+      return;
+    }
+
+    cont.innerHTML = data.map(m => {
+      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria');
+      return `
+        <div class="historial-item">
+          <div>
+            <span class="badge-agencia">${m.agencia_id}</span>
+            &nbsp;·&nbsp;${m.juego}
+            &nbsp;·&nbsp;<span class="num-mono">${String(m.numero_desde).padStart(5,'0')}–${String(m.numero_hasta).padStart(5,'0')}</span>
+            &nbsp;(${m.cantidad})
+            ${m.observacion ? `<div style="color:var(--muted);font-size:12px;margin-top:2px;">${m.observacion}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="tipo-pill ${esEntrada ? 'tipo-entrada' : 'tipo-salida'}">${ETIQUETAS_TIPO[m.tipo] || m.tipo}</span>
+            <span style="color:var(--muted);white-space:nowrap;">${m.fecha}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = '<div style="color:var(--red);">Error al cargar el historial.</div>';
+  }
+}
+</script>
+</body>
+</html>
