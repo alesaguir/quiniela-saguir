@@ -172,6 +172,10 @@
           <div class="card-title">📦 Nuevo movimiento</div>
         </div>
         <div class="card-body">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <div id="banner-control-carga" style="flex:1;padding:12px 14px;border-radius:10px;font-size:13px;"></div>
+            <button class="btn btn-ghost" onclick="cargarControlCarga()" title="Revisar de nuevo si me habilitaron" style="font-size:12px;padding:8px 10px;">🔄</button>
+          </div>
           <div class="form-grid" style="margin-bottom:14px;">
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label">Agencia</label>
@@ -273,6 +277,7 @@ const TIPOS_SUBAGENCIA = [
 
 let usuarioActual = null;
 let subagenciasCache = [];
+let puedeCargarAhora = false;
 
 // =====================
 // TOAST
@@ -319,6 +324,7 @@ async function login() {
     }
 
     usuarioActual = {
+      user_id: data.user.id,
       nombre: rolData[0].nombre,
       rol: rolData[0].rol,
       agencia_id: rolData[0].agencia_id || '670-00',
@@ -438,7 +444,55 @@ async function initApp() {
   recalcularCantidad();
   document.getElementById('mov-desde').addEventListener('input', recalcularCantidad);
   document.getElementById('mov-hasta').addEventListener('input', recalcularCantidad);
-  await Promise.all([cargarResumen(), cargarHistorial()]);
+  await Promise.all([cargarResumen(), cargarHistorial(), cargarControlCarga()]);
+}
+
+// =====================
+// CONTROL DE CARGA — candado de "una sola persona a la vez"
+// El superadmin siempre puede cargar. Cualquier otro usuario solo puede
+// cargar si es el habilitado en este momento (control_carga_stock).
+// Esto es una ayuda de UX: la regla real la aplica la policy de INSERT
+// en Supabase, así que aunque alguien fuerce el botón, el servidor
+// igual lo va a rechazar si no está habilitado.
+// =====================
+async function cargarControlCarga() {
+  const banner = document.getElementById('banner-control-carga');
+  const btn = document.getElementById('btn-guardar-mov');
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true&select=usuario_habilitado,nombre_habilitado`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const ctrl = (await res.json())?.[0];
+
+    if (usuarioActual.rol === 'superadmin') {
+      puedeCargarAhora = true;
+      banner.style.background = 'rgba(46,196,182,0.1)';
+      banner.style.border = '1px solid rgba(46,196,182,0.3)';
+      banner.style.color = 'var(--green)';
+      banner.textContent = '✅ Ingresaste como superadmin — podés cargar sin restricción.';
+    } else if (ctrl && ctrl.usuario_habilitado === usuarioActual.user_id) {
+      puedeCargarAhora = true;
+      banner.style.background = 'rgba(46,196,182,0.1)';
+      banner.style.border = '1px solid rgba(46,196,182,0.3)';
+      banner.style.color = 'var(--green)';
+      banner.textContent = '✅ Estás habilitado para cargar ahora mismo.';
+    } else {
+      puedeCargarAhora = false;
+      banner.style.background = 'rgba(230,57,70,0.1)';
+      banner.style.border = '1px solid rgba(230,57,70,0.3)';
+      banner.style.color = 'var(--red)';
+      banner.textContent = ctrl && ctrl.nombre_habilitado
+        ? `🚫 En este momento solo puede cargar: ${ctrl.nombre_habilitado}. Pedile al superadmin que te habilite.`
+        : '🚫 Nadie está habilitado para cargar ahora mismo. Pedile al superadmin que te habilite desde el panel de Admin.';
+    }
+    btn.disabled = !puedeCargarAhora;
+    btn.style.opacity = puedeCargarAhora ? '1' : '0.5';
+    btn.style.cursor = puedeCargarAhora ? 'pointer' : 'not-allowed';
+  } catch(e) {
+    console.error(e);
+    banner.textContent = 'No se pudo verificar el estado de carga.';
+  }
 }
 
 function recalcularCantidad() {
@@ -547,6 +601,10 @@ async function verificarSuperposicion(juego, desde, hasta, agenciaDestino) {
 // GUARDAR MOVIMIENTO
 // =====================
 async function guardarMovimiento() {
+  if (!puedeCargarAhora) {
+    showToast('No estás habilitado para cargar en este momento', 'err');
+    return;
+  }
   const agencia = document.getElementById('mov-agencia').value;
   const juego = document.getElementById('mov-juego').value.trim();
   const tipo = document.getElementById('mov-tipo').value;
