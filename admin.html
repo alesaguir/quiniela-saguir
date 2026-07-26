@@ -42,10 +42,10 @@
   .app{display:none;flex-direction:column;min-height:100vh;}
 
   /* TOPBAR */
-  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;row-gap:10px;}
   .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
   .topbar-logo span{color:var(--text);}
-  .topbar-right{display:flex;align-items:center;gap:12px;}
+  .topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:10px;}
   .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
 
   /* CONTENT */
@@ -101,6 +101,14 @@
 
   /* CELULAR: reorganizar grillas anchas para que entren completas */
   @media (max-width: 640px) {
+    /* Topbar: en pantallas chicas el logo pasa a su propia línea, y los botones (Ver tablero,
+       Reportes, Estadísticas, Salir) se acomodan más compactos para que ninguno quede cortado */
+    .topbar{padding:12px 16px;}
+    .topbar-logo{font-size:18px;flex:1 1 100%;}
+    .topbar-right{width:100%;justify-content:flex-start;}
+    .topbar-right a, .topbar-right button{font-size:12px !important;padding:6px 10px !important;}
+    .user-chip{font-size:12px;padding:4px 10px;}
+
     /* Grillas de 5 columnas (números por posición, estado del día, sorteos activos, horarios) -> 2 columnas */
     .num-grid,
     .estado-grid,
