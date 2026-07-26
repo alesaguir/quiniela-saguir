@@ -167,6 +167,7 @@
     <div class="topbar-logo">Quiniela<span>Saguir</span> — Admin</div>
     <div class="topbar-right">
       <span class="user-chip" id="chip-user">—</span>
+      <a href="#" id="btn-ir-tablero" class="btn btn-ghost" target="_blank" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;" title="Ver el tablero en vivo de esta agencia">📺 Ver tablero</a>
       <a href="reportes.html" id="btn-ir-reportes" class="btn btn-ghost" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;">📊 Reportes</a>
       <a href="estadisticas.html" id="btn-ir-estadisticas" class="btn btn-ghost" style="display:none;padding:7px 14px;font-size:13px;text-decoration:none;">📈 Estadísticas</a>
       <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
@@ -1323,6 +1324,8 @@ async function login() {
       (usuarioActual.rol === 'superadmin' || usuarioActual.puede_hacer_reportes) ? 'inline-block' : 'none';
     document.getElementById('btn-ir-estadisticas').style.display =
       (usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_estadisticas) ? 'inline-block' : 'none';
+    document.getElementById('btn-ir-tablero').href = `index.html?agencia=${encodeURIComponent(usuarioActual.agencia_id)}`;
+    document.getElementById('btn-ir-tablero').style.display = 'inline-block';
     document.getElementById('login-error').style.display = 'none';
     document.getElementById('login-error').textContent = 'Usuario o contraseña incorrectos';
     await initApp();
