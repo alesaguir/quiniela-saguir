@@ -30,7 +30,14 @@
   .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
   .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
   .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
-  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+
+  /* FILA COMPACTA TIPO PLANILLA — cada campo con el ancho justo, sin relleno de más */
+  .form-row-compact{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:6px;}
+  .field-compact{display:flex;flex-direction:column;gap:4px;}
+  .field-compact .form-label{margin-bottom:2px;font-size:10px;}
+  .field-compact .form-input{padding:8px 10px;font-size:13px;border-radius:8px;}
+  .field-compact select.form-input{padding-right:24px;background-position:right 8px center;}
   .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
   .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
   .btn-primary:hover{background:#ffd166;}
@@ -96,6 +103,8 @@
     .topbar-logo{font-size:18px;flex:1 1 100%;}
     .topbar-right{width:100%;justify-content:flex-start;}
     .form-grid, .form-grid-3{grid-template-columns:1fr;}
+    .form-row-compact{flex-direction:column;align-items:stretch;}
+    .field-compact{width:100% !important;}
     .tabla-resumen{display:block;overflow-x:auto;}
     .tabla-resumen table{min-width:640px;}
   }
@@ -176,52 +185,44 @@
             <div id="banner-control-carga" style="flex:1;padding:12px 14px;border-radius:10px;font-size:13px;"></div>
             <button class="btn btn-ghost" onclick="cargarControlCarga()" title="Revisar de nuevo si me habilitaron" style="font-size:12px;padding:8px 10px;">🔄</button>
           </div>
-          <div class="form-grid" style="margin-bottom:14px;">
-            <div class="form-group" style="margin-bottom:0;">
+          <div class="form-row-compact">
+            <div class="field-compact" style="width:210px;">
               <label class="form-label">Agencia</label>
               <select class="form-input" id="mov-agencia" onchange="actualizarTiposSegunAgencia()"></select>
             </div>
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="field-compact" style="width:170px;">
               <label class="form-label">Juego</label>
-              <input class="form-input" id="mov-juego" list="lista-juegos" placeholder="Ej: Bono Bienal, Raspadita">
-              <datalist id="lista-juegos"></datalist>
+              <select class="form-input" id="mov-juego"></select>
             </div>
-          </div>
-
-          <div class="form-grid" style="margin-bottom:14px;">
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="field-compact" style="width:200px;">
               <label class="form-label">Tipo de movimiento</label>
               <select class="form-input" id="mov-tipo"></select>
             </div>
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="field-compact" style="width:150px;">
               <label class="form-label">Fecha</label>
               <input type="date" class="form-input" id="mov-fecha">
             </div>
-          </div>
-
-          <div class="form-grid-3" style="margin-bottom:14px;">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Número desde</label>
+            <div class="field-compact" style="width:100px;">
+              <label class="form-label">Desde</label>
               <input class="form-input num-mono" id="mov-desde" type="number" min="0" placeholder="00000">
             </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Número hasta</label>
+            <div class="field-compact" style="width:100px;">
+              <label class="form-label">Hasta</label>
               <input class="form-input num-mono" id="mov-hasta" type="number" min="0" placeholder="00019">
             </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Cantidad (calculada)</label>
+            <div class="field-compact" style="width:80px;">
+              <label class="form-label">Cant.</label>
               <input class="form-input num-mono" id="mov-cantidad" disabled placeholder="0">
+            </div>
+            <div class="field-compact" style="flex:1;min-width:200px;">
+              <label class="form-label">Observación</label>
+              <input class="form-input" id="mov-obs" placeholder="Opcional">
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Observación (opcional)</label>
-            <input class="form-input" id="mov-obs" placeholder="Ej: entregado en mano en la agencia">
-          </div>
+          <div class="error-msg" id="mov-error" style="margin:12px 0;"></div>
 
-          <div class="error-msg" id="mov-error" style="margin-bottom:12px;"></div>
-
-          <button class="btn btn-primary" onclick="guardarMovimiento()" id="btn-guardar-mov" style="width:auto;padding:12px 28px;">
+          <button class="btn btn-primary" onclick="guardarMovimiento()" id="btn-guardar-mov" style="width:auto;padding:10px 26px;">
             💾 Guardar movimiento
           </button>
         </div>
@@ -440,7 +441,7 @@ async function initApp() {
   document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
   await cargarSubagencias();
   actualizarTiposSegunAgencia();
-  await cargarJuegosSugeridos();
+  await cargarJuegosStockConfig();
   recalcularCantidad();
   document.getElementById('mov-desde').addEventListener('input', recalcularCantidad);
   document.getElementById('mov-hasta').addEventListener('input', recalcularCantidad);
@@ -538,18 +539,23 @@ function actualizarTiposSegunAgencia() {
 }
 
 // =====================
-// JUEGOS SUGERIDOS (autocompletado, texto libre)
+// JUEGOS — cargados desde la lista que gestiona el superadmin (juegos_stock_config)
 // =====================
-async function cargarJuegosSugeridos() {
+async function cargarJuegosStockConfig() {
+  const sel = document.getElementById('mov-juego');
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=juego`,
+      `${SUPABASE_URL}/rest/v1/juegos_stock_config?activo=eq.true&order=orden.asc,nombre.asc&select=nombre`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
-    const data = await res.json() || [];
-    const juegos = [...new Set(data.map(r => r.juego))].sort();
-    document.getElementById('lista-juegos').innerHTML = juegos.map(j => `<option value="${j}">`).join('');
-  } catch(e) { console.error(e); }
+    const juegos = await res.json() || [];
+    sel.innerHTML = juegos.length === 0
+      ? '<option value="">Sin juegos cargados</option>'
+      : juegos.map(j => `<option value="${j.nombre}">${j.nombre}</option>`).join('');
+  } catch(e) {
+    console.error(e);
+    sel.innerHTML = '<option value="">Error al cargar</option>';
+  }
 }
 
 // =====================
@@ -667,7 +673,7 @@ async function guardarMovimiento() {
       document.getElementById('mov-cantidad').value = '';
       document.getElementById('mov-obs').value = '';
       recalcularCantidad();
-      await cargarJuegosSugeridos();
+      await cargarJuegosStockConfig();
       await Promise.all([cargarResumen(), cargarHistorial()]);
     } else {
       const errData = await res.json().catch(()=>({}));
