@@ -59,6 +59,12 @@
   /* CONTENT */
   .content{padding:28px;max-width:980px;margin:0 auto;width:100%;}
 
+  /* TABS */
+  .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+  .tab{padding:8px 20px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.2s;}
+  .tab:hover{border-color:var(--gold);color:var(--text);}
+  .tab.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700;}
+
   /* CARD */
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
   .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-wrap:wrap;gap:8px;}
@@ -175,6 +181,13 @@
 
     <div id="contenido-registros" style="display:none;">
 
+      <div class="tabs" id="tabs-registros">
+        <div class="tab active" onclick="setTabRegistros('carga', this)">Carga de movimientos</div>
+        <div class="tab" id="tab-config-juegos" onclick="setTabRegistros('juegos', this)" style="display:none;">🎟 Configuración de juegos</div>
+      </div>
+
+      <div id="panel-carga">
+
       <!-- NUEVO MOVIMIENTO -->
       <div class="card">
         <div class="card-header">
@@ -251,6 +264,29 @@
           </div>
         </div>
         <div id="lista-historial" style="max-height:420px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
+      </div>
+
+      </div><!-- /panel-carga -->
+
+      <!-- CONFIGURACIÓN DE JUEGOS (solo superadmin) -->
+      <div id="panel-juegos" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🎟 Juegos — Registros de Stock</div>
+            <button class="btn btn-ghost" onclick="cargarJuegosStockAdmin()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+          </div>
+          <div class="card-body">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+              Los juegos que actives acá son los que van a aparecer en el desplegable "Juego" al cargar un movimiento.
+              Desactivar un juego no borra el historial de movimientos ya cargados con él.
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+              <input class="form-input" id="nuevo-juego-stock" placeholder="Ej: Bono Bienal" style="max-width:280px;">
+              <button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="agregarJuegoStock()">➕ Agregar</button>
+            </div>
+            <div id="lista-juegos-stock" class="info-lista" style="color:var(--muted);font-size:13px;">Cargando...</div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -341,6 +377,7 @@ async function login() {
     const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_cargar_registros;
     document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
     document.getElementById('contenido-registros').style.display = tienePermiso ? 'block' : 'none';
+    document.getElementById('tab-config-juegos').style.display = usuarioActual.rol === 'superadmin' ? 'inline-block' : 'none';
 
     if (tienePermiso) {
       await initApp();
@@ -536,6 +573,88 @@ function actualizarTiposSegunAgencia() {
   const agencia = document.getElementById('mov-agencia').value;
   const tipos = agencia === '670-00' ? TIPOS_CENTRAL : TIPOS_SUBAGENCIA;
   document.getElementById('mov-tipo').innerHTML = tipos.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+}
+
+function setTabRegistros(nombre, el) {
+  document.querySelectorAll('#tabs-registros .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-carga').style.display = nombre === 'carga' ? 'block' : 'none';
+  document.getElementById('panel-juegos').style.display = nombre === 'juegos' ? 'block' : 'none';
+  if (nombre === 'juegos') cargarJuegosStockAdmin();
+}
+
+// =====================
+// GESTIÓN DE JUEGOS (solo superadmin) — alimenta el select "Juego" de la carga
+// =====================
+async function cargarJuegosStockAdmin() {
+  const cont = document.getElementById('lista-juegos-stock');
+  if (!cont) return;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/juegos_stock_config?order=orden.asc,nombre.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const juegos = await res.json() || [];
+    if (juegos.length === 0) {
+      cont.innerHTML = 'Todavía no cargaste ningún juego.';
+      return;
+    }
+    cont.innerHTML = juegos.map(j => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);${j.activo ? '' : 'opacity:.5;'}">
+        <span style="font-size:14px;">${j.nombre}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button onclick="toggleJuegoStock('${j.nombre.replace(/'/g,"\\'")}', ${j.activo})"
+            style="background:${j.activo ? 'rgba(230,57,70,0.1)' : 'rgba(46,196,182,0.1)'};
+            border:1px solid ${j.activo ? 'rgba(230,57,70,0.3)' : 'rgba(46,196,182,0.3)'};
+            color:${j.activo ? 'var(--red)' : 'var(--green)'};
+            border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;">
+            ${j.activo ? '🚫 Desactivar' : '✅ Activar'}
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); cont.innerHTML = '<span style="color:var(--red);">Error al cargar juegos.</span>'; }
+}
+
+async function agregarJuegoStock() {
+  const input = document.getElementById('nuevo-juego-stock');
+  const nombre = input.value.trim();
+  if (!nombre) { showToast('Escribí el nombre del juego', 'err'); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ nombre, activo: true })
+    });
+    if (res.ok) {
+      showToast('✅ Juego agregado', 'ok');
+      input.value = '';
+      cargarJuegosStockAdmin();
+      cargarJuegosStockConfig(); // refresca también el select de carga
+    } else {
+      showToast('Error al agregar (¿ya existe?)', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+async function toggleJuegoStock(nombre, actual) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ activo: !actual })
+    });
+    if (res.ok) {
+      cargarJuegosStockAdmin();
+      cargarJuegosStockConfig();
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
 }
 
 // =====================
