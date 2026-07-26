@@ -304,6 +304,7 @@ const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 
 const TIPOS_CENTRAL = [
   { value: 'ingreso_loteria', label: 'Ingreso desde Lotería Chaqueña', entrada: true },
+  { value: 'ampliacion_loteria', label: 'Ampliación (pidió más a Lotería)', entrada: true },
   { value: 'devolucion_loteria', label: 'Devolución a Lotería Chaqueña', entrada: false }
 ];
 const TIPOS_SUBAGENCIA = [
@@ -695,7 +696,7 @@ async function verificarSuperposicion(juego, desde, hasta, agenciaDestino) {
     const ocupados = {}; // agencia_id -> Set(numeros)
     for (const m of movimientos) {
       if (m.agencia_id === agenciaDestino) continue; // no me importa superponerme conmigo mismo
-      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria');
+      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria' || m.tipo === 'ampliacion_loteria');
       const esSalida = (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria');
       if (!esEntrada && !esSalida) continue;
       if (!ocupados[m.agencia_id]) ocupados[m.agencia_id] = new Set();
@@ -749,7 +750,7 @@ async function guardarMovimiento() {
 
   try {
     // Solo valido superposición para movimientos de ENTRADA (que "sacan" stock de otra agencia)
-    const esEntrada = (tipo === 'entrega_inicial' || tipo === 'ampliacion' || tipo === 'ingreso_loteria');
+    const esEntrada = (tipo === 'entrega_inicial' || tipo === 'ampliacion' || tipo === 'ingreso_loteria' || tipo === 'ampliacion_loteria');
     if (esEntrada) {
       const chequeo = await verificarSuperposicion(juego, desde, hasta, agencia);
       if (chequeo.conflicto) {
@@ -830,7 +831,7 @@ async function cargarResumen() {
       const key = `${m.agencia_id}|${m.juego}`;
       if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
       if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
-      else if (m.tipo === 'ampliacion') grupos[key].ampliacion += m.cantidad;
+      else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
       else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
     }
 
@@ -879,6 +880,7 @@ const ETIQUETAS_TIPO = {
   ingreso_loteria: 'Ingreso de Lotería',
   entrega_inicial: 'Entrega inicial',
   ampliacion: 'Ampliación',
+  ampliacion_loteria: 'Ampliación (Lotería)',
   devolucion_subagencia: 'Devolución a agencia',
   devolucion_loteria: 'Devolución a Lotería'
 };
@@ -898,7 +900,7 @@ async function cargarHistorial() {
     }
 
     cont.innerHTML = data.map(m => {
-      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria');
+      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria' || m.tipo === 'ampliacion_loteria');
       return `
         <div class="historial-item">
           <div>
