@@ -339,21 +339,6 @@
         <div id="lista-subagencias" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
       </div>
 
-      <!-- JUEGOS PARA REGISTROS DE STOCK -->
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-header">
-          <div class="card-title">🎟 Juegos — Registros de Stock</div>
-          <button class="btn btn-ghost" onclick="cargarJuegosStockConfig()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
-        </div>
-        <div style="padding:16px;">
-          <div style="display:flex;gap:10px;margin-bottom:16px;">
-            <input class="form-input" id="nuevo-juego-stock" placeholder="Ej: Bono Bienal" style="max-width:280px;">
-            <button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="agregarJuegoStock()">➕ Agregar</button>
-          </div>
-          <div id="lista-juegos-stock" class="info-lista" style="color:var(--muted);font-size:13px;">Cargando...</div>
-        </div>
-      </div>
-
       <!-- CONTROL DE CARGA — REGISTROS DE STOCK -->
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
@@ -2022,77 +2007,7 @@ async function cargarSubagencias() {
 }
 
 async function cargarSubagenciasYControlCarga() {
-  await Promise.all([cargarSubagencias(), cargarControlCarga(), cargarJuegosStockConfig()]);
-}
-
-// =====================
-// JUEGOS — REGISTROS DE STOCK
-// =====================
-async function cargarJuegosStockConfig() {
-  const cont = document.getElementById('lista-juegos-stock');
-  if (!cont) return;
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/juegos_stock_config?order=orden.asc,nombre.asc`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-    );
-    const juegos = await res.json() || [];
-    if (juegos.length === 0) {
-      cont.innerHTML = 'Todavía no cargaste ningún juego.';
-      return;
-    }
-    cont.innerHTML = juegos.map(j => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);${j.activo ? '' : 'opacity:.5;'}">
-        <span style="font-size:14px;">${j.nombre}</span>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button onclick="toggleJuegoStock('${j.nombre.replace(/'/g,"\\'")}', ${j.activo})"
-            style="background:${j.activo ? 'rgba(230,57,70,0.1)' : 'rgba(46,196,182,0.1)'};
-            border:1px solid ${j.activo ? 'rgba(230,57,70,0.3)' : 'rgba(46,196,182,0.3)'};
-            color:${j.activo ? 'var(--red)' : 'var(--green)'};
-            border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;">
-            ${j.activo ? '🚫 Desactivar' : '✅ Activar'}
-          </button>
-        </div>
-      </div>
-    `).join('');
-  } catch(e) { console.error(e); cont.innerHTML = '<span style="color:var(--red);">Error al cargar juegos.</span>'; }
-}
-
-async function agregarJuegoStock() {
-  const input = document.getElementById('nuevo-juego-stock');
-  const nombre = input.value.trim();
-  if (!nombre) { showToast('Escribí el nombre del juego', 'err'); return; }
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ nombre, activo: true })
-    });
-    if (res.ok) {
-      showToast('✅ Juego agregado', 'ok');
-      input.value = '';
-      cargarJuegosStockConfig();
-    } else {
-      showToast('Error al agregar (¿ya existe?)', 'err');
-    }
-  } catch(e) { showToast('Error de conexión', 'err'); }
-}
-
-async function toggleJuegoStock(nombre, actual) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ activo: !actual })
-    });
-    if (res.ok) { cargarJuegosStockConfig(); }
-  } catch(e) { showToast('Error de conexión', 'err'); }
+  await Promise.all([cargarSubagencias(), cargarControlCarga()]);
 }
 
 // =====================
