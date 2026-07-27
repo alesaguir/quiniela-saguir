@@ -263,6 +263,17 @@
       <div id="lista-carteles" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
     </div>
 
+    <!-- ZONA SUPERADMIN — organizada en pestañas -->
+    <div id="tabs-superadmin-wrap" style="display:none;margin-top:24px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:14px;">⬟ Panel de Superadmin</div>
+      <div class="tabs" id="tabs-superadmin">
+        <div class="tab active" onclick="setTabSuperadmin('subagencias', this)">🏪 Subagencias</div>
+        <div class="tab" onclick="setTabSuperadmin('codigos', this)">🔑 Códigos de acceso</div>
+        <div class="tab" onclick="setTabSuperadmin('visual', this)">🎨 Visual</div>
+        <div class="tab" onclick="setTabSuperadmin('programaciones', this)">🔢 Programaciones</div>
+        <div class="tab" onclick="setTabSuperadmin('sorteos', this)">⚙️ Sorteos</div>
+      </div>
+
     <!-- GESTIÓN DE SUBAGENCIAS — solo superadmin -->
     <div id="seccion-subagencias" style="display:none;" data-rol="superadmin">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
@@ -759,6 +770,7 @@
       </div>
       </div>
     </div>
+    </div><!-- /tabs-superadmin-wrap -->
 
   </div>
 </div>
@@ -1390,7 +1402,7 @@ async function logout() {
   document.getElementById('inp-pass').value = '';
   document.getElementById('inp-user').value = '';
   document.getElementById('login-error').style.display = 'none';
-  document.getElementById('seccion-config').style.display = 'none';
+  document.getElementById('tabs-superadmin-wrap').style.display = 'none';
 }
 
 // =====================
@@ -2772,20 +2784,31 @@ async function eliminarProgramacion(id) {
 // =====================
 function verificarSuperadmin() {
   if (usuarioActual && usuarioActual.rol === 'superadmin') {
-    document.getElementById('seccion-config').style.display = 'block';
-    document.getElementById('seccion-subagencias').style.display = 'block';
-    document.getElementById('seccion-visual').style.display = 'block';
-    document.getElementById('seccion-programaciones').style.display = 'block';
-    document.getElementById('seccion-codigos-acceso').style.display = 'block';
-    // Los datos de cada panel se cargan recién cuando se abre ese panel puntual (ver toggleSeccionColapsable),
-    // no todos de una al loguearse — antes esto disparaba 7+ consultas aunque los paneles estuvieran contraídos.
+    document.getElementById('tabs-superadmin-wrap').style.display = 'block';
+    // Al loguearse, mostrar por defecto la primera pestaña (Subagencias) y
+    // ocultar el resto. Los datos de cada panel se siguen cargando recién
+    // cuando se abre ese panel puntual (ver toggleSeccionColapsable), no
+    // todos de una — no cambia el comportamiento de antes en ese sentido.
+    setTabSuperadmin('subagencias', document.querySelector('#tabs-superadmin .tab'));
   } else {
-    document.getElementById('seccion-config').style.display = 'none';
-    document.getElementById('seccion-subagencias').style.display = 'none';
-    document.getElementById('seccion-visual').style.display = 'none';
-    document.getElementById('seccion-codigos-acceso').style.display = 'none';
-    document.getElementById('seccion-programaciones').style.display = 'none';
+    document.getElementById('tabs-superadmin-wrap').style.display = 'none';
   }
+}
+
+const PANELES_SUPERADMIN = {
+  subagencias: 'seccion-subagencias',
+  codigos: 'seccion-codigos-acceso',
+  visual: 'seccion-visual',
+  programaciones: 'seccion-programaciones',
+  sorteos: 'seccion-config'
+};
+
+function setTabSuperadmin(nombre, el) {
+  document.querySelectorAll('#tabs-superadmin .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  Object.entries(PANELES_SUPERADMIN).forEach(([clave, idSeccion]) => {
+    document.getElementById(idSeccion).style.display = (clave === nombre) ? 'block' : 'none';
+  });
 }
 
 const SORTEOS_CONFIG = [
