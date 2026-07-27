@@ -1530,7 +1530,7 @@ function buildColumnasHTML(provKey, total) {
 function buildForm() {
   const container = document.getElementById('form-provincias');
   let html = '';
-  PROVINCIAS.forEach(p => {
+  PROVINCIAS.forEach((p, idx) => {
     const total = cantidadProvincia(p.key);
     html += `<div class="prov-section">
       <div class="prov-title">${nombreProvincia(p.key)}</div>`;
@@ -1542,11 +1542,15 @@ function buildForm() {
     html += `</div>`;
     // Botón repetido después de cada provincia, para no tener que scrollear
     // hasta el final del formulario — guarda y publica todo igual que el de abajo.
-    html += `<div style="padding:14px 0;display:flex;gap:10px;">
-      <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()">
-        💾 Guardar y publicar en pantalla
-      </button>
-    </div>`;
+    // Se salta en la última provincia porque ahí quedaría pegado al botón
+    // original de abajo, duplicado sin nada en el medio.
+    if (idx < PROVINCIAS.length - 1) {
+      html += `<div style="padding:14px 0;display:flex;gap:10px;">
+        <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()">
+          💾 Guardar y publicar en pantalla
+        </button>
+      </div>`;
+    }
   });
   container.innerHTML = html;
 }
