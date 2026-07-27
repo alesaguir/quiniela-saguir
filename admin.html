@@ -220,7 +220,7 @@
       </div>
       <div class="card-body" id="form-provincias"></div>
       <div style="padding:0 20px 20px;display:flex;gap:10px;">
-        <button class="btn btn-primary" style="flex:1" onclick="guardarTodo()" id="btn-guardar">
+        <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()" id="btn-guardar">
           💾 Guardar y publicar en pantalla
         </button>
       </div>
@@ -904,11 +904,11 @@ async function verificarBloqueoFechaEspecial() {
 }
 
 function aplicarBloqueoUI() {
-  const btnGuardar = document.getElementById('btn-guardar');
+  const botonesGuardar = document.querySelectorAll('.btn-guardar-publicar');
   const btnLimpiar = document.getElementById('btn-limpiar');
   const btnCargarExistentes = document.getElementById('btn-cargar-existentes');
 
-  [btnGuardar, btnLimpiar, btnCargarExistentes].forEach(btn => {
+  [...botonesGuardar, btnLimpiar, btnCargarExistentes].forEach(btn => {
     if (!btn) return;
     btn.disabled = bloqueoActual.bloqueado;
     btn.style.opacity = bloqueoActual.bloqueado ? '0.4' : '';
@@ -1540,6 +1540,13 @@ function buildForm() {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
     html += `</div>`;
+    // Botón repetido después de cada provincia, para no tener que scrollear
+    // hasta el final del formulario — guarda y publica todo igual que el de abajo.
+    html += `<div style="padding:14px 0;display:flex;gap:10px;">
+      <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()">
+        💾 Guardar y publicar en pantalla
+      </button>
+    </div>`;
   });
   container.innerHTML = html;
 }
@@ -1624,6 +1631,15 @@ function limpiarTodo() {
 // =====================
 // GUARDAR EN SUPABASE
 // =====================
+// Actualiza TODAS las copias del botón "Guardar y publicar" (una por provincia
+// + la de abajo), para que no importe cuál tocaste, todas reflejen el mismo estado.
+function setBotonesGuardarEstado(contenidoHTML, disabled) {
+  document.querySelectorAll('.btn-guardar-publicar').forEach(b => {
+    b.innerHTML = contenidoHTML;
+    b.disabled = disabled;
+  });
+}
+
 async function guardarTodo() {
   if (bloqueoActual.bloqueado) { showToast('Este sorteo está marcado como sin actividad — no se puede guardar','err'); return; }
   const fecha = document.getElementById('fecha-sel').value;
@@ -1645,9 +1661,7 @@ async function guardarTodo() {
     }
   } catch(e) { console.error('Error validando número de sorteo duplicado:', e); }
 
-  const btn = document.getElementById('btn-guardar');
-  btn.innerHTML = '<div class="loading"></div> Guardando...';
-  btn.disabled = true;
+  setBotonesGuardarEstado('<div class="loading"></div> Guardando...', true);
 
   const rows = [];
   const vaciasPorProvincia = {}; // posiciones que quedaron en blanco en el formulario, por provincia
@@ -1673,8 +1687,7 @@ async function guardarTodo() {
 
   if (rows.length === 0) {
     showToast('No hay números para guardar','err');
-    btn.innerHTML = '💾 Guardar y publicar en pantalla';
-    btn.disabled = false;
+    setBotonesGuardarEstado('💾 Guardar y publicar en pantalla', false);
     return;
   }
 
@@ -1727,8 +1740,7 @@ async function guardarTodo() {
     console.error(e);
   }
 
-  btn.innerHTML = '💾 Guardar y publicar en pantalla';
-  btn.disabled = false;
+  setBotonesGuardarEstado('💾 Guardar y publicar en pantalla', false);
 }
 
 // =====================
