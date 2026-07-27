@@ -263,6 +263,10 @@
             <select class="form-input" id="historial-filtro-juego" onchange="cargarHistorial()" style="width:auto;font-size:13px;padding:7px 12px;">
               <option value="">Todos los juegos</option>
             </select>
+            <input type="date" class="form-input" id="historial-filtro-desde" onchange="cargarHistorial()" title="Desde" style="width:auto;font-size:13px;padding:7px 10px;">
+            <span style="color:var(--muted);font-size:12px;">a</span>
+            <input type="date" class="form-input" id="historial-filtro-hasta" onchange="cargarHistorial()" title="Hasta" style="width:auto;font-size:13px;padding:7px 10px;">
+            <button class="btn btn-ghost" onclick="document.getElementById('historial-filtro-desde').value='';document.getElementById('historial-filtro-hasta').value='';cargarHistorial();" style="font-size:12px;padding:6px 12px;">✖ Limpiar fechas</button>
             <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
           </div>
         </div>
@@ -323,8 +327,10 @@
             <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
               Los juegos que actives acá son los que van a aparecer en el desplegable "Juego" al cargar un movimiento.
               Desactivar un juego no borra el historial de movimientos ya cargados con él.
+              La <b>fecha límite de carga</b> es opcional: una vez pasada, nadie (salvo superadmin) puede cargar o
+              modificar movimientos de ese juego — pero sigue apareciendo en el historial y los reportes para consulta.
             </div>
-            <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end;">
+            <div style="display:flex;gap:10px;margin-bottom:16px;align-items:flex-end;flex-wrap:wrap;">
               <div class="field-compact" style="width:220px;">
                 <label class="form-label">Nombre del juego</label>
                 <input class="form-input" id="nuevo-juego-stock" placeholder="Ej: Bono Bienal">
@@ -332,6 +338,10 @@
               <div class="field-compact" style="width:110px;">
                 <label class="form-label">Cifras</label>
                 <input class="form-input num-mono" id="nuevo-juego-cifras" type="number" min="1" max="10" value="5">
+              </div>
+              <div class="field-compact" style="width:170px;">
+                <label class="form-label">Fecha límite de carga</label>
+                <input class="form-input" id="nuevo-juego-fecha-limite" type="date">
               </div>
               <button class="btn btn-primary" style="width:auto;padding:10px 20px;" onclick="agregarJuegoStock()">➕ Agregar</button>
             </div>
@@ -660,7 +670,7 @@ async function cargarJuegosStockAdmin() {
   if (!cont) return;
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/juegos_stock_config?order=orden.asc,nombre.asc`,
+      `${SUPABASE_URL}/rest/v1/juegos_stock_config?order=orden.asc,nombre.asc&select=nombre,activo,cifras,fecha_limite_carga`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const juegos = await res.json() || [];
@@ -668,15 +678,27 @@ async function cargarJuegosStockAdmin() {
       cont.innerHTML = 'Todavía no cargaste ningún juego.';
       return;
     }
-    cont.innerHTML = juegos.map(j => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);${j.activo ? '' : 'opacity:.5;'}">
-        <span style="font-size:14px;">${j.nombre}</span>
-        <div style="display:flex;gap:10px;align-items:center;">
+    cont.innerHTML = juegos.map(j => {
+      const hoy = new Date().toISOString().slice(0,10);
+      const cerrado = j.fecha_limite_carga && j.fecha_limite_carga < hoy;
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;${j.activo ? '' : 'opacity:.5;'}">
+        <span style="font-size:14px;">
+          ${j.nombre}
+          ${cerrado ? '<span style="font-size:10px;color:var(--red);border:1px solid rgba(230,57,70,0.3);background:rgba(230,57,70,0.1);border-radius:999px;padding:2px 8px;margin-left:8px;">🔒 Período cerrado</span>' : ''}
+        </span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="font-size:11px;color:var(--muted);">Cifras:</span>
             <input type="number" min="1" max="10" value="${j.cifras || 5}"
               onchange="editarCifrasJuego('${j.nombre.replace(/'/g,"\\'")}', this.value)"
               style="width:50px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;font-size:12px;text-align:center;">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;color:var(--muted);">Cierre:</span>
+            <input type="date" value="${j.fecha_limite_carga || ''}"
+              onchange="editarFechaLimiteJuego('${j.nombre.replace(/'/g,"\\'")}', this.value)"
+              style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;font-size:12px;">
           </div>
           <button onclick="toggleJuegoStock('${j.nombre.replace(/'/g,"\\'")}', ${j.activo})"
             style="background:${j.activo ? 'rgba(230,57,70,0.1)' : 'rgba(46,196,182,0.1)'};
@@ -687,7 +709,7 @@ async function cargarJuegosStockAdmin() {
           </button>
         </div>
       </div>
-    `).join('');
+    `;}).join('');
   } catch(e) { console.error(e); cont.innerHTML = '<span style="color:var(--red);">Error al cargar juegos.</span>'; }
 }
 
@@ -710,11 +732,33 @@ async function editarCifrasJuego(nombre, cifras) {
   } catch(e) { showToast('Error de conexión', 'err'); }
 }
 
+async function editarFechaLimiteJuego(nombre, fecha) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ fecha_limite_carga: fecha || null })
+    });
+    if (res.ok) {
+      showToast(fecha ? `✅ Cierre fijado para ${fecha}` : '✅ Cierre quitado', 'ok');
+      cargarJuegosStockAdmin();
+      cargarJuegosStockConfig();
+    } else {
+      showToast('Error al actualizar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
 async function agregarJuegoStock() {
   const input = document.getElementById('nuevo-juego-stock');
   const inputCifras = document.getElementById('nuevo-juego-cifras');
+  const inputFechaLimite = document.getElementById('nuevo-juego-fecha-limite');
   const nombre = input.value.trim();
   const cifras = parseInt(inputCifras.value) || 5;
+  const fechaLimite = inputFechaLimite.value || null;
   if (!nombre) { showToast('Escribí el nombre del juego', 'err'); return; }
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config`, {
@@ -723,12 +767,13 @@ async function agregarJuegoStock() {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ nombre, activo: true, cifras })
+      body: JSON.stringify({ nombre, activo: true, cifras, fecha_limite_carga: fechaLimite })
     });
     if (res.ok) {
       showToast('✅ Juego agregado', 'ok');
       input.value = '';
       inputCifras.value = '5';
+      inputFechaLimite.value = '';
       cargarJuegosStockAdmin();
       cargarJuegosStockConfig(); // refresca también el select de carga
     } else {
@@ -763,14 +808,18 @@ async function cargarJuegosStockConfig() {
   const sel = document.getElementById('mov-juego');
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/juegos_stock_config?activo=eq.true&order=orden.asc,nombre.asc&select=nombre,cifras`,
+      `${SUPABASE_URL}/rest/v1/juegos_stock_config?activo=eq.true&order=orden.asc,nombre.asc&select=nombre,cifras,fecha_limite_carga`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
-    const juegos = await res.json() || [];
+    const todos = await res.json() || [];
+    const hoy = new Date().toISOString().slice(0,10);
+    // Los juegos con período de carga ya cerrado no aparecen para cargar,
+    // aunque sigan activos (siguen visibles en historial/resumen/PDFs).
+    const juegos = todos.filter(j => !j.fecha_limite_carga || j.fecha_limite_carga >= hoy);
     juegosCifrasCache = {};
     juegos.forEach(j => { juegosCifrasCache[j.nombre] = j.cifras || 5; });
     sel.innerHTML = juegos.length === 0
-      ? '<option value="">Sin juegos cargados</option>'
+      ? '<option value="">Sin juegos disponibles para cargar</option>'
       : juegos.map(j => `<option value="${j.nombre}">${j.nombre} (${j.cifras || 5} cifras)</option>`).join('');
     actualizarCifrasJuego();
   } catch(e) {
@@ -979,13 +1028,18 @@ async function cargarHistorial() {
   const cont = document.getElementById('lista-historial');
   const filtroAgencia = document.getElementById('historial-filtro-agencia').value;
   const filtroJuego = document.getElementById('historial-filtro-juego').value;
+  const filtroDesde = document.getElementById('historial-filtro-desde').value;
+  const filtroHasta = document.getElementById('historial-filtro-hasta').value;
   try {
-    // Si se filtra por una subagencia puntual, no tiene sentido el límite de 100
-    // pensado para la vista general — ahí sí queremos "todos los movimientos".
-    const limite = filtroAgencia ? 1000 : 100;
+    // Con cualquier filtro puesto no tiene sentido el límite de 100 pensado
+    // para la vista general sin filtrar — ahí sí queremos ver todo lo que caiga.
+    const hayFiltro = filtroAgencia || filtroJuego || filtroDesde || filtroHasta;
+    const limite = hayFiltro ? 1000 : 100;
     let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?select=id,agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,creado_en&order=creado_en.desc&limit=${limite}`;
     if (filtroAgencia) url += `&agencia_id=eq.${filtroAgencia}`;
     if (filtroJuego) url += `&juego=eq.${encodeURIComponent(filtroJuego)}`;
+    if (filtroDesde) url += `&fecha=gte.${filtroDesde}`;
+    if (filtroHasta) url += `&fecha=lte.${filtroHasta}`;
     const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
     const data = await res.json() || [];
 
@@ -1075,11 +1129,15 @@ async function exportarPDFSubagencia() {
   const agenciaId = document.getElementById('historial-filtro-agencia').value;
   if (!agenciaId) { showToast('Elegí una subagencia en el filtro del historial primero', 'err'); return; }
   const juegoFiltro = document.getElementById('historial-filtro-juego').value;
+  const desde = document.getElementById('historial-filtro-desde').value;
+  const hasta = document.getElementById('historial-filtro-hasta').value;
   const incluirDetalle = document.getElementById('pdf-incluir-detalle').checked;
 
   try {
     let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agenciaId}&select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion&order=fecha.asc`;
     if (juegoFiltro) url += `&juego=eq.${encodeURIComponent(juegoFiltro)}`;
+    if (desde) url += `&fecha=gte.${desde}`;
+    if (hasta) url += `&fecha=lte.${hasta}`;
     const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
     const movs = await res.json() || [];
 
