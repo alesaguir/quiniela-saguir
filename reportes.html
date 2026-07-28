@@ -1696,7 +1696,11 @@ async function guardarTodosSilencioso() {
   const resultados = await Promise.all(claves.map(async (clave) => {
     const agenciaId = clave.slice(prefijo.length);
     const { vacio, payload } = construirPayloadDesdeDraft(fecha, agenciaId, borradores[clave]);
-    if (vacio) return { clave, estado: 'vacio' };
+    // Si quedó "vacía" PERO el usuario la tocó de verdad esta sesión (por ejemplo, borró
+    // un importe que ya tenía guardado), igual hay que guardar — el vaciado es una
+    // corrección real que tiene que pisar el valor anterior en la base. Solo se saltea
+    // si nunca se tocó (evita crear filas basura en subagencias que ni se abrieron).
+    if (vacio && !sinGuardarCambios.has(agenciaId)) return { clave, estado: 'vacio' };
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`, {
         method: 'POST',
