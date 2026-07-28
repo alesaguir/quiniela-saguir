@@ -415,6 +415,26 @@
         .game-fields .mini-label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;}
         .game-fields input.form-input{padding:8px 10px;font-size:13.5px;}
       </style>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚙️ Agencia central en la lista</div>
+        </div>
+        <div class="card-body">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+            La agencia 670-00 (Agencia Principal) puede confundir en la lista de subagencias, ya que no vende
+            como una subagencia común. Elegí cómo se comporta acá en Reportes:
+          </div>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:6px;">
+            <input type="radio" name="modo-agencia-central" value="excluir" onchange="cambiarModoAgenciaCentral('excluir')" style="width:16px;height:16px;accent-color:var(--gold);">
+            <span>Excluirla del todo (no aparece en pestañas, pendientes ni PDFs)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="radio" name="modo-agencia-central" value="incluir" onchange="cambiarModoAgenciaCentral('incluir')" style="width:16px;height:16px;accent-color:var(--gold);">
+            <span>Mantenerla en la lista, igual que cualquier subagencia</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <div id="panel-diseno" style="display:none;">
@@ -644,10 +664,52 @@ let agenciaSeleccionada = null;
 let reporteExistenteId = null; // si ya hay un reporte cargado hoy para esta subagencia, guardamos su id para hacer UPDATE en vez de INSERT
 let borradores = {}; // guarda lo que se va tipeando por (fecha+subagencia) mientras dura la sesión, sin guardar en Supabase
 let contextoActual = null; // {fecha, agencia_id} de lo que está mostrado ahora mismo en el formulario
+let configReportesGlobal = { excluirAgenciaCentral: false };
 
 async function initCarga() {
   document.getElementById('fecha-reporte').value = fechaLocalHoy();
+  await cargarConfigAgenciaCentral();
   await Promise.all([cargarSubagenciasSelect(), cargarJuegosActivos()]);
+}
+
+// =====================
+// CONFIG — incluir/excluir la agencia central (670-00) de la lista
+// =====================
+async function cargarConfigAgenciaCentral() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_reportes?id=eq.true&select=excluir_agencia_central`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const data = (await res.json())?.[0];
+    configReportesGlobal.excluirAgenciaCentral = data?.excluir_agencia_central === true;
+  } catch(e) {
+    console.error(e);
+    configReportesGlobal.excluirAgenciaCentral = false;
+  }
+  const radios = document.getElementsByName('modo-agencia-central');
+  radios.forEach(r => { r.checked = (r.value === (configReportesGlobal.excluirAgenciaCentral ? 'excluir' : 'incluir')); });
+}
+
+async function cambiarModoAgenciaCentral(modo) {
+  const excluir = modo === 'excluir';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/configuracion_reportes?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ excluir_agencia_central: excluir, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      configReportesGlobal.excluirAgenciaCentral = excluir;
+      showToast(excluir ? '✅ Agencia central excluida de la lista' : '✅ Agencia central visible en la lista', 'ok');
+      await cargarSubagenciasSelect();
+    } else {
+      showToast('Error al guardar la configuración', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
 }
 
 async function cargarSubagenciasSelect() {
@@ -657,6 +719,9 @@ async function cargarSubagenciasSelect() {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     subagenciasCache = await res.json() || [];
+    if (configReportesGlobal.excluirAgenciaCentral) {
+      subagenciasCache = subagenciasCache.filter(a => a.agencia_id !== '670-00');
+    }
     const tabs = document.getElementById('agency-tabs');
     if (subagenciasCache.length === 0) {
       tabs.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay subagencias activas cargadas todavía.</div>';
@@ -701,6 +766,11 @@ function renderAvisoCombinado() {
 
   if (sinGuardarCambios.size > 0) {
     const numerosSinGuardar = Array.from(sinGuardarCambios)
+      .sort((a, b) => {
+        const na = parseInt(a.split('-')[1]) || 0;
+        const nb = parseInt(b.split('-')[1]) || 0;
+        return na - nb;
+      })
       .map(id => id.split('-')[1] || id)
       .join(', ');
     partes.push(`<span style="color:var(--gold);">✏️ Cambios sin guardar (${sinGuardarCambios.size}): ${numerosSinGuardar}</span>`);
@@ -2153,10 +2223,17 @@ async function descargarPdfCombinado() {
       showToast('No hay reportes guardados para esa fecha', 'err');
       return;
     }
+    const rowsFiltradas = configReportesGlobal.excluirAgenciaCentral
+      ? rows.filter(r => r.agencia_id !== '670-00')
+      : rows;
+    if (rowsFiltradas.length === 0) {
+      showToast('No hay reportes guardados para esa fecha', 'err');
+      return;
+    }
 
     const { jsPDF } = window.jspdf;
     let pdf = null;
-    rows.forEach((row, idx) => {
+    rowsFiltradas.forEach((row, idx) => {
       const agencia = subagenciasCache.find(a => a.agencia_id === row.agencia_id) || { agencia_id: row.agencia_id, nombre_titular: '' };
       const canvas = crearCanvasReporte({
         agenciaId: agencia.agencia_id,
@@ -2187,7 +2264,7 @@ async function descargarPdfCombinado() {
     const [y1,m1,d1] = fecha.split('-');
     const nombreArchivo = `REPORTE_${d1}-${m1}-${y1}.pdf`;
     await guardarPdfConDialogo(pdf, nombreArchivo);
-    showToast(`✅ PDF generado — ${rows.length} subagencia(s)`, 'ok');
+    showToast(`✅ PDF generado — ${rowsFiltradas.length} subagencia(s)`, 'ok');
   } catch(e) {
     console.error(e);
     showToast('Error al generar el PDF', 'err');
