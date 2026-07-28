@@ -1224,6 +1224,60 @@ function formatARS(n) {
   return '$ ' + n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// Convierte un monto en pesos (siempre entero — el redondeo del reporte ya deja
+// los importes en múltiplos de 100, sin centavos) a su escritura en letras.
+// Ej: 15200 -> "Quince mil doscientos pesos"
+function numeroALetras(monto) {
+  const numero = Math.round(Math.abs(monto));
+  if (numero === 0) return 'cero pesos';
+
+  const UNIDADES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+  const DIECIS = ['diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve'];
+  const VEINTIS = ['veinte','veintiún','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
+  const DECENAS = ['','diez','veinte','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const CENTENAS = ['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+
+  function unidadesYDecenas(n) { // 0-99
+    if (n === 0) return '';
+    if (n < 10) return UNIDADES[n];
+    if (n < 20) return DIECIS[n - 10];
+    if (n < 30) return VEINTIS[n - 20];
+    const d = Math.floor(n / 10), u = n % 10;
+    return DECENAS[d] + (u > 0 ? ' y ' + unidadesYDecenas(u) : '');
+  }
+
+  function centenasBloque(n) { // 0-999
+    if (n === 0) return '';
+    if (n === 100) return 'cien';
+    const c = Math.floor(n / 100), resto = n % 100;
+    const partes = [];
+    if (c > 0) partes.push(CENTENAS[c]);
+    if (resto > 0) partes.push(unidadesYDecenas(resto));
+    return partes.join(' ');
+  }
+
+  function bloqueHastaMillon(n) { // 0-999999
+    const miles = Math.floor(n / 1000), resto = n % 1000;
+    const partes = [];
+    if (miles > 0) partes.push(miles === 1 ? 'mil' : centenasBloque(miles) + ' mil');
+    if (resto > 0) partes.push(centenasBloque(resto));
+    return partes.join(' ');
+  }
+
+  const millones = Math.floor(numero / 1000000);
+  const resto = numero % 1000000;
+  let texto = '';
+  if (millones > 0) {
+    texto += millones === 1 ? 'un millón' : bloqueHastaMillon(millones) + ' millones';
+    if (resto > 0) texto += ' ';
+  }
+  if (resto > 0 || millones === 0) texto += bloqueHastaMillon(resto);
+
+  texto = texto.trim().replace(/\s+/g, ' ');
+  const necesitaDe = millones > 0 && resto === 0; // "un millón DE pesos", "dos millones DE pesos"
+  return texto + (necesitaDe ? ' de' : '') + (numero === 1 ? ' peso' : ' pesos');
+}
+
 // Fórmula real, verificada contra la calculadora de retenciones del usuario
 // Fórmula universal para todos los juegos: cantidad × precio.
 // El precio ya viene "neto" (calculado aparte en Excel con comisiones, ATP, etc. incluidas).
@@ -1998,7 +2052,7 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   const lineHeight = Math.round(tTexto * 1.85);
   const headerHeight = 160;
   const footerHeight = 70;
-  const height = headerHeight + Math.max(items.length, 1) * lineHeight + 110 + footerHeight;
+  const height = headerHeight + Math.max(items.length, 1) * lineHeight + 136 + footerHeight;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -2086,6 +2140,12 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   ctx.fillText(formatARS(montoFinal), width - padding, y + 6);
 
   y += 40;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = esNegativoFinal ? cfg.color_negativo : cfg.color_texto_secundario;
+  ctx.font = `italic ${Math.max(tTexto - 1, 11)}px ${fuente}`;
+  ctx.fillText(`${etiquetaFinal} ${numeroALetras(montoFinal)}`, padding, y);
+
+  y += 26;
   ctx.textAlign = 'left';
   ctx.fillStyle = '#6b7280'; ctx.font = `10.5px ${fuente}`;
   wrapText(ctx,
