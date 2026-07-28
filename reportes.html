@@ -1340,12 +1340,16 @@ function recalcularTicket() {
   redondeoEl.style.color = redondeo < 0 ? 'var(--red)' : '';
   const label = document.getElementById('out-label');
   const monto = document.getElementById('out-monto');
-  if (redondeado >= 0) {
+  if (redondeado === 0) {
+    label.textContent = 'Sin movimiento';
+    label.style.color = '';
+    monto.className = 'result-amount negro';
+  } else if (redondeado > 0) {
     label.textContent = 'Traer a la agencia';
     label.style.color = '';
     monto.className = 'result-amount negro';
   } else {
-    label.textContent = 'A retirar de la agencia';
+    label.textContent = 'Retirar de la agencia';
     label.style.color = 'var(--red)';
     monto.className = 'result-amount rojo';
   }
@@ -2129,21 +2133,26 @@ function crearCanvasReporte({agenciaId, nombreTitular, ciudad, domicilio, fecha,
   ctx.fillText(formatARS(redondeo), width - padding, y);
 
   y += 46;
+  const cero = montoFinal === 0;
   const esNegativoFinal = color === 'rojo';
-  const etiquetaFinal = esNegativoFinal ? 'A retirar de la agencia' : 'Traer a la agencia';
+  const colorFinal = cero ? cfg.color_texto_secundario : (esNegativoFinal ? cfg.color_negativo : cfg.color_texto);
+  const etiquetaFinal = cero ? 'Sin movimiento' : (esNegativoFinal ? 'Retirar de la agencia' : 'Traer a la agencia');
   ctx.textAlign = 'left';
-  ctx.fillStyle = esNegativoFinal ? cfg.color_negativo : cfg.color_texto; ctx.font = `bold ${tTexto + 2}px ${fuente}`;
+  ctx.fillStyle = colorFinal; ctx.font = `bold ${tTexto + 2}px ${fuente}`;
   ctx.fillText(etiquetaFinal, padding, y);
   ctx.textAlign = 'right';
-  ctx.fillStyle = esNegativoFinal ? cfg.color_negativo : cfg.color_texto;
+  ctx.fillStyle = colorFinal;
   ctx.font = `bold ${tTitulo}px ${fuente}`;
   ctx.fillText(formatARS(montoFinal), width - padding, y + 6);
 
   y += 40;
   ctx.textAlign = 'left';
-  ctx.fillStyle = esNegativoFinal ? cfg.color_negativo : cfg.color_texto_secundario;
+  ctx.fillStyle = colorFinal; // mismo color que la línea de arriba, no un gris aparte
   ctx.font = `italic ${Math.max(tTexto - 1, 11)}px ${fuente}`;
-  ctx.fillText(`${etiquetaFinal} ${numeroALetras(montoFinal)}`, padding, y);
+  const textoLetras = cero
+    ? 'No hay que traer ni retirar dinero de la agencia'
+    : `${etiquetaFinal} ${numeroALetras(montoFinal)}`;
+  ctx.fillText(textoLetras, padding, y);
 
   y += 26;
   ctx.textAlign = 'left';
