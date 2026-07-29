@@ -816,7 +816,7 @@ let nombresProvincia = {}; // ej: { chaquena:'Chaco', ... } — nombre personali
 async function cargarNombresProvincia() {
   nombresProvincia = {};
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.nombres_provincias&select=numeros_por_provincia`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -845,7 +845,7 @@ function hoyStr() {
 async function resolverCantidadPorProvincia(agenciaId, sorteo, token) {
   const hoy = hoyStr();
   try {
-    const resProg = await fetch(
+    const resProg = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${encodeURIComponent(agenciaId)}&sorteo=eq.${sorteo}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
     );
@@ -856,7 +856,7 @@ async function resolverCantidadPorProvincia(agenciaId, sorteo, token) {
   } catch(e) { console.error(e); }
 
   try {
-    const resBase = await fetch(
+    const resBase = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaId)}&clave=eq.numeros_${sorteo}&select=numeros_por_provincia`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
     );
@@ -886,7 +886,7 @@ async function verificarBloqueoFechaEspecial() {
   const fecha = document.getElementById('fecha-sel').value;
   if (!fecha) { bloqueoActual = { bloqueado:false, descripcion:'' }; aplicarBloqueoUI(); return; }
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=eq.${fecha}&sorteo=eq.${sorteoActual}&select=activo,descripcion`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -938,7 +938,7 @@ let cartelesActuales = []; // cache de la última carga, para poder reordenar si
 
 async function cargarFrecuenciaCarteles() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=eq.carteles_frecuencia&select=valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -952,7 +952,7 @@ async function cargarFrecuenciaCarteles() {
 async function guardarFrecuenciaCarteles() {
   const minutos = parseInt(document.getElementById('carteles-frecuencia').value, 10) || 60;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
       { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
@@ -970,7 +970,7 @@ let carteleColapsoInicializado = false; // asegura que el auto-comprimido solo p
 
 async function cargarCarteles() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&order=posicion.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -1178,7 +1178,7 @@ function actualizarPreviewCartel(id) {
 
 async function crearCartel() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1206,7 +1206,7 @@ async function guardarCartel(id) {
     color_fondo: document.getElementById(`cartel_color_fondo_${id}`).value,
   };
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1222,7 +1222,7 @@ async function guardarCartel(id) {
 async function eliminarCartel(id) {
   if (!confirm('¿Eliminar este cartel? Esta acción no se puede deshacer.')) return;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
     });
@@ -1241,12 +1241,12 @@ async function moverCartel(id, direccion) {
   const posVecino = vecino.posicion;
 
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${actual.id}`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${actual.id}`, {
       method: 'PATCH',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ posicion: posVecino })
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${vecino.id}`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${vecino.id}`, {
       method: 'PATCH',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ posicion: posActual })
@@ -1282,7 +1282,7 @@ async function enviarReset() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/recover`, {
       method: 'POST',
       headers: { 
         'apikey': SUPABASE_KEY, 
@@ -1315,7 +1315,7 @@ async function login() {
 
   try {
     // 1. Autenticar con Supabase Auth
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -1333,7 +1333,7 @@ async function login() {
     }
 
     // 2. Obtener rol del usuario
-    const rolRes = await fetch(`${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,retencion_dias,puede_hacer_reportes,puede_ver_estadisticas,puede_cargar_registros`, {
+    const rolRes = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,retencion_dias,puede_hacer_reportes,puede_ver_estadisticas,puede_cargar_registros`, {
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${data.access_token}`
@@ -1358,8 +1358,11 @@ async function login() {
       puede_ver_estadisticas: rolData[0].puede_ver_estadisticas === true,
       puede_cargar_registros: rolData[0].puede_cargar_registros === true,
       email: email,
-      token: data.access_token
+      token: data.access_token,
+      refreshToken: data.refresh_token
     };
+
+    iniciarRenovacionSesion();
 
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -1385,11 +1388,66 @@ async function login() {
   btn.disabled = false;
 }
 
+// =====================
+// RENOVACIÓN AUTOMÁTICA DE SESIÓN
+// Los tokens de Supabase vencen a la hora por defecto — sin esto, una sesión abierta
+// mucho tiempo (por ejemplo, cargando números durante todo el día) empieza a fallar
+// en silencio en cualquier guardado. Renovamos cada 20 minutos.
+// =====================
+let renovacionSesionTimer = null;
+
+function iniciarRenovacionSesion() {
+  if (renovacionSesionTimer) clearInterval(renovacionSesionTimer);
+  renovacionSesionTimer = setInterval(renovarSesion, 20 * 60 * 1000);
+}
+
+function detenerRenovacionSesion() {
+  if (renovacionSesionTimer) { clearInterval(renovacionSesionTimer); renovacionSesionTimer = null; }
+}
+
+async function renovarSesion() {
+  if (!usuarioActual || !usuarioActual.refreshToken) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: usuarioActual.refreshToken })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      usuarioActual.token = data.access_token;
+      usuarioActual.refreshToken = data.refresh_token || usuarioActual.refreshToken;
+      console.log('Sesión renovada automáticamente');
+    } else {
+      console.error('No se pudo renovar la sesión automáticamente', data);
+    }
+  } catch(e) {
+    console.error('Error de red al renovar la sesión', e);
+  }
+}
+
+// Red de seguridad extra: si el temporizador no llegó a tiempo (por ejemplo, el
+// navegador pausó los timers de una pestaña mucho tiempo en segundo plano), esto
+// reintenta UNA vez después de renovar la sesión, en vez de fallar directamente.
+async function fetchConRenovacion(url, opciones) {
+  let res = await fetch(url, opciones);
+  if (res.status === 401 && usuarioActual?.refreshToken) {
+    await renovarSesion();
+    const opcionesRenovadas = {
+      ...opciones,
+      headers: { ...(opciones.headers || {}), 'Authorization': `Bearer ${usuarioActual.token}` }
+    };
+    res = await fetch(url, opcionesRenovadas);
+  }
+  return res;
+}
+
 async function logout() {
+  detenerRenovacionSesion();
   registrarActividad('Cierre de sesión', `${usuarioActual?.nombre} cerró sesión`);
   // Cerrar sesión en Supabase
   if (usuarioActual && usuarioActual.token) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
     }).catch(()=>{});
@@ -1482,7 +1540,7 @@ async function cargarConfigCarga() {
   gridConfig = { orden: 'fila', columnas: [10, 10] };
   configTeclado = { modo: 'automatico' };
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance)&select=clave,valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -1654,7 +1712,7 @@ async function guardarTodo() {
   // No permitir el mismo número de sorteo en otra fecha, para el mismo tipo de sorteo y agencia
   // (el mismo día sí puede repetirse — eso es solo editar/confirmar el número que ya estaba)
   try {
-    const resDup = await fetch(
+    const resDup = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${usuarioActual.agencia_id}&sorteo=eq.${sorteoActual}&numero_sorteo=eq.${numSorteo}&fecha=neq.${fecha}&select=fecha`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -1697,7 +1755,7 @@ async function guardarTodo() {
 
   try {
     // Upsert — actualiza si ya existe, inserta si no
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/resultados?on_conflict=fecha,sorteo,provincia,posicion,agencia_id`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/resultados?on_conflict=fecha,sorteo,provincia,posicion,agencia_id`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -1713,14 +1771,14 @@ async function guardarTodo() {
       // quede un número viejo guardado en la base si se cambió de casillero (ej: estaba
       // en la posición 5 y se corrigió a la posición 4 — la 5 tiene que quedar en "----").
       for (const [provincia, posiciones] of Object.entries(vaciasPorProvincia)) {
-        await fetch(
+        await fetchConRenovacion(
           `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
           { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
         ).catch(e => console.error('Error borrando posiciones vacías:', provincia, e));
       }
 
       // Guardar número de sorteo
-      await fetch(`${SUPABASE_URL}/rest/v1/sorteos_info?on_conflict=fecha,sorteo,agencia_id`, {
+      await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/sorteos_info?on_conflict=fecha,sorteo,agencia_id`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY,
@@ -1755,7 +1813,7 @@ async function cargarExistentes() {
   const fecha = document.getElementById('fecha-sel').value;
   if (!fecha) return;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&order=posicion.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -1766,7 +1824,7 @@ async function cargarExistentes() {
       if (el) { el.value = r.numero; el.classList.add('filled'); }
     });
     // Cargar número de sorteo si existe
-    const resSorteo = await fetch(
+    const resSorteo = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -1792,7 +1850,7 @@ async function actualizarEstadoDia() {
   // el HTML final una vez que todas terminaron, respetando el orden original de SORTEOS.
   const resultadosPorSorteo = await Promise.all(SORTEOS.map(async (s) => {
     try {
-      const res = await fetch(
+      const res = await fetchConRenovacion(
         `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${s}&agencia_id=eq.${usuarioActual.agencia_id}&select=count`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer':'count=exact' } }
       );
@@ -1823,7 +1881,7 @@ async function actualizarEstadoDia() {
 async function registrarActividad(accion, detalle) {
   try {
     const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
-    await fetch(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/actividad_log`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -1906,7 +1964,7 @@ async function crearSubagencia() {
 
 async function cargarSubagencias() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=neq.superadmin&order=rol.desc,agencia_id.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2047,9 +2105,9 @@ async function cargarControlCarga() {
   if (!estadoDiv || !sel) return;
   try {
     const [ctrlRes, usuariosRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true&select=usuario_habilitado,nombre_habilitado,actualizado_en`,
+      fetchConRenovacion(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true&select=usuario_habilitado,nombre_habilitado,actualizado_en`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }),
-      fetch(`${SUPABASE_URL}/rest/v1/usuarios_roles?puede_cargar_registros=eq.true&activo=eq.true&rol=eq.admin&select=user_id,nombre,agencia_id`,
+      fetchConRenovacion(`${SUPABASE_URL}/rest/v1/usuarios_roles?puede_cargar_registros=eq.true&activo=eq.true&rol=eq.admin&select=user_id,nombre,agencia_id`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } })
     ]);
     const ctrl = (await ctrlRes.json())?.[0];
@@ -2077,7 +2135,7 @@ async function habilitarUsuarioCarga() {
   if (!user_id) { showToast('Elegí un usuario', 'err'); return; }
   const nombre = sel.options[sel.selectedIndex].textContent;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -2097,7 +2155,7 @@ async function habilitarUsuarioCarga() {
 
 async function bloquearTodosCarga() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -2125,7 +2183,7 @@ function copiarURL(agencia_id) {
 async function toggleAgencia(user_id, activo) {
   const nuevoEstado = !activo;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
       {
         method: 'PATCH',
@@ -2147,7 +2205,7 @@ async function toggleAgencia(user_id, activo) {
 async function toggleReportes(user_id, actual) {
   const nuevoEstado = !actual;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
       {
         method: 'PATCH',
@@ -2169,7 +2227,7 @@ async function toggleReportes(user_id, actual) {
 async function toggleCargaRegistros(user_id, actual) {
   const nuevoEstado = !actual;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
       {
         method: 'PATCH',
@@ -2192,7 +2250,7 @@ async function toggleCargaRegistros(user_id, actual) {
 async function toggleEstadisticas(user_id, actual) {
   const nuevoEstado = !actual;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
       {
         method: 'PATCH',
@@ -2215,7 +2273,7 @@ async function toggleSubPermiso(user_id, campo, actual) {
   const nuevoEstado = !actual;
   const etiquetas = { puede_ver_rachas: 'Rachas', puede_ver_comparacion: 'Comparación del día' };
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${user_id}`,
       {
         method: 'PATCH',
@@ -2237,7 +2295,7 @@ async function toggleSubPermiso(user_id, campo, actual) {
 
 async function cargarActividad() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/actividad_log?order=creado_en.desc&limit=50`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2305,7 +2363,7 @@ function generarTokenAleatorio(longitud=6) {
 async function configurarLinkTablero(agenciaId) {
   const btn = document.getElementById('btn-ir-tablero');
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaId)}&clave=eq.url_token&select=valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2331,7 +2389,7 @@ async function cargarCodigosAcceso() {
   const lista = document.getElementById('lista-codigos-acceso');
   try {
     // Agencias distintas: 670-00 siempre, más cada subagencia registrada
-    const resAgencias = await fetch(
+    const resAgencias = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&select=agencia_id`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2340,7 +2398,7 @@ async function cargarCodigosAcceso() {
     (filasAgencias || []).forEach(r => agencias.add(r.agencia_id));
 
     // Códigos ya generados (siempre con SUPABASE_KEY, igual que el resto de configuracion_visual)
-    const resTokens = await fetch(
+    const resTokens = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&select=agencia_id,valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -2371,7 +2429,7 @@ async function regenerarToken(agenciaId) {
   if (!confirm(`¿Generar/regenerar el código de acceso de ${agenciaId}? Si ya tenía uno, la URL vieja de esa agencia deja de funcionar.`)) return;
   const nuevoToken = generarTokenAleatorio();
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
       { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
@@ -2395,7 +2453,7 @@ function copiarURLToken(token, agenciaId) {
 
 async function cargarAgenciasEnSelector() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&activo=eq.true&select=agencia_id,nombre`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2471,7 +2529,7 @@ async function cargarCantidadesSorteo() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
   PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}&clave=eq.numeros_${sorteoNumerosSeleccionado}&select=numeros_por_provincia`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -2502,7 +2560,7 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('grilla-columnas-input'); if (el) el.value = '10,10'; }
   { const el = document.getElementById('modo-avance-sel'); if (el) el.value = 'automatico'; }
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -2634,7 +2692,7 @@ async function guardarVisual() {
   });
 
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
       { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
@@ -2666,7 +2724,7 @@ async function copiarCantidadATodosLosSorteos() {
     actualizado_por: usuarioActual.nombre
   }));
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
       { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
@@ -2715,7 +2773,7 @@ async function programarCambio() {
   });
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/programaciones_numeros`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/programaciones_numeros`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -2743,7 +2801,7 @@ async function programarCambio() {
 
 async function cargarProgramaciones() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/programaciones_numeros?order=fecha_desde.desc&limit=100`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2784,7 +2842,7 @@ async function cargarProgramaciones() {
 async function eliminarProgramacion(id) {
   if (!confirm('¿Eliminar esta programación? Esta acción no se puede deshacer.')) return;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/programaciones_numeros?id=eq.${id}`,
       { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2882,7 +2940,7 @@ async function guardarConfiguracion() {
   }));
 
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_sorteos?on_conflict=fecha_especial,sorteo`,
       {
         method: 'POST',
@@ -2910,7 +2968,7 @@ async function guardarConfiguracion() {
 
 async function cargarConfiguraciones() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_sorteos?order=fecha_especial.desc&limit=50`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
@@ -2969,7 +3027,7 @@ async function cargarConfiguraciones() {
 async function eliminarConfiguracion(fecha) {
   if (!confirm(`¿Eliminar la configuración del ${fecha}? Esta acción no se puede deshacer.`)) return;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=eq.${fecha}`,
       {
         method: 'DELETE',
