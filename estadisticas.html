@@ -259,11 +259,6 @@
           <div class="stat-value red" id="st-atrasado">—</div>
           <div class="stat-sub" id="st-atrasado-sub">—</div>
         </div>
-        <div class="stat-card green">
-          <div class="stat-label">Sorteos analizados</div>
-          <div class="stat-value green" id="st-total">—</div>
-          <div class="stat-sub" id="st-total-sub">—</div>
-        </div>
         <div class="stat-card blue">
           <div class="stat-label">Nunca salió</div>
           <div class="stat-value blue" id="st-nunca">—</div>
@@ -624,7 +619,7 @@ function procesarYRenderizar(rows) {
     document.getElementById('list-salidores').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
     document.getElementById('list-atrasados').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
     document.getElementById('list-rachas').innerHTML = '<div class="lista-vacia">No hay resultados cargados para este filtro todavía.</div>';
-    ['st-salidor','st-atrasado','st-total','st-nunca'].forEach(id => document.getElementById(id).textContent = '—');
+    ['st-salidor','st-atrasado','st-nunca'].forEach(id => document.getElementById(id).textContent = '—');
     document.getElementById('link-ver-nunca').style.display = 'none';
     document.getElementById('card-nunca-salio').style.display = 'none';
     return;
@@ -668,9 +663,6 @@ function procesarYRenderizar(rows) {
 
   document.getElementById('st-atrasado').textContent = atrasados[0] ? atrasados[0][0] : '—';
   document.getElementById('st-atrasado-sub').textContent = atrasados[0] ? `${atrasados[0][1]} sorteo(s) sin repetir` : '—';
-
-  document.getElementById('st-total').textContent = total;
-  document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · ${etiquetaProvincia()} / ${etiquetaSorteo()}`;
 
   document.getElementById('st-nunca').textContent = faltantes[0] || '✓';
   document.getElementById('st-nunca-sub').textContent = faltantes.length
@@ -934,7 +926,7 @@ async function cargarGlobal() {
 function procesarGlobalYRenderizar(combosConDatos) {
   const cifras = filtro.cifras;
   let totalGeneral = 0;
-  let ejemploNuncaSalio = null;
+  const freqGlobal = {}; // numero recortado -> suma de apariciones en TODAS las combinaciones (no solo la primera)
   const todosSalidores = [];
   const todosAtrasados = [];
   const todasRachas = [];
@@ -950,15 +942,8 @@ function procesarGlobalYRenderizar(combosConDatos) {
       const n = recorte(r.numero, cifras);
       freq[n] = (freq[n] || 0) + 1;
       ultimoIdx[n] = i;
+      freqGlobal[n] = (freqGlobal[n] || 0) + 1; // se acumula en TODAS las combinaciones antes de decidir "nunca salió"
     });
-
-    if (!ejemploNuncaSalio) {
-      const universo = Math.pow(10, cifras);
-      for (let i = 0; i < universo; i++) {
-        const n = String(i).padStart(cifras, '0');
-        if (!freq[n]) { ejemploNuncaSalio = { numero: n, provincia: provincia.label, sorteo: sorteo.label }; break; }
-      }
-    }
 
     Object.entries(freq).forEach(([n, count]) => {
       todosSalidores.push({ numero: n, valor: count, provincia: provincia.label, sorteo: sorteo.label });
@@ -970,6 +955,15 @@ function procesarGlobalYRenderizar(combosConDatos) {
       todasRachas.push({ ...r, provincia: provincia.label, sorteo: sorteo.label });
     });
   });
+
+  // "Nunca salió" a nivel global: recién ACÁ, con freqGlobal ya sumado sobre las 25
+  // combinaciones, buscamos un número con 0 apariciones reales en todas ellas.
+  let ejemploNuncaSalio = null;
+  const universoGlobal = Math.pow(10, cifras);
+  for (let i = 0; i < universoGlobal; i++) {
+    const n = String(i).padStart(cifras, '0');
+    if (!freqGlobal[n]) { ejemploNuncaSalio = { numero: n }; break; }
+  }
 
   todosSalidores.sort((a,b) => b.valor - a.valor);
   todosAtrasados.sort((a,b) => b.valor - a.valor);
@@ -990,12 +984,9 @@ function procesarGlobalYRenderizar(combosConDatos) {
   document.getElementById('st-atrasado').textContent = topAtrasados[0] ? topAtrasados[0].numero : '—';
   document.getElementById('st-atrasado-sub').textContent = topAtrasados[0] ? `${topAtrasados[0].provincia} · ${topAtrasados[0].sorteo} — ${topAtrasados[0].valor} sorteos sin repetir` : '—';
 
-  document.getElementById('st-total').textContent = totalGeneral;
-  document.getElementById('st-total-sub').textContent = `${etiquetaPeriodo()} · las 25 combinaciones`;
-
   document.getElementById('st-nunca').textContent = ejemploNuncaSalio ? ejemploNuncaSalio.numero : '✓';
   document.getElementById('st-nunca-sub').textContent = ejemploNuncaSalio
-    ? `${ejemploNuncaSalio.provincia} · ${ejemploNuncaSalio.sorteo} — un ejemplo entre muchos. Usá "Buscar número" para el detalle completo.`
+    ? `No salió en ninguna de las 25 combinaciones en este período. Usá "Buscar número" para el detalle completo.`
     : 'Salieron todos los números posibles en las 25 combinaciones';
   document.getElementById('link-ver-nunca').style.display = 'none';
   document.getElementById('card-nunca-salio').style.display = 'none';
