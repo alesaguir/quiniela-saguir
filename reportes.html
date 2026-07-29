@@ -901,7 +901,7 @@ async function cargarJuegosActivos() {
       <div class="field-row">
         <div class="field-label">${j.nombre_visible} — unidades</div>
         <div class="field-input-wrap">
-          <input type="text" inputmode="numeric" class="amount no-peso juego-input" data-clave="${j.clave}" placeholder="0" oninput="recalcularTicket()">
+          <input type="text" inputmode="numeric" class="amount no-peso juego-input" data-clave="${j.clave}" placeholder="0" autocomplete="off" oninput="recalcularTicket()">
         </div>
       </div>
     `).join('');
@@ -956,24 +956,28 @@ async function cargarFormularioParaContexto() {
   if (!agenciaSeleccionada) return;
   const fecha = document.getElementById('fecha-reporte').value;
   const key = `${fecha}_${agenciaSeleccionada.agencia_id}`;
-  limpiarFormulario();
-  contextoActual = { fecha, agencia_id: agenciaSeleccionada.agencia_id };
-
-  if (borradores[key]) {
-    cargarReporteEnFormulario(borradores[key]);
-    document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
-    sinGuardarCambios.add(agenciaSeleccionada.agencia_id); // el borrador ES un cambio todavía no guardado
-    renderAvisoCombinado();
-    recalcularTicket();
-    return;
-  }
-
-  sinGuardarCambios.delete(agenciaSeleccionada.agencia_id); // lo que sigue viene de la base, está al día
-  renderAvisoCombinado();
-
   const miToken = ++tokenCargaFormulario;
+  // Cubre desde ACÁ (antes de vaciar/reconstruir los campos), no solo la espera a la
+  // base — así ningún evento "input" que dispare la reconstrucción de los campos
+  // (por ejemplo, autocompletado del navegador en un campo recién creado) puede
+  // marcar la subagencia como "modificada" sin que el usuario haya tocado nada.
   cargandoFormulario = true;
   try {
+    limpiarFormulario();
+    contextoActual = { fecha, agencia_id: agenciaSeleccionada.agencia_id };
+
+    if (borradores[key]) {
+      cargarReporteEnFormulario(borradores[key]);
+      document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
+      sinGuardarCambios.add(agenciaSeleccionada.agencia_id); // el borrador ES un cambio todavía no guardado
+      renderAvisoCombinado();
+      recalcularTicket();
+      return;
+    }
+
+    sinGuardarCambios.delete(agenciaSeleccionada.agencia_id); // lo que sigue viene de la base, está al día
+    renderAvisoCombinado();
+
     const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaSeleccionada.agencia_id}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
@@ -1040,7 +1044,7 @@ function addPremioLine(focus=true, valor='') {
     <div class="field-label">🏆 Premio</div>
     <div class="field-input-wrap">
       <span class="peso">$</span>
-      <input type="text" inputmode="decimal" class="amount premio-input" placeholder="0,00" value="${valor}">
+      <input type="text" inputmode="decimal" class="amount premio-input" placeholder="0,00" value="${valor}" autocomplete="off">
     </div>
     <button class="add-inline-btn" type="button" title="Agregar otro premio" tabindex="-1">+</button>
     <button class="remove-line" type="button" title="Quitar" tabindex="-1">×</button>
@@ -1069,7 +1073,7 @@ function addFavorLine(focus=true, valor='') {
     <div class="field-label">↩ A favor</div>
     <div class="field-input-wrap">
       <span class="peso">$</span>
-      <input type="text" inputmode="decimal" class="amount favor-input" placeholder="0,00" value="${valor}">
+      <input type="text" inputmode="decimal" class="amount favor-input" placeholder="0,00" value="${valor}" autocomplete="off">
     </div>
     <button class="add-inline-btn" type="button" title="Agregar otro saldo a favor" tabindex="-1">+</button>
     <button class="remove-line" type="button" title="Quitar" tabindex="-1">×</button>
@@ -1095,10 +1099,10 @@ function addFreeLine(concepto='', valor='') {
   const row = document.createElement('div');
   row.className = 'free-line';
   row.innerHTML = `
-    <input type="text" class="concept" placeholder="Concepto (ej: alquiler)" value="${concepto}">
+    <input type="text" class="concept" placeholder="Concepto (ej: alquiler)" value="${concepto}" autocomplete="off">
     <div class="field-input-wrap">
       <span class="peso">$</span>
-      <input type="text" inputmode="decimal" class="amount free-input" placeholder="0,00" value="${valor}">
+      <input type="text" inputmode="decimal" class="amount free-input" placeholder="0,00" value="${valor}" autocomplete="off">
     </div>
     <button class="remove-line" type="button" tabindex="-1">×</button>
   `;
@@ -1138,9 +1142,12 @@ document.addEventListener('input', (e) => {
 
 // El evento 'input' solo se dispara con tipeo/pegado real del usuario, nunca cuando el propio
 // sistema carga valores por código — por eso es seguro usarlo para marcar "cambios sin guardar"
-// sin que se marque solo por cargar o corregir un reporte ya guardado.
+// sin que se marque solo por cargar o corregir un reporte ya guardado. El chequeo de
+// !cargandoFormulario es una segunda red de seguridad para la ventana en la que se
+// vacían y reconstruyen los campos al cambiar de subagencia (por ejemplo, si el
+// navegador autocompleta un campo recién creado, eso también dispara 'input').
 document.addEventListener('input', (e) => {
-  if (agenciaSeleccionada && (e.target.classList.contains('amount') || e.target.classList.contains('concept'))
+  if (!cargandoFormulario && agenciaSeleccionada && (e.target.classList.contains('amount') || e.target.classList.contains('concept'))
       && e.target.closest('#form-reporte')) {
     marcarCambioSinGuardar(agenciaSeleccionada.agencia_id);
   }
