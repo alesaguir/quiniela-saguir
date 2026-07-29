@@ -1591,13 +1591,13 @@ function buildForm() {
   PROVINCIAS.forEach((p, idx) => {
     const total = cantidadProvincia(p.key);
     html += `<div class="prov-section">
-      <div class="prov-title">${nombreProvincia(p.key)}</div>
-      <div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-bottom:14px;"></div>`;
+      <div class="prov-title">${nombreProvincia(p.key)}</div>`;
     if (gridConfig.orden === 'columna') {
       html += buildColumnasHTML(p.key, total);
     } else {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
+    html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:14px;"></div>`;
     html += `</div>`;
     // Botón repetido después de cada provincia, para no tener que scrollear
     // hasta el final del formulario — guarda y publica todo igual que el de abajo.
