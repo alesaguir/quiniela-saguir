@@ -210,7 +210,7 @@
             </div>
             <input type="text" class="form-input" id="buscar-subagencia" placeholder="🔍 Filtrar subagencia" oninput="filtrarSubagencias()" style="padding:8px 10px;flex:1;min-width:160px;max-width:240px;">
             <button class="btn btn-ghost" style="font-size:12.5px;padding:8px 12px;margin-left:auto;" id="btn-guardar-todos" onclick="guardarTodosLosReportes()">💾 Guardar todos</button>
-            <button class="btn btn-primary" style="font-size:12.5px;padding:8px 12px;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 PDF combinado del día</button>
+            <button class="btn btn-primary" style="font-size:12.5px;padding:8px 12px;" id="btn-pdf-combinado" onclick="descargarPdfCombinado()">📄 Generar PDF</button>
             <button class="btn btn-ghost" id="btn-borrar-todos" style="padding:8px 10px;color:var(--red);border-color:rgba(230,57,70,.4);" onclick="borrarTodosLosReportesDelDia()" title="Borrar todos los reportes guardados de esta fecha">🗑</button>
           </div>
 
@@ -547,7 +547,7 @@ async function login() {
 
   try {
     // 1. Autenticar con Supabase Auth
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pass })
@@ -560,7 +560,7 @@ async function login() {
     }
 
     // 2. Obtener rol y permiso de reportes
-    const rolRes = await fetch(
+    const rolRes = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,puede_hacer_reportes`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
     );
@@ -577,7 +577,7 @@ async function login() {
     if (!esSuperadmin && !tienePermiso) {
       mostrarErrorLogin('Tu usuario no tiene permiso para acceder a Reportes.');
       // Cerramos la sesión de Auth recién creada, ya que no tiene permiso para estar acá
-      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
         method: 'POST',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` }
       }).catch(()=>{});
@@ -589,8 +589,11 @@ async function login() {
       rol: rolData[0].rol,
       esSuperadmin: esSuperadmin,
       email: email,
-      token: data.access_token
+      token: data.access_token,
+      refreshToken: data.refresh_token
     };
+
+    iniciarRenovacionSesion();
 
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -630,9 +633,69 @@ function mostrarErrorLogin(msg) {
   document.getElementById('btn-login').disabled = false;
 }
 
+// =====================
+// RENOVACIÓN AUTOMÁTICA DE SESIÓN
+// Los tokens de Supabase vencen a la hora (3600s) por defecto. Sin esto, cualquier
+// sesión abierta más de una hora empieza a fallar en silencio en TODOS los guardados
+// y lecturas — exactamente lo que pasó con el reporte de la subagencia 01. Renovamos
+// cada 20 minutos (bien antes del vencimiento) para que esto no vuelva a pasar.
+// =====================
+let renovacionSesionTimer = null;
+
+function iniciarRenovacionSesion() {
+  if (renovacionSesionTimer) clearInterval(renovacionSesionTimer);
+  renovacionSesionTimer = setInterval(renovarSesion, 20 * 60 * 1000);
+}
+
+function detenerRenovacionSesion() {
+  if (renovacionSesionTimer) { clearInterval(renovacionSesionTimer); renovacionSesionTimer = null; }
+}
+
+async function renovarSesion() {
+  if (!usuarioActual || !usuarioActual.refreshToken) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: usuarioActual.refreshToken })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      usuarioActual.token = data.access_token;
+      usuarioActual.refreshToken = data.refresh_token || usuarioActual.refreshToken;
+      console.log('Sesión renovada automáticamente');
+    } else {
+      // Si esto falla, el usuario va a ver errores de guardado más temprano que tarde
+      // y va a tener que volver a loguearse — pero al menos queda en la consola para
+      // poder diagnosticarlo, en vez de fallar en silencio sin ningún rastro.
+      console.error('No se pudo renovar la sesión automáticamente', data);
+    }
+  } catch(e) {
+    console.error('Error de red al renovar la sesión', e);
+  }
+}
+
+// Red de seguridad extra: si el temporizador de arriba no llegó a tiempo (por ejemplo,
+// el navegador pausa los timers de una pestaña que quedó mucho tiempo en segundo plano),
+// esto reintenta UNA vez después de renovar la sesión, en vez de fallar directamente.
+// La usan los dos guardados críticos: el individual y "Guardar todos".
+async function fetchConRenovacion(url, opciones) {
+  let res = await fetch(url, opciones);
+  if (res.status === 401 && usuarioActual?.refreshToken) {
+    await renovarSesion();
+    const opcionesRenovadas = {
+      ...opciones,
+      headers: { ...(opciones.headers || {}), 'Authorization': `Bearer ${usuarioActual.token}` }
+    };
+    res = await fetch(url, opcionesRenovadas);
+  }
+  return res;
+}
+
 async function logout() {
+  detenerRenovacionSesion();
   if (usuarioActual && usuarioActual.token) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
     }).catch(()=>{});
@@ -676,7 +739,7 @@ async function initCarga() {
 // =====================
 async function cargarConfigAgenciaCentral() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_reportes?id=eq.true&select=excluir_agencia_central`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -693,7 +756,7 @@ async function cargarConfigAgenciaCentral() {
 async function cambiarModoAgenciaCentral(modo) {
   const excluir = modo === 'excluir';
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/configuracion_reportes?id=eq.true`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/configuracion_reportes?id=eq.true`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -713,7 +776,7 @@ async function cambiarModoAgenciaCentral(modo) {
 
 async function cargarSubagenciasSelect() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/subagencias?activa=eq.true&order=agencia_id.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -788,7 +851,7 @@ async function actualizarAvisoFaltantes() {
   if (!fecha) { aviso.textContent = ''; return; }
 
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&select=agencia_id`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -827,7 +890,7 @@ document.addEventListener('keydown', (e) => {
 
 async function cargarJuegosActivos() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/juegos_config?activo=eq.true&order=clave.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -859,8 +922,15 @@ function getFormSnapshot() {
   };
 }
 
+let cargandoFormulario = false; // true mientras se está esperando la respuesta real de la base
+let tokenCargaFormulario = 0;   // identifica cada carga puntual, para descartar respuestas que lleguen tarde
+
 function guardarBorradorActual() {
-  if (contextoActual) {
+  // Si todavía estamos esperando la respuesta real de la base para el contexto actual,
+  // NO guardamos una foto — el formulario recién fue vaciado por limpiarFormulario() y
+  // todavía no tiene el dato real cargado. Guardar acá pisaría para siempre (en esta
+  // sesión) el reporte real con un borrador vacío, aunque exista guardado en la base.
+  if (contextoActual && !cargandoFormulario) {
     borradores[`${contextoActual.fecha}_${contextoActual.agencia_id}`] = getFormSnapshot();
   }
 }
@@ -901,12 +971,18 @@ async function cargarFormularioParaContexto() {
   sinGuardarCambios.delete(agenciaSeleccionada.agencia_id); // lo que sigue viene de la base, está al día
   renderAvisoCombinado();
 
+  const miToken = ++tokenCargaFormulario;
+  cargandoFormulario = true;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaSeleccionada.agencia_id}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const rows = await res.json();
+    // Si mientras esperábamos esta respuesta el usuario ya cambió de subagencia o de
+    // fecha, esta respuesta llegó tarde y ya no corresponde a lo que está en pantalla
+    // ahora — la descartamos para no pisar el contexto nuevo con datos viejos.
+    if (miToken !== tokenCargaFormulario) return;
     if (rows && rows.length > 0) {
       cargarReporteEnFormulario(rows[0]);
       document.getElementById('hint-estado').textContent = '✏️ Ya existe un reporte para esta fecha — estás corrigiéndolo.';
@@ -915,6 +991,7 @@ async function cargarFormularioParaContexto() {
       document.getElementById('hint-estado').textContent = '';
     }
   } catch(e) { console.error(e); }
+  finally { if (miToken === tokenCargaFormulario) cargandoFormulario = false; }
   recalcularTicket();
 }
 
@@ -1093,7 +1170,7 @@ let ajustesGeneralesCache = {
 
 async function cargarAjustesGenerales() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_ajustes?id=eq.true`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -1123,7 +1200,7 @@ async function guardarAjustesGenerales() {
     umbral_alto_pct: parseFloat(document.getElementById('aj-umbral-alto').value.replace(',','.')) || 300
   };
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_ajustes?id=eq.true`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/reportes_ajustes?id=eq.true`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1151,7 +1228,7 @@ async function cargarPromedioHistorico(agenciaId) {
   try {
     const fecha = document.getElementById('fecha-reporte').value;
     const dias = ajustesGeneralesCache.dias_historial_promedio;
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?agencia_id=eq.${agenciaId}&fecha=lt.${fecha}&order=fecha.desc&limit=${dias}&select=monto_reporte_loteria`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -1377,7 +1454,7 @@ let subagenciasContactosCache = [];
 async function cargarSubagenciasContactos() {
   const cont = document.getElementById('lista-subagencias-contactos');
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -1444,7 +1521,7 @@ async function crearSubagencia() {
   const ciudad = document.getElementById('nueva-sub-ciudad').value.trim();
   if (!id) { showToast('Ingresá el código de subagencia','err'); return; }
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/subagencias`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1474,7 +1551,7 @@ async function guardarSubagencia(agenciaId) {
     telefono: document.getElementById(`sub-telefono-${agenciaId}`).value.trim()
   };
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias?agencia_id=eq.${agenciaId}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/subagencias?agencia_id=eq.${agenciaId}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1489,7 +1566,7 @@ async function guardarSubagencia(agenciaId) {
 
 async function toggleActivaSubagencia(agenciaId, activaActual) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/subagencias?agencia_id=eq.${agenciaId}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/subagencias?agencia_id=eq.${agenciaId}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1517,7 +1594,7 @@ const CAMPOS_JUEGO = [
 
 async function cargarJuegosConfig() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/juegos_config?order=clave.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -1585,7 +1662,7 @@ async function crearJuego() {
   const parametrosDefault = { precio: 0 };
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_config`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1618,7 +1695,7 @@ async function guardarJuego(clave) {
     parametros
   };
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1638,7 +1715,7 @@ async function guardarJuego(clave) {
 
 async function toggleActivoJuego(clave, activoActual) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1661,7 +1738,7 @@ async function eliminarJuego(clave, nombre) {
   );
   if (!ok) return;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_config?clave=eq.${clave}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
     });
@@ -1759,7 +1836,7 @@ async function guardarTodosSilencioso() {
     // si nunca se tocó (evita crear filas basura en subagencias que ni se abrieron).
     if (vacio && !sinGuardarCambios.has(agenciaId)) return { clave, estado: 'vacio' };
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`, {
+      const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -1864,7 +1941,7 @@ async function guardarReporteDesdeFormulario() {
   };
 
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?on_conflict=fecha,agencia_id`,
       {
         method: 'POST',
@@ -1963,7 +2040,7 @@ let imagenConfigCache = {
 
 async function cargarImagenConfig() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/imagen_config?id=eq.true`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2001,7 +2078,7 @@ function leerFormDiseno() {
 async function guardarDisenoImagen() {
   const payload = leerFormDiseno();
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/imagen_config?id=eq.true`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/imagen_config?id=eq.true`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -2218,7 +2295,7 @@ async function generarImagenActual() {
   }
 
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaId}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2286,7 +2363,7 @@ async function descargarPdfCombinado() {
     }
 
     btn.textContent = '⏳ Generando...';
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&order=agencia_id.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -2386,7 +2463,7 @@ async function borrarTodosLosReportesDelDia() {
   if (!segunda) return;
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
     });
