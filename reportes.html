@@ -969,7 +969,12 @@ async function cargarFormularioParaContexto() {
     if (borradores[key]) {
       cargarReporteEnFormulario(borradores[key]);
       document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
-      sinGuardarCambios.add(agenciaSeleccionada.agencia_id); // el borrador ES un cambio todavía no guardado
+      // NO marcamos sinGuardarCambios acá solo por existir un borrador — eso se marca
+      // únicamente cuando el usuario tipea de verdad (ver el listener de 'input' más
+      // abajo). Si el borrador coincide con lo que ya está guardado, no hay nada
+      // "sin guardar"; marcarlo igual generaba falsos positivos al cambiar rápido
+      // entre subagencias, y en el peor caso llevaba a re-guardar un borrador vacío
+      // encima de un reporte real ya guardado.
       renderAvisoCombinado();
       recalcularTicket();
       return;
