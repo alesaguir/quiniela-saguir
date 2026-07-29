@@ -399,7 +399,7 @@ async function login() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pass })
@@ -411,7 +411,7 @@ async function login() {
       return;
     }
 
-    const rolRes = await fetch(
+    const rolRes = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_cargar_registros`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
     );
@@ -429,8 +429,11 @@ async function login() {
       agencia_id: rolData[0].agencia_id || '670-00',
       puede_cargar_registros: rolData[0].puede_cargar_registros === true,
       email: email,
-      token: data.access_token
+      token: data.access_token,
+      refreshToken: data.refresh_token
     };
+
+    iniciarRenovacionSesion();
 
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -460,9 +463,64 @@ function mostrarErrorLogin(msg) {
   document.getElementById('btn-login').disabled = false;
 }
 
+// =====================
+// RENOVACIÓN AUTOMÁTICA DE SESIÓN
+// Los tokens de Supabase vencen a la hora por defecto — sin esto, una sesión abierta
+// mucho tiempo (por ejemplo, alguien cargando movimientos de stock durante todo el
+// día) empieza a fallar en silencio en cualquier guardado. Renovamos cada 20 minutos.
+// =====================
+let renovacionSesionTimer = null;
+
+function iniciarRenovacionSesion() {
+  if (renovacionSesionTimer) clearInterval(renovacionSesionTimer);
+  renovacionSesionTimer = setInterval(renovarSesion, 20 * 60 * 1000);
+}
+
+function detenerRenovacionSesion() {
+  if (renovacionSesionTimer) { clearInterval(renovacionSesionTimer); renovacionSesionTimer = null; }
+}
+
+async function renovarSesion() {
+  if (!usuarioActual || !usuarioActual.refreshToken) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: usuarioActual.refreshToken })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      usuarioActual.token = data.access_token;
+      usuarioActual.refreshToken = data.refresh_token || usuarioActual.refreshToken;
+      console.log('Sesión renovada automáticamente');
+    } else {
+      console.error('No se pudo renovar la sesión automáticamente', data);
+    }
+  } catch(e) {
+    console.error('Error de red al renovar la sesión', e);
+  }
+}
+
+// Red de seguridad extra: si el temporizador no llegó a tiempo (por ejemplo, el
+// navegador pausó los timers de una pestaña mucho tiempo en segundo plano), esto
+// reintenta UNA vez después de renovar la sesión, en vez de fallar directamente.
+async function fetchConRenovacion(url, opciones) {
+  let res = await fetch(url, opciones);
+  if (res.status === 401 && usuarioActual?.refreshToken) {
+    await renovarSesion();
+    const opcionesRenovadas = {
+      ...opciones,
+      headers: { ...(opciones.headers || {}), 'Authorization': `Bearer ${usuarioActual.token}` }
+    };
+    res = await fetch(url, opcionesRenovadas);
+  }
+  return res;
+}
+
 async function logout() {
+  detenerRenovacionSesion();
   if (usuarioActual && usuarioActual.token) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
     }).catch(()=>{});
@@ -490,7 +548,7 @@ async function enviarReset() {
   btn.innerHTML = '<div class="loading"></div> Enviando...';
   btn.disabled = true;
   try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/recover`, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
@@ -514,7 +572,7 @@ async function enviarReset() {
 async function registrarActividad(accion, detalle) {
   try {
     const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
-    await fetch(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/actividad_log`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -549,7 +607,7 @@ async function initApp() {
 // alguna vez tuvieron movimientos (activos o no), no solo los activos.
 async function cargarJuegosHistorialFiltro() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/movimientos_stock?select=juego`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -572,7 +630,7 @@ async function cargarControlCarga() {
   const banner = document.getElementById('banner-control-carga');
   const btn = document.getElementById('btn-guardar-mov');
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/control_carga_stock?id=eq.true&select=usuario_habilitado,nombre_habilitado`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -624,7 +682,7 @@ function recalcularCantidad() {
 // =====================
 async function cargarSubagencias() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -669,7 +727,7 @@ async function cargarJuegosStockAdmin() {
   const cont = document.getElementById('lista-juegos-stock');
   if (!cont) return;
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/juegos_stock_config?order=orden.asc,nombre.asc&select=nombre,activo,cifras,fecha_limite_carga`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -715,7 +773,7 @@ async function cargarJuegosStockAdmin() {
 
 async function editarCifrasJuego(nombre, cifras) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -734,7 +792,7 @@ async function editarCifrasJuego(nombre, cifras) {
 
 async function editarFechaLimiteJuego(nombre, fecha) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -761,7 +819,7 @@ async function agregarJuegoStock() {
   const fechaLimite = inputFechaLimite.value || null;
   if (!nombre) { showToast('Escribí el nombre del juego', 'err'); return; }
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_stock_config`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -784,7 +842,7 @@ async function agregarJuegoStock() {
 
 async function toggleJuegoStock(nombre, actual) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/juegos_stock_config?nombre=eq.${encodeURIComponent(nombre)}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
@@ -807,7 +865,7 @@ let juegosCifrasCache = {}; // nombre del juego -> cantidad de cifras configurad
 async function cargarJuegosStockConfig() {
   const sel = document.getElementById('mov-juego');
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/juegos_stock_config?activo=eq.true&order=orden.asc,nombre.asc&select=nombre,cifras,fecha_limite_carga`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -883,7 +941,7 @@ async function guardarMovimiento() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos_stock`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/movimientos_stock`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -933,7 +991,7 @@ async function guardarMovimiento() {
 async function cargarResumen() {
   const cont = document.getElementById('tabla-resumen');
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,cantidad`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
@@ -1006,7 +1064,7 @@ const ETIQUETAS_TIPO = {
 async function borrarMovimiento(id) {
   if (!confirm('¿Borrar este movimiento? Esta acción no se puede deshacer.\n\nRecordá: si fue un error de carga, normalmente es mejor cargar un movimiento inverso para no perder el rastro. Borrá solo si estás seguro.')) return;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/movimientos_stock?id=eq.${id}`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/movimientos_stock?id=eq.${id}`, {
       method: 'DELETE',
       headers: {
         'apikey': SUPABASE_KEY,
@@ -1040,7 +1098,7 @@ async function cargarHistorial() {
     if (filtroJuego) url += `&juego=eq.${encodeURIComponent(filtroJuego)}`;
     if (filtroDesde) url += `&fecha=gte.${filtroDesde}`;
     if (filtroHasta) url += `&fecha=lte.${filtroHasta}`;
-    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
     const data = await res.json() || [];
 
     if (data.length === 0) {
@@ -1138,7 +1196,7 @@ async function exportarPDFSubagencia() {
     if (juegoFiltro) url += `&juego=eq.${encodeURIComponent(juegoFiltro)}`;
     if (desde) url += `&fecha=gte.${desde}`;
     if (hasta) url += `&fecha=lte.${hasta}`;
-    const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
     const movs = await res.json() || [];
 
     if (movs.length === 0) { showToast('No hay movimientos para esa selección', 'err'); return; }
@@ -1196,7 +1254,7 @@ async function exportarPDFSubagencia() {
 
 async function exportarPDFConsolidado() {
   try {
-    const res = await fetch(
+    const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion&order=agencia_id.asc,fecha.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
