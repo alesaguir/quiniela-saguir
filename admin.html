@@ -1599,27 +1599,24 @@ function buildForm() {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
     html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:14px;"></div>`;
-    // Botón repetido después de cada provincia, para no tener que scrollear
-    // hasta el final del formulario — guarda y publica todo igual que el de abajo.
-    // Se salta en la última provincia porque ahí quedaría pegado al botón
-    // original de abajo, duplicado sin nada en el medio. El botón de limpiar
-    // esta provincia puntual sí va en las 5, justo al lado de su "Guardar".
+    // Botón repetido después de cada provincia, para no tener que scrollear hasta el
+    // final del formulario — guarda y publica todo igual que el de abajo. Se salta
+    // en la última provincia porque ahí quedaría pegado al botón original de abajo,
+    // duplicado sin nada en el medio. "Limpiar esta provincia" va abajo de él, como
+    // texto chico — la función principal del programa es cargar y publicar, no
+    // limpiar, así que nunca debe competir visualmente con el botón de Guardar.
     if (idx < PROVINCIAS.length - 1) {
-      html += `<div style="padding:14px 0;display:flex;gap:10px;">
-        <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()">
+      html += `<div style="padding:14px 0 6px;">
+        <button class="btn btn-primary btn-guardar-publicar" style="width:100%;" onclick="guardarTodo()">
           💾 Guardar y publicar en pantalla
-        </button>
-        <button class="btn btn-ghost" style="flex:0 0 auto;font-size:13px;" onclick="limpiarProvincia('${p.key}')">
-          🗑 Limpiar ${nombreProv}
-        </button>
-      </div>`;
-    } else {
-      html += `<div style="padding:14px 0 0;display:flex;justify-content:flex-end;">
-        <button class="btn btn-ghost" style="flex:0 0 auto;font-size:13px;" onclick="limpiarProvincia('${p.key}')">
-          🗑 Limpiar ${nombreProv}
         </button>
       </div>`;
     }
+    html += `<div style="text-align:center;padding-bottom:${idx < PROVINCIAS.length - 1 ? '8' : '0'}px;">
+      <span onclick="limpiarProvincia('${p.key}')" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;">
+        🗑 Limpiar ${nombreProv}
+      </span>
+    </div>`;
     html += `</div>`;
   });
   container.innerHTML = html;
