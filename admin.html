@@ -216,7 +216,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title" id="card-titulo">📝 Ingreso de Números</div>
-        <button class="btn btn-ghost" onclick="limpiarTodo()" id="btn-limpiar" style="font-size:12px;padding:6px 14px;">🗑 Limpiar</button>
+        <button class="btn btn-ghost" onclick="limpiarTodo()" id="btn-limpiar" style="font-size:12px;padding:6px 14px;">🗑 Limpiar todas las provincias</button>
       </div>
       <div class="card-body" id="form-provincias"></div>
       <div style="padding:0 20px 20px;display:flex;gap:10px;">
@@ -1590,27 +1590,40 @@ function buildForm() {
   let html = '';
   PROVINCIAS.forEach((p, idx) => {
     const total = cantidadProvincia(p.key);
+    const nombreProv = nombreProvincia(p.key);
     html += `<div class="prov-section">
-      <div class="prov-title">${nombreProvincia(p.key)}</div>`;
+      <div class="prov-title">${nombreProv}</div>`;
     if (gridConfig.orden === 'columna') {
       html += buildColumnasHTML(p.key, total);
     } else {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
-    html += `</div>`;
+    html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:14px;"></div>`;
     // Botón repetido después de cada provincia, para no tener que scrollear
     // hasta el final del formulario — guarda y publica todo igual que el de abajo.
     // Se salta en la última provincia porque ahí quedaría pegado al botón
-    // original de abajo, duplicado sin nada en el medio.
+    // original de abajo, duplicado sin nada en el medio. El botón de limpiar
+    // esta provincia puntual sí va en las 5, justo al lado de su "Guardar".
     if (idx < PROVINCIAS.length - 1) {
       html += `<div style="padding:14px 0;display:flex;gap:10px;">
         <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()">
           💾 Guardar y publicar en pantalla
         </button>
+        <button class="btn btn-ghost" style="flex:0 0 auto;font-size:13px;" onclick="limpiarProvincia('${p.key}')">
+          🗑 Limpiar ${nombreProv}
+        </button>
+      </div>`;
+    } else {
+      html += `<div style="padding:14px 0 0;display:flex;justify-content:flex-end;">
+        <button class="btn btn-ghost" style="flex:0 0 auto;font-size:13px;" onclick="limpiarProvincia('${p.key}')">
+          🗑 Limpiar ${nombreProv}
+        </button>
       </div>`;
     }
+    html += `</div>`;
   });
   container.innerHTML = html;
+  actualizarTodosLosFaltantes();
 }
 
 function avanzarSiguiente(el) {
@@ -1625,9 +1638,31 @@ function avanzarSiguiente(el) {
   }
 }
 
+// Muestra, por provincia, qué posiciones todavía no tienen número cargado en el
+// formulario — puramente visual/informativo, no bloquea "Guardar y publicar".
+// Respeta siempre la cantidad configurada para esa provincia (cantidadProvincia()).
+function actualizarFaltantesProvincia(provKey) {
+  const total = cantidadProvincia(provKey);
+  const faltan = [];
+  for (let i = 1; i <= total; i++) {
+    const el = document.getElementById(`n_${provKey}_${i}`);
+    if (!el || el.value.length < 4) faltan.push(i + '°');
+  }
+  const cont = document.getElementById(`faltan-${provKey}`);
+  if (!cont) return;
+  cont.innerHTML = faltan.length === 0
+    ? `<span style="color:var(--green);">✓ Completo</span>`
+    : `<span style="color:var(--gold);">⏳ Falta cargar: ${faltan.join(', ')}</span>`;
+}
+
+function actualizarTodosLosFaltantes() {
+  PROVINCIAS.forEach(p => actualizarFaltantesProvincia(p.key));
+}
+
 function onInput(el) {
   el.value = el.value.replace(/\D/g,'');
   el.classList.toggle('filled', el.value.length > 0);
+  actualizarFaltantesProvincia(el.dataset.prov);
   // Avance automático solo si ese es el modo configurado (es incompatible con el modo "Enter")
   if (configTeclado.modo === 'automatico' && el.value.length === 4) {
     avanzarSiguiente(el);
@@ -1681,13 +1716,24 @@ function onKeydownNum(e, el) {
 
 function limpiarTodo() {
 
-  if (!confirm('¿Borrar todos los números tipeados en este formulario? Esta acción no se puede deshacer.')) return;
+  if (!confirm('¿Borrar todos los números tipeados en este formulario (las 5 provincias)? Esta acción no se puede deshacer.')) return;
   PROVINCIAS.forEach(p => {
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
       if (el) { el.value=''; el.classList.remove('filled'); }
     }
   });
+  actualizarTodosLosFaltantes();
+}
+
+function limpiarProvincia(provKey) {
+  const nombre = nombreProvincia(provKey);
+  if (!confirm(`¿Borrar todos los números tipeados de ${nombre}? Esta acción no se puede deshacer.`)) return;
+  for (let i = 1; i <= cantidadProvincia(provKey); i++) {
+    const el = document.getElementById(`n_${provKey}_${i}`);
+    if (el) { el.value = ''; el.classList.remove('filled'); }
+  }
+  actualizarFaltantesProvincia(provKey);
 }
 
 // =====================
@@ -1823,6 +1869,7 @@ async function cargarExistentes() {
       const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
       if (el) { el.value = r.numero; el.classList.add('filled'); }
     });
+    actualizarTodosLosFaltantes();
     // Cargar número de sorteo si existe
     const resSorteo = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}`,
