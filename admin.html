@@ -1597,7 +1597,6 @@ function buildForm() {
     } else {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
-    html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:14px;"></div>`;
     html += `</div>`;
     // Botón repetido después de cada provincia, para no tener que scrollear
     // hasta el final del formulario — guarda y publica todo igual que el de abajo.
@@ -1612,7 +1611,6 @@ function buildForm() {
     }
   });
   container.innerHTML = html;
-  actualizarTodosLosFaltantes();
 }
 
 function avanzarSiguiente(el) {
@@ -1627,31 +1625,9 @@ function avanzarSiguiente(el) {
   }
 }
 
-// Muestra, por provincia, qué posiciones todavía no tienen número cargado en el
-// formulario — puramente visual/informativo, no bloquea "Guardar y publicar".
-// Respeta siempre la cantidad configurada para esa provincia (cantidadProvincia()).
-function actualizarFaltantesProvincia(provKey) {
-  const total = cantidadProvincia(provKey);
-  const faltan = [];
-  for (let i = 1; i <= total; i++) {
-    const el = document.getElementById(`n_${provKey}_${i}`);
-    if (!el || el.value.length < 4) faltan.push(i + '°');
-  }
-  const cont = document.getElementById(`faltan-${provKey}`);
-  if (!cont) return;
-  cont.innerHTML = faltan.length === 0
-    ? `<span style="color:var(--green);">✓ Completo</span>`
-    : `<span style="color:var(--gold);">⏳ Falta cargar: ${faltan.join(', ')}</span>`;
-}
-
-function actualizarTodosLosFaltantes() {
-  PROVINCIAS.forEach(p => actualizarFaltantesProvincia(p.key));
-}
-
 function onInput(el) {
   el.value = el.value.replace(/\D/g,'');
   el.classList.toggle('filled', el.value.length > 0);
-  actualizarFaltantesProvincia(el.dataset.prov);
   // Avance automático solo si ese es el modo configurado (es incompatible con el modo "Enter")
   if (configTeclado.modo === 'automatico' && el.value.length === 4) {
     avanzarSiguiente(el);
@@ -1712,7 +1688,6 @@ function limpiarTodo() {
       if (el) { el.value=''; el.classList.remove('filled'); }
     }
   });
-  actualizarTodosLosFaltantes();
 }
 
 // =====================
@@ -1848,7 +1823,6 @@ async function cargarExistentes() {
       const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
       if (el) { el.value = r.numero; el.classList.add('filled'); }
     });
-    actualizarTodosLosFaltantes();
     // Cargar número de sorteo si existe
     const resSorteo = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}`,
