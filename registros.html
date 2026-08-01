@@ -1247,7 +1247,7 @@ async function actualizarResumenAgenciaHistorial() {
       return;
     }
     const filas = agruparResumenDeMovs(data);
-    cont.innerHTML = `<div style="border-top:1px solid var(--border);">${construirTablaResumenHTML(filas, { incluirAgencia: false, estiloPantalla: true })}</div>`;
+    cont.innerHTML = `<div class="tabla-resumen" style="border-top:1px solid var(--border);padding:16px;">${construirTablaResumenHTML(filas, { incluirAgencia: false, estiloPantalla: true })}</div>`;
   } catch(e) {
     console.error(e);
     cont.innerHTML = '';
