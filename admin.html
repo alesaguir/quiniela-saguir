@@ -812,6 +812,14 @@ const PROVINCIAS = [
 const SORTEOS = ['previa','primera','matutina','vespertina','nocturna'];
 let sorteoActual = 'nocturna';
 let usuarioActual = null;
+// Guarda, por posición ('provKey_pos'), si esa celda tenía un número guardado en la base
+// la última vez que se sincronizó con el servidor (al cargar la página o al guardar).
+// Sirve para distinguir "todavía no llegó el sorteo de esta provincia" (nunca hubo dato,
+// no hay que borrar nada) de "el usuario borró/corrigió un número que sí existía"
+// (ahí sí hay que reflejar el borrado en la base). Sin esto, cualquier casillero vacío
+// en el formulario se interpretaba como "hay que borrarlo", que era la causa de la
+// condición de carrera que hacía desaparecer provincias ya publicadas.
+let valoresAlCargar = {};
 let numerosPorProvincia = {}; // ej: { chaquena:20, ciudad:10, ... } — se completa según la agencia logueada
 let nombresProvincia = {}; // ej: { chaquena:'Chaco', ... } — nombre personalizado por agencia, si se configuró
 
@@ -1781,11 +1789,12 @@ async function guardarTodo() {
   setBotonesGuardarEstado('<div class="loading"></div> Guardando...', true);
 
   const rows = [];
-  const vaciasPorProvincia = {}; // posiciones que quedaron en blanco en el formulario, por provincia
+  const vaciasPorProvincia = {}; // posiciones que quedaron en blanco Y que sabíamos con certeza que tenían dato
   PROVINCIAS.forEach(p => {
     const vacias = [];
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
+      const key = `${p.key}_${i}`;
       if (el && el.value.length === 4) {
         rows.push({
           fecha,
@@ -1795,7 +1804,12 @@ async function guardarTodo() {
           numero: el.value,
           agencia_id: usuarioActual.agencia_id
         });
-      } else {
+      } else if (valoresAlCargar[key]) {
+        // Solo se marca para borrar si esta misma sesión de formulario sabe con certeza
+        // que esa posición tenía un número guardado (porque lo trajo cargarExistentes()
+        // o porque se guardó recién). Si nunca se cargó (todavía no llegó ese sorteo, o
+        // esta pestaña no llegó a sincronizarla), se deja tranquila: puede tener datos
+        // ya publicados desde otro dispositivo/sesión que acá simplemente no vemos.
         vacias.push(i);
       }
     }
@@ -1822,14 +1836,19 @@ async function guardarTodo() {
     });
 
     if (res.ok || res.status === 201) {
-      // Borrar cualquier posición que haya quedado vacía en el formulario, para que no
-      // quede un número viejo guardado en la base si se cambió de casillero (ej: estaba
-      // en la posición 5 y se corrigió a la posición 4 — la 5 tiene que quedar en "----").
+      // Los números que se acaban de guardar ya son "certeza" para esta sesión.
+      rows.forEach(r => { valoresAlCargar[`${r.provincia}_${r.posicion}`] = true; });
+
+      // Borrar cualquier posición que haya quedado vacía en el formulario (y que sabíamos
+      // con certeza que tenía dato), para que no quede un número viejo guardado en la base
+      // si se cambió de casillero (ej: estaba en la posición 5 y se corrigió a la posición 4
+      // — la 5 tiene que quedar en "----").
       for (const [provincia, posiciones] of Object.entries(vaciasPorProvincia)) {
         await fetchConRenovacion(
           `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
           { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
         ).catch(e => console.error('Error borrando posiciones vacías:', provincia, e));
+        posiciones.forEach(pos => { delete valoresAlCargar[`${provincia}_${pos}`]; });
       }
 
       // Guardar número de sorteo
@@ -1873,10 +1892,14 @@ async function cargarExistentes() {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
+    // Se resetea acá (no antes del fetch) para que, si la consulta falla, no se pierda
+    // la referencia previa por accidente.
+    valoresAlCargar = {};
     if (!rows || rows.length === 0) return;
     rows.forEach(r => {
       const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
       if (el) { el.value = r.numero; el.classList.add('filled'); }
+      valoresAlCargar[`${r.provincia}_${r.posicion}`] = true;
     });
     actualizarTodosLosFaltantes();
     // Cargar número de sorteo si existe
