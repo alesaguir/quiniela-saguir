@@ -214,11 +214,15 @@
           </div>
 
           <div id="stock-en-mano" style="font-size:12.5px;color:var(--muted);margin-bottom:12px;"></div>
+          <div id="banner-editando" style="display:none;font-size:12.5px;color:var(--gold);background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;"></div>
 
           <div class="error-msg" id="mov-error" style="margin:12px 0;"></div>
 
           <button class="btn btn-primary" onclick="guardarMovimiento()" id="btn-guardar-mov" style="width:auto;padding:10px 26px;">
             💾 Guardar movimiento
+          </button>
+          <button class="btn btn-ghost" onclick="cancelarEdicionMovimiento()" id="btn-cancelar-edicion" style="display:none;width:auto;padding:10px 20px;margin-left:8px;">
+            ✖ Cancelar edición
           </button>
         </div>
       </div>
@@ -1088,6 +1092,8 @@ function formatearRangosCompactos(numeros) {
 // elegido — así no hace falta ir a revisar el historial antes de cargar una
 // devolución para saber qué rango es válido devolver.
 let tokenStockEnMano = 0;
+let historialCache = [];
+let editandoMovimientoId = null;
 async function actualizarStockEnMano() {
   const cont = document.getElementById('stock-en-mano');
   const agencia = document.getElementById('mov-agencia').value;
@@ -1165,33 +1171,43 @@ async function guardarMovimiento() {
   if (isNaN(desde) || isNaN(hasta) || hasta < desde) { errBox.textContent = 'El rango de números no es válido.'; errBox.style.display = 'block'; return; }
 
   const btn = document.getElementById('btn-guardar-mov');
-  btn.innerHTML = '<div class="loading"></div> Guardando...';
+  btn.innerHTML = editandoMovimientoId ? '<div class="loading"></div> Guardando cambios...' : '<div class="loading"></div> Guardando...';
   btn.disabled = true;
 
   try {
-    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/movimientos_stock`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        agencia_id: agencia,
-        juego,
-        tipo,
-        numero_desde: desde,
-        numero_hasta: hasta,
-        fecha,
-        registrado_por: null,
-        observacion: obs || null
-      })
-    });
+    const payload = {
+      agencia_id: agencia,
+      juego,
+      tipo,
+      numero_desde: desde,
+      numero_hasta: hasta,
+      fecha,
+      observacion: obs || null
+    };
+    const editando = !!editandoMovimientoId;
+    const res = await fetchConRenovacion(
+      editando
+        ? `${SUPABASE_URL}/rest/v1/movimientos_stock?id=eq.${editandoMovimientoId}`
+        : `${SUPABASE_URL}/rest/v1/movimientos_stock`,
+      {
+        method: editando ? 'PATCH' : 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(editando ? payload : { ...payload, registrado_por: null })
+      }
+    );
 
     if (res.ok) {
-      showToast('✅ Movimiento guardado', 'ok');
-      registrarActividad('Movimiento de stock', `${usuarioActual.nombre} cargó ${tipo} de "${juego}" (${desde}-${hasta}) para ${agencia}`);
+      showToast(editando ? '✅ Movimiento corregido' : '✅ Movimiento guardado', 'ok');
+      registrarActividad(
+        editando ? 'Corrección de movimiento' : 'Movimiento de stock',
+        `${usuarioActual.nombre} ${editando ? 'corrigió' : 'cargó'} ${tipo} de "${juego}" (${desde}-${hasta}) para ${agencia}`
+      );
+      if (editando) cancelarEdicionMovimiento();
       document.getElementById('mov-desde').value = '';
       document.getElementById('mov-hasta').value = '';
       document.getElementById('mov-cantidad').value = '';
@@ -1201,7 +1217,7 @@ async function guardarMovimiento() {
       await Promise.all([cargarResumen(), cargarHistorial(), actualizarStockEnMano()]);
     } else {
       const errData = await res.json().catch(()=>({}));
-      errBox.textContent = errData?.message || 'Error al guardar el movimiento.';
+      errBox.textContent = errData?.message || `Error al ${editando ? 'corregir' : 'guardar'} el movimiento.`;
       errBox.style.display = 'block';
     }
   } catch(e) {
@@ -1209,7 +1225,7 @@ async function guardarMovimiento() {
     errBox.textContent = 'Error de conexión.';
     errBox.style.display = 'block';
   }
-  btn.innerHTML = '💾 Guardar movimiento';
+  btn.innerHTML = editandoMovimientoId ? '💾 Guardar cambios' : '💾 Guardar movimiento';
   btn.disabled = false;
 }
 
@@ -1259,6 +1275,45 @@ function etiquetaMovimiento(m) {
   return ETIQUETAS_TIPO[m.tipo] || m.tipo;
 }
 
+// Carga un movimiento ya guardado en el formulario de arriba para corregirlo
+// (solo superadmin). "Guardar movimiento" pasa a actualizar esa fila en vez
+// de crear una nueva, hasta que se guarde o se cancele la edición.
+function editarMovimiento(id) {
+  const m = historialCache.find(r => r.id === id);
+  if (!m) { showToast('No encontré ese movimiento (probá actualizar el historial)', 'err'); return; }
+
+  editandoMovimientoId = id;
+
+  document.getElementById('mov-agencia').value = m.agencia_id;
+  actualizarTiposSegunAgencia();
+  document.getElementById('mov-juego').value = m.juego;
+  actualizarCifrasJuego();
+  document.getElementById('mov-tipo').value = m.tipo;
+  document.getElementById('mov-fecha').value = m.fecha;
+  document.getElementById('mov-desde').value = String(m.numero_desde).padStart(juegosCifrasCache[m.juego] || 5, '0');
+  document.getElementById('mov-hasta').value = String(m.numero_hasta).padStart(juegosCifrasCache[m.juego] || 5, '0');
+  document.getElementById('mov-obs').value = m.observacion || '';
+  recalcularCantidad();
+
+  document.getElementById('banner-editando').style.display = 'block';
+  document.getElementById('banner-editando').textContent = `✏️ Editando el movimiento de ${m.agencia_id} · ${m.juego} · ${m.numero_desde}-${m.numero_hasta}. Corregí lo que haga falta y guardá, o cancelá la edición.`;
+  document.getElementById('btn-guardar-mov').innerHTML = '💾 Guardar cambios';
+  document.getElementById('btn-cancelar-edicion').style.display = 'inline-flex';
+
+  document.getElementById('mov-agencia').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelarEdicionMovimiento() {
+  editandoMovimientoId = null;
+  document.getElementById('banner-editando').style.display = 'none';
+  document.getElementById('btn-guardar-mov').innerHTML = '💾 Guardar movimiento';
+  document.getElementById('btn-cancelar-edicion').style.display = 'none';
+  document.getElementById('mov-desde').value = '';
+  document.getElementById('mov-hasta').value = '';
+  document.getElementById('mov-cantidad').value = '';
+  document.getElementById('mov-obs').value = '';
+}
+
 async function borrarMovimiento(id) {
   if (!confirm('¿Borrar este movimiento? Esta acción no se puede deshacer.\n\nRecordá: si fue un error de carga, normalmente es mejor cargar un movimiento inverso para no perder el rastro. Borrá solo si estás seguro.')) return;
   try {
@@ -1305,6 +1360,7 @@ async function cargarHistorial() {
       return;
     }
 
+    historialCache = data;
     cont.innerHTML = data.map(m => {
       const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria' || m.tipo === 'ampliacion_loteria');
       return `
@@ -1320,6 +1376,9 @@ async function cargarHistorial() {
             <span class="tipo-pill ${esEntrada ? 'tipo-entrada' : 'tipo-salida'}">${etiquetaMovimiento(m)}</span>
             <span style="color:var(--muted);white-space:nowrap;">${m.fecha}</span>
             ${usuarioActual.rol === 'superadmin' ? `
+              <button onclick="editarMovimiento('${m.id}')" title="Editar (solo superadmin)"
+                style="background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);color:var(--gold);
+                border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;">✏️</button>
               <button onclick="borrarMovimiento('${m.id}')" title="Borrar (solo superadmin)"
                 style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);color:var(--red);
                 border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px;">🗑</button>
