@@ -247,18 +247,6 @@
         </div>
         <div id="resumen-agencia-historial"></div>
         <div id="lista-historial" style="max-height:420px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
-        <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface2);">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
-            <input type="checkbox" id="pdf-incluir-detalle" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;">
-            Incluir detalle de movimientos en el PDF de subagencia
-          </label>
-          <button class="btn btn-ghost" id="btn-pdf-subagencia" onclick="exportarPDFSubagencia()" style="font-size:12px;padding:7px 14px;">
-            📄 PDF de la subagencia
-          </button>
-          <button class="btn btn-ghost" onclick="exportarPDFConsolidado()" style="font-size:12px;padding:7px 14px;">
-            📄 PDF consolidado (todas)
-          </button>
-        </div>
       </div>
 
       <!-- RESUMEN -->
@@ -283,11 +271,26 @@
               <label class="form-label">Subagencia (para el PDF individual)</label>
               <select class="form-input" id="export-agencia-sel"></select>
             </div>
+            <div class="field-compact" style="width:150px;">
+              <label class="form-label">Desde</label>
+              <input type="date" class="form-input" id="export-desde">
+            </div>
+            <div class="field-compact" style="width:150px;">
+              <label class="form-label">Hasta</label>
+              <input type="date" class="form-input" id="export-hasta">
+            </div>
             <div class="field-compact" style="width:auto;">
               <label class="form-label">&nbsp;</label>
               <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;height:38px;">
                 <input type="checkbox" id="export-incluir-detalle" checked style="width:16px;height:16px;accent-color:var(--gold);">
                 Incluir detalle de movimientos
+              </label>
+            </div>
+            <div class="field-compact" style="width:auto;">
+              <label class="form-label">&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;height:38px;">
+                <input type="checkbox" id="export-totales-separados" checked style="width:16px;height:16px;accent-color:var(--gold);">
+                Incluir totales separados (subagencias / agencia central)
               </label>
             </div>
           </div>
@@ -296,7 +299,8 @@
             <button class="btn btn-ghost" style="width:auto;padding:10px 20px;" onclick="exportarPDFConsolidado()">📄 PDF consolidado (todas)</button>
           </div>
           <div style="font-size:12px;color:var(--muted);margin-top:10px;">
-            El consolidado siempre incluye resumen + detalle completo de todas las subagencias.
+            El rango de fechas solo aplica al PDF de la subagencia — el consolidado siempre incluye resumen +
+            detalle completo de todas las subagencias, sin filtrar por fecha.
           </div>
         </div>
       </div>
@@ -1546,6 +1550,22 @@ function construirTablaResumenHTML(filas, opciones = {}) {
     if (c.traspasado) celdasTotal += `<td class="num-mono">${t.traspasado}</td>`;
     if (c.vendido) celdasTotal += `<td class="num-mono cell-vendido">${(t.recibido + t.ampliacion) - t.devuelto - t.traspasado}</td>`;
     filasHTML += `<tr style="font-weight:bold;border-top:2px solid #888;">${celdasTotal}</tr>`;
+
+    // Total vendido separado: subagencias (sin la 670-00) vs agencia central sola.
+    if (opciones.totalesSeparados && incluirAgencia && c.vendido) {
+      const vendidoDeFila = f => (f.recibido + f.ampliacion) - f.devuelto - f.traspasado;
+      const vendidoSubagencias = filas.filter(f => f.agencia_id !== '670-00').reduce((s, f) => s + vendidoDeFila(f), 0);
+      const vendidoAgenciaCentral = filas.filter(f => f.agencia_id === '670-00').reduce((s, f) => s + vendidoDeFila(f), 0);
+      const colspanRestante = encabezados.length - 1;
+      filasHTML += `<tr style="font-weight:bold;">
+        <td colspan="${colspanRestante}">Total vendido — solo subagencias (sin 670-00)</td>
+        <td class="num-mono cell-vendido">${vendidoSubagencias}</td>
+      </tr>`;
+      filasHTML += `<tr style="font-weight:bold;">
+        <td colspan="${colspanRestante}">Total vendido — agencia central (670-00)</td>
+        <td class="num-mono cell-vendido">${vendidoAgenciaCentral}</td>
+      </tr>`;
+    }
   }
 
   return `<table><thead><tr>${encabezados.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${filasHTML}</tbody></table>`;
@@ -1582,16 +1602,14 @@ function abrirVentanaImpresion(titulo, htmlBody) {
 }
 
 async function exportarPDFSubagencia() {
-  const agenciaId = document.getElementById('historial-filtro-agencia').value;
-  if (!agenciaId) { showToast('Elegí una subagencia en el filtro del historial primero', 'err'); return; }
-  const juegoFiltro = document.getElementById('historial-filtro-juego').value;
-  const desde = document.getElementById('historial-filtro-desde').value;
-  const hasta = document.getElementById('historial-filtro-hasta').value;
-  const incluirDetalle = document.getElementById('pdf-incluir-detalle').checked;
+  const agenciaId = document.getElementById('export-agencia-sel').value;
+  if (!agenciaId) { showToast('Elegí una subagencia en "Exportar PDF"', 'err'); return; }
+  const desde = document.getElementById('export-desde').value;
+  const hasta = document.getElementById('export-hasta').value;
+  const incluirDetalle = document.getElementById('export-incluir-detalle').checked;
 
   try {
     let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agenciaId}&select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,automatica&order=fecha.asc`;
-    if (juegoFiltro) url += `&juego=eq.${encodeURIComponent(juegoFiltro)}`;
     if (desde) url += `&fecha=gte.${desde}`;
     if (hasta) url += `&fecha=lte.${hasta}`;
     const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
@@ -1638,6 +1656,7 @@ async function exportarPDFSubagencia() {
 }
 
 async function exportarPDFConsolidado() {
+  const incluirTotalesSeparados = document.getElementById('export-totales-separados').checked;
   try {
     const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,automatica&order=agencia_id.asc,fecha.asc`,
@@ -1652,7 +1671,7 @@ async function exportarPDFConsolidado() {
       <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
       <h2>Consolidado — todas las agencias · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
       <div class="seccion-titulo">Resumen</div>
-      ${construirTablaResumenHTML(resumen, { incluirAgencia: true, conTotal: true })}
+      ${construirTablaResumenHTML(resumen, { incluirAgencia: true, conTotal: true, totalesSeparados: incluirTotalesSeparados })}
       <div class="seccion-titulo">Detalle completo de movimientos</div>
       <table>
         <thead><tr><th>Agencia</th><th>Fecha</th><th>Juego</th><th>Tipo</th><th>Rango</th><th>Cantidad</th><th>Observación</th></tr></thead>
