@@ -383,6 +383,38 @@
             </label>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-header" onclick="toggleCardColapsable(this)" style="cursor:pointer;">
+            <div class="card-title">🗑 Borrar datos masivamente <span class="chevron" style="font-size:12px;color:var(--muted);">▶</span></div>
+          </div>
+          <div class="card-body" style="display:none;">
+            <div style="font-size:13px;color:var(--red);margin-bottom:16px;background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.3);border-radius:8px;padding:10px 14px;">
+              ⚠️ Esto borra movimientos de verdad, sin poder deshacerlo. Pensado para limpiar datos de prueba antes de cargar todo en serio.
+            </div>
+            <div class="form-row-compact" style="margin-bottom:14px;">
+              <div class="field-compact" style="width:200px;">
+                <label class="form-label">Juego</label>
+                <select class="form-input" id="borrar-juego">
+                  <option value="">Todos los juegos</option>
+                </select>
+              </div>
+              <div class="field-compact" style="width:150px;">
+                <label class="form-label">Desde</label>
+                <input type="date" class="form-input" id="borrar-desde">
+              </div>
+              <div class="field-compact" style="width:150px;">
+                <label class="form-label">Hasta</label>
+                <input type="date" class="form-input" id="borrar-hasta">
+              </div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:16px;">
+              <input type="checkbox" id="borrar-todo-check" onchange="document.getElementById('borrar-juego').disabled=this.checked;document.getElementById('borrar-desde').disabled=this.checked;document.getElementById('borrar-hasta').disabled=this.checked;" style="width:16px;height:16px;accent-color:var(--red);">
+              <span style="color:var(--red);"><b>Borrar TODO</b> — ignora los filtros de arriba, borra absolutamente todos los movimientos de todos los juegos.</span>
+            </label>
+            <button class="btn btn-ghost" style="color:var(--red);border-color:rgba(230,57,70,0.4);" onclick="borrarMasivo()">🗑 Borrar según lo elegido arriba</button>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -619,7 +651,83 @@ async function cargarJuegosHistorialFiltro() {
     const juegos = [...new Set(data.map(r => r.juego))].sort();
     document.getElementById('historial-filtro-juego').innerHTML =
       '<option value="">Todos los juegos</option>' + juegos.map(j => `<option value="${j}">${j}</option>`).join('');
+    const selBorrar = document.getElementById('borrar-juego');
+    if (selBorrar) {
+      selBorrar.innerHTML = '<option value="">Todos los juegos</option>' + juegos.map(j => `<option value="${j}">${j}</option>`).join('');
+    }
   } catch(e) { console.error(e); }
+}
+
+// =====================
+// BORRADO MASIVO (solo superadmin) — para limpiar datos de prueba antes de
+// cargar todo en serio. Cuenta primero cuántas filas van a borrarse, pide
+// confirmación con ese número, y además exige escribir "BORRAR" para
+// evitar un clic accidental en una acción irreversible.
+// =====================
+async function borrarMasivo() {
+  const todo = document.getElementById('borrar-todo-check').checked;
+  const juego = document.getElementById('borrar-juego').value;
+  const desde = document.getElementById('borrar-desde').value;
+  const hasta = document.getElementById('borrar-hasta').value;
+
+  if (!todo && !juego && !desde && !hasta) {
+    showToast('Elegí al menos un filtro, o tildá "Borrar TODO"', 'err');
+    return;
+  }
+
+  const params = [];
+  if (!todo) {
+    if (juego) params.push(`juego=eq.${encodeURIComponent(juego)}`);
+    if (desde) params.push(`fecha=gte.${desde}`);
+    if (hasta) params.push(`fecha=lte.${hasta}`);
+  }
+  const query = params.length ? '?' + params.join('&') : '';
+
+  let descripcion = todo
+    ? 'TODOS los movimientos de TODOS los juegos'
+    : `movimientos de "${juego || 'todos los juegos'}"` +
+      (desde && hasta ? ` entre ${desde} y ${hasta}` : desde ? ` desde ${desde}` : hasta ? ` hasta ${hasta}` : '');
+
+  try {
+    const resCount = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock${query}${query ? '&' : '?'}select=id`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const filas = await resCount.json() || [];
+    const cantidad = filas.length;
+
+    if (cantidad === 0) {
+      showToast('No hay movimientos que coincidan con eso', 'err');
+      return;
+    }
+
+    if (!confirm(`¿Vas a borrar ${cantidad} movimiento(s): ${descripcion}?\n\nEsta acción NO se puede deshacer.`)) return;
+
+    const escrito = prompt(`Para confirmar, escribí BORRAR (en mayúsculas) — vas a borrar ${cantidad} movimiento(s):`);
+    if (escrito !== 'BORRAR') { showToast('Cancelado — no coincidió el texto de confirmación', 'err'); return; }
+
+    const resDelete = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock${query}`,
+      { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+
+    if (resDelete.ok) {
+      showToast(`✅ Se borraron ${cantidad} movimiento(s)`, 'ok');
+      registrarActividad('Borrado masivo', `${usuarioActual.nombre} borró ${cantidad} movimientos: ${descripcion}`);
+      document.getElementById('borrar-todo-check').checked = false;
+      document.getElementById('borrar-juego').disabled = false;
+      document.getElementById('borrar-desde').disabled = false;
+      document.getElementById('borrar-hasta').disabled = false;
+      document.getElementById('borrar-desde').value = '';
+      document.getElementById('borrar-hasta').value = '';
+      await Promise.all([cargarResumen(), cargarHistorial(), cargarJuegosHistorialFiltro(), actualizarStockEnMano(), actualizarResumenAgenciaHistorial()]);
+    } else {
+      showToast('Error al borrar', 'err');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión', 'err');
+  }
 }
 
 // =====================
