@@ -722,7 +722,9 @@ async function borrarMasivo() {
       document.getElementById('borrar-hasta').value = '';
       await Promise.all([cargarResumen(), cargarHistorial(), cargarJuegosHistorialFiltro(), actualizarStockEnMano(), actualizarResumenAgenciaHistorial()]);
     } else {
-      showToast('Error al borrar', 'err');
+      const errData = await resDelete.json().catch(() => ({}));
+      showToast(errData?.message || `Error al borrar (HTTP ${resDelete.status})`, 'err');
+      console.error('Error al borrar masivamente:', errData);
     }
   } catch(e) {
     console.error(e);
