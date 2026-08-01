@@ -1262,13 +1262,13 @@ function agruparResumenDeMovs(movs) {
     if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
     else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
     else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') {
-      // Un traspaso automático (el sistema liberando stock para dárselo a otra
-      // agencia) es un movimiento interno, no una devolución real — se muestra
-      // aparte, en su propia columna, y NO resta del "Vendido". Solo las
-      // devoluciones reales (cargadas a mano, a Lotería Chaqueña o a la agencia)
-      // restan en "Devuelto".
-      if (m.automatica) grupos[key].traspasado += m.cantidad;
-      else grupos[key].devuelto += m.cantidad;
+      // Solo la agencia central puede devolver "de verdad" (a Lotería Chaqueña),
+      // y solo cuando es manual (no generada por el modo automático). Una
+      // subagencia NUNCA tiene devolución real — lo que devuelve (a mano o
+      // automático) siempre es un movimiento interno dentro de la red.
+      const esReal = (m.tipo === 'devolucion_loteria' && !m.automatica);
+      if (esReal) grupos[key].devuelto += m.cantidad;
+      else grupos[key].traspasado += m.cantidad;
     }
   }
   return Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
@@ -1338,7 +1338,7 @@ function construirTablaResumenHTML(filas, opciones = {}) {
   if (c.vendido) encabezados.push('Vendido');
 
   function celdasDeFila(f) {
-    const vendido = (f.recibido + f.ampliacion) - f.devuelto;
+    const vendido = (f.recibido + f.ampliacion) - f.devuelto - f.traspasado;
     let celdas = '';
     if (incluirAgencia) {
       const nombreAg = nombreDeAgencia(f.agencia_id);
@@ -1370,7 +1370,7 @@ function construirTablaResumenHTML(filas, opciones = {}) {
     if (c.ampliacion) celdasTotal += `<td class="num-mono">${t.ampliacion}</td>`;
     if (c.devuelto) celdasTotal += `<td class="num-mono">${t.devuelto}</td>`;
     if (c.traspasado) celdasTotal += `<td class="num-mono">${t.traspasado}</td>`;
-    if (c.vendido) celdasTotal += `<td class="num-mono cell-vendido">${(t.recibido + t.ampliacion) - t.devuelto}</td>`;
+    if (c.vendido) celdasTotal += `<td class="num-mono cell-vendido">${(t.recibido + t.ampliacion) - t.devuelto - t.traspasado}</td>`;
     filasHTML += `<tr style="font-weight:bold;border-top:2px solid #888;">${celdasTotal}</tr>`;
   }
 
