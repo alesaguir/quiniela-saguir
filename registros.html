@@ -328,6 +328,26 @@
             <div id="lista-juegos-stock" class="info-lista" style="color:var(--muted);font-size:13px;">Cargando...</div>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔀 Modo al superponer numeración</div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+              Cuando intentás entregar o ampliar un rango que otra agencia todavía tiene "afuera" (sin devolver),
+              elegí qué hace el sistema:
+            </div>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">
+              <input type="radio" name="modo-solapamiento" value="bloquear" onchange="cambiarModoSolapamiento('bloquear')" style="width:16px;height:16px;margin-top:2px;accent-color:var(--gold);">
+              <span><b>Bloquear</b> — hay que cargar la devolución en la agencia de origen a mano antes de poder entregar el rango a la subagencia. Es el modo actual, más manual pero más explícito.</span>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+              <input type="radio" name="modo-solapamiento" value="automatico" onchange="cambiarModoSolapamiento('automatico')" style="width:16px;height:16px;margin-top:2px;accent-color:var(--gold);">
+              <span><b>Automático</b> — si todo el rango pedido coincide exactamente con lo que tiene UNA sola agencia de origen, el sistema genera solo la devolución ahí y deja pasar la entrega/ampliación, en un solo paso. Si el conflicto es parcial o mezcla varias agencias, sigue bloqueando igual que en el modo manual (no adivina).</span>
+            </label>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -672,7 +692,41 @@ function setTabRegistros(nombre, el) {
   el.classList.add('active');
   document.getElementById('panel-carga').style.display = nombre === 'carga' ? 'block' : 'none';
   document.getElementById('panel-juegos').style.display = nombre === 'juegos' ? 'block' : 'none';
-  if (nombre === 'juegos') cargarJuegosStockAdmin();
+  if (nombre === 'juegos') { cargarJuegosStockAdmin(); cargarModoSolapamiento(); }
+}
+
+// =====================
+// MODO DE SOLAPAMIENTO (bloquear vs automático) — solo superadmin lo cambia
+// =====================
+async function cargarModoSolapamiento() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/configuracion_registros_stock?id=eq.true&select=modo_solapamiento`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const data = (await res.json())?.[0];
+    const modo = data?.modo_solapamiento || 'bloquear';
+    document.querySelectorAll('input[name="modo-solapamiento"]').forEach(r => { r.checked = (r.value === modo); });
+  } catch(e) { console.error(e); }
+}
+
+async function cambiarModoSolapamiento(modo) {
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/configuracion_registros_stock?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ modo_solapamiento: modo, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      showToast(modo === 'automatico' ? '✅ Modo automático activado' : '✅ Modo bloquear (manual) activado', 'ok');
+    } else {
+      showToast('Error al guardar', 'err');
+      cargarModoSolapamiento(); // revierto el radio visualmente si no se guardó
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
 }
 
 // =====================
