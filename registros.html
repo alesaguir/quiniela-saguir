@@ -350,6 +350,38 @@
             </label>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🧮 Columnas del resumen</div>
+          </div>
+          <div class="card-body">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+              Elegí qué columnas se muestran en el resumen (en pantalla y en los PDF, tanto el de cada
+              subagencia como el consolidado). "Agencia", "Juego" y el detalle de movimientos siempre se muestran.
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px;">
+              <input type="checkbox" class="chk-columna-resumen" data-columna="recibido" onchange="cambiarColumnaResumen('recibido', this.checked)" style="width:16px;height:16px;accent-color:var(--gold);">
+              <span>Recibido inicial</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px;">
+              <input type="checkbox" class="chk-columna-resumen" data-columna="ampliacion" onchange="cambiarColumnaResumen('ampliacion', this.checked)" style="width:16px;height:16px;accent-color:var(--gold);">
+              <span>Ampliación</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px;">
+              <input type="checkbox" class="chk-columna-resumen" data-columna="devuelto" onchange="cambiarColumnaResumen('devuelto', this.checked)" style="width:16px;height:16px;accent-color:var(--gold);">
+              <span>Devuelto (real — a Lotería Chaqueña o a la agencia)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px;">
+              <input type="checkbox" class="chk-columna-resumen" data-columna="traspasado" onchange="cambiarColumnaResumen('traspasado', this.checked)" style="width:16px;height:16px;accent-color:var(--gold);">
+              <span>Traspasado (interno — generado por el modo automático)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+              <input type="checkbox" class="chk-columna-resumen" data-columna="vendido" onchange="cambiarColumnaResumen('vendido', this.checked)" style="width:16px;height:16px;accent-color:var(--gold);">
+              <span>Vendido (calculado)</span>
+            </label>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -570,6 +602,7 @@ async function initApp() {
   await cargarJuegosStockConfig();
   recalcularCantidad();
   actualizarStockEnMano();
+  await cargarConfigColumnasResumen();
   await Promise.all([cargarResumen(), cargarHistorial(), cargarControlCarga(), cargarJuegosHistorialFiltro()]);
 }
 
@@ -695,7 +728,7 @@ function setTabRegistros(nombre, el) {
   el.classList.add('active');
   document.getElementById('panel-carga').style.display = nombre === 'carga' ? 'block' : 'none';
   document.getElementById('panel-juegos').style.display = nombre === 'juegos' ? 'block' : 'none';
-  if (nombre === 'juegos') { cargarJuegosStockAdmin(); cargarModoSolapamiento(); }
+  if (nombre === 'juegos') { cargarJuegosStockAdmin(); cargarModoSolapamiento(); cargarConfigColumnasResumen(); }
 }
 
 // =====================
@@ -1072,37 +1105,7 @@ async function cargarResumen() {
     }
 
     const filas = agruparResumenDeMovs(data);
-
-    cont.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Agencia</th>
-            <th>Juego</th>
-            <th>Recibido inicial</th>
-            <th>Ampliación</th>
-            <th>Devuelto</th>
-            <th>Vendido (calc.)</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filas.map(f => {
-            const vendido = (f.recibido + f.ampliacion) - f.devuelto;
-            const nombreAg = (subagenciasCache.find(a => a.agencia_id === f.agencia_id) || {}).nombre_titular;
-            return `
-              <tr>
-                <td><span class="badge-agencia">${f.agencia_id}</span>${nombreAg ? ' — '+nombreAg : (f.agencia_id==='670-00' ? ' — Agencia Principal' : '')}</td>
-                <td>${f.juego}</td>
-                <td class="num-mono">${f.recibido}</td>
-                <td class="num-mono">${f.ampliacion}</td>
-                <td class="num-mono">${f.devuelto}</td>
-                <td class="num-mono cell-vendido">${vendido}</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
+    cont.innerHTML = construirTablaResumenHTML(filas, { incluirAgencia: true, estiloPantalla: true });
   } catch(e) {
     console.error(e);
     cont.innerHTML = '<div style="padding:20px;color:var(--red);">Error al cargar el resumen.</div>';
@@ -1214,22 +1217,123 @@ function agruparResumenDeMovs(movs) {
   const grupos = {};
   for (const m of movs) {
     const key = `${m.agencia_id}|${m.juego}`;
-    if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
+    if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0, traspasado: 0 };
     if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
     else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
     else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') {
       // Un traspaso automático (el sistema liberando stock para dárselo a otra
-      // agencia) no le resta nada a quien lo entrega — solo cuenta como
-      // "Ampliación" para quien lo recibe. Solo las devoluciones reales,
-      // cargadas a mano, restan acá. Confirmado explícitamente: el total general
-      // ya no es "bonos únicos en la red" sino la suma de lo que cada agencia
-      // tiene que rendir por separado — un mismo bono puede contarse en más de
-      // un lugar si pasó por varias manos.
-      if (m.automatica) continue;
-      grupos[key].devuelto += m.cantidad;
+      // agencia) es un movimiento interno, no una devolución real — se muestra
+      // aparte, en su propia columna, y NO resta del "Vendido". Solo las
+      // devoluciones reales (cargadas a mano, a Lotería Chaqueña o a la agencia)
+      // restan en "Devuelto".
+      if (m.automatica) grupos[key].traspasado += m.cantidad;
+      else grupos[key].devuelto += m.cantidad;
     }
   }
   return Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
+}
+
+// =====================
+// COLUMNAS DEL RESUMEN — configurables desde superadmin
+// =====================
+let configColumnasResumen = { recibido: true, ampliacion: true, devuelto: true, traspasado: true, vendido: true };
+
+async function cargarConfigColumnasResumen() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/configuracion_columnas_resumen?id=eq.true&select=mostrar_recibido,mostrar_ampliacion,mostrar_devuelto,mostrar_traspasado,mostrar_vendido`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const data = (await res.json())?.[0];
+    if (data) {
+      configColumnasResumen = {
+        recibido: data.mostrar_recibido !== false,
+        ampliacion: data.mostrar_ampliacion !== false,
+        devuelto: data.mostrar_devuelto !== false,
+        traspasado: data.mostrar_traspasado !== false,
+        vendido: data.mostrar_vendido !== false
+      };
+    }
+    document.querySelectorAll('.chk-columna-resumen').forEach(chk => {
+      chk.checked = configColumnasResumen[chk.dataset.columna];
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function cambiarColumnaResumen(columna, mostrar) {
+  const campoDB = { recibido: 'mostrar_recibido', ampliacion: 'mostrar_ampliacion', devuelto: 'mostrar_devuelto', traspasado: 'mostrar_traspasado', vendido: 'mostrar_vendido' }[columna];
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/configuracion_columnas_resumen?id=eq.true`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ [campoDB]: mostrar, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      configColumnasResumen[columna] = mostrar;
+      showToast('✅ Columnas actualizadas', 'ok');
+      cargarResumen();
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+// Arma el HTML de una tabla de resumen (pantalla o PDF), respetando qué
+// columnas eligió mostrar el superadmin. incluirAgencia=false para el PDF de
+// una sola subagencia (ya está en el título, no hace falta repetirla).
+function construirTablaResumenHTML(filas, opciones = {}) {
+  const incluirAgencia = opciones.incluirAgencia !== false;
+  const c = configColumnasResumen;
+  const encabezados = [];
+  if (incluirAgencia) encabezados.push('Agencia');
+  encabezados.push('Juego');
+  if (c.recibido) encabezados.push('Recibido inicial');
+  if (c.ampliacion) encabezados.push('Ampliación');
+  if (c.devuelto) encabezados.push('Devuelto (real)');
+  if (c.traspasado) encabezados.push('Traspasado (interno)');
+  if (c.vendido) encabezados.push('Vendido');
+
+  function celdasDeFila(f) {
+    const vendido = (f.recibido + f.ampliacion) - f.devuelto;
+    let celdas = '';
+    if (incluirAgencia) {
+      const nombreAg = nombreDeAgencia(f.agencia_id);
+      const agenciaTexto = opciones.estiloPantalla
+        ? `<span class="badge-agencia">${f.agencia_id}</span>${nombreAg ? ' — ' + nombreAg : ''}`
+        : `${f.agencia_id}${nombreAg ? ' — ' + nombreAg : ''}`;
+      celdas += `<td>${agenciaTexto}</td>`;
+    }
+    celdas += `<td>${f.juego || ''}</td>`;
+    if (c.recibido) celdas += `<td class="num-mono">${f.recibido}</td>`;
+    if (c.ampliacion) celdas += `<td class="num-mono">${f.ampliacion}</td>`;
+    if (c.devuelto) celdas += `<td class="num-mono">${f.devuelto}</td>`;
+    if (c.traspasado) celdas += `<td class="num-mono">${f.traspasado}</td>`;
+    if (c.vendido) celdas += `<td class="num-mono cell-vendido">${vendido}</td>`;
+    return celdas;
+  }
+
+  let filasHTML = filas.map(f => `<tr>${celdasDeFila(f)}</tr>`).join('');
+
+  if (opciones.conTotal) {
+    const t = filas.reduce((acc, f) => {
+      acc.recibido += f.recibido; acc.ampliacion += f.ampliacion;
+      acc.devuelto += f.devuelto; acc.traspasado += f.traspasado;
+      return acc;
+    }, { recibido: 0, ampliacion: 0, devuelto: 0, traspasado: 0 });
+    const colspanInicial = incluirAgencia ? 2 : 1;
+    let celdasTotal = `<td colspan="${colspanInicial}">TOTAL — todas las agencias</td>`;
+    if (c.recibido) celdasTotal += `<td class="num-mono">${t.recibido}</td>`;
+    if (c.ampliacion) celdasTotal += `<td class="num-mono">${t.ampliacion}</td>`;
+    if (c.devuelto) celdasTotal += `<td class="num-mono">${t.devuelto}</td>`;
+    if (c.traspasado) celdasTotal += `<td class="num-mono">${t.traspasado}</td>`;
+    if (c.vendido) celdasTotal += `<td class="num-mono cell-vendido">${(t.recibido + t.ampliacion) - t.devuelto}</td>`;
+    filasHTML += `<tr style="font-weight:bold;border-top:2px solid #888;">${celdasTotal}</tr>`;
+  }
+
+  return `<table><thead><tr>${encabezados.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${filasHTML}</tbody></table>`;
 }
 
 function nombreDeAgencia(agencia_id) {
@@ -1287,20 +1391,7 @@ async function exportarPDFSubagencia() {
       <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
       <h2>Subagencia ${agenciaId}${nombre ? ' — ' + nombre : ''} · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
       <div class="seccion-titulo">Resumen</div>
-      <table>
-        <thead><tr><th>Juego</th><th>Recibido inicial</th><th>Ampliación</th><th>Devuelto</th><th>Vendido</th></tr></thead>
-        <tbody>
-          ${resumen.map(f => `
-            <tr>
-              <td>${f.juego}</td>
-              <td>${f.recibido}</td>
-              <td>${f.ampliacion}</td>
-              <td>${f.devuelto}</td>
-              <td class="vendido">${(f.recibido + f.ampliacion) - f.devuelto}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+      ${construirTablaResumenHTML(resumen, { incluirAgencia: false })}
     `;
 
     if (incluirDetalle) {
@@ -1341,40 +1432,12 @@ async function exportarPDFConsolidado() {
     if (movs.length === 0) { showToast('No hay movimientos cargados todavía', 'err'); return; }
 
     const resumen = agruparResumenDeMovs(movs);
-    const totales = resumen.reduce((acc, f) => {
-      acc.recibido += f.recibido;
-      acc.ampliacion += f.ampliacion;
-      acc.devuelto += f.devuelto;
-      acc.vendido += (f.recibido + f.ampliacion) - f.devuelto;
-      return acc;
-    }, { recibido: 0, ampliacion: 0, devuelto: 0, vendido: 0 });
 
     const html = `
       <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
       <h2>Consolidado — todas las agencias · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
       <div class="seccion-titulo">Resumen</div>
-      <table>
-        <thead><tr><th>Agencia</th><th>Juego</th><th>Recibido inicial</th><th>Ampliación</th><th>Devuelto</th><th>Vendido</th></tr></thead>
-        <tbody>
-          ${resumen.map(f => `
-            <tr>
-              <td>${f.agencia_id}${nombreDeAgencia(f.agencia_id) ? ' — ' + nombreDeAgencia(f.agencia_id) : ''}</td>
-              <td>${f.juego}</td>
-              <td>${f.recibido}</td>
-              <td>${f.ampliacion}</td>
-              <td>${f.devuelto}</td>
-              <td class="vendido">${(f.recibido + f.ampliacion) - f.devuelto}</td>
-            </tr>
-          `).join('')}
-          <tr style="font-weight:bold;border-top:2px solid #888;">
-            <td colspan="2">TOTAL — todas las agencias</td>
-            <td>${totales.recibido}</td>
-            <td>${totales.ampliacion}</td>
-            <td>${totales.devuelto}</td>
-            <td class="vendido">${totales.vendido}</td>
-          </tr>
-        </tbody>
-      </table>
+      ${construirTablaResumenHTML(resumen, { incluirAgencia: true, conTotal: true })}
       <div class="seccion-titulo">Detalle completo de movimientos</div>
       <table>
         <thead><tr><th>Agencia</th><th>Fecha</th><th>Juego</th><th>Tipo</th><th>Rango</th><th>Cantidad</th><th>Observación</th></tr></thead>
