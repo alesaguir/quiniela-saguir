@@ -1121,6 +1121,15 @@ const ETIQUETAS_TIPO = {
   devolucion_loteria: 'Devolución a Lotería'
 };
 
+// Un traspaso automático (el modo automático liberando stock para dárselo a otra
+// agencia) NO es una devolución real al proveedor externo — se muestra con una
+// etiqueta distinta para que no se confunda con eso, aunque en la cuenta siga
+// restando igual (tiene que restar ahí para no contar el mismo bono dos veces).
+function etiquetaMovimiento(m) {
+  if (m.automatica) return '🔁 Traspaso interno (automático)';
+  return ETIQUETAS_TIPO[m.tipo] || m.tipo;
+}
+
 async function borrarMovimiento(id) {
   if (!confirm('¿Borrar este movimiento? Esta acción no se puede deshacer.\n\nRecordá: si fue un error de carga, normalmente es mejor cargar un movimiento inverso para no perder el rastro. Borrá solo si estás seguro.')) return;
   try {
@@ -1153,7 +1162,7 @@ async function cargarHistorial() {
     // para la vista general sin filtrar — ahí sí queremos ver todo lo que caiga.
     const hayFiltro = filtroAgencia || filtroJuego || filtroDesde || filtroHasta;
     const limite = hayFiltro ? 1000 : 100;
-    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?select=id,agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,creado_en&order=creado_en.desc&limit=${limite}`;
+    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?select=id,agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,creado_en,automatica&order=creado_en.desc&limit=${limite}`;
     if (filtroAgencia) url += `&agencia_id=eq.${filtroAgencia}`;
     if (filtroJuego) url += `&juego=eq.${encodeURIComponent(filtroJuego)}`;
     if (filtroDesde) url += `&fecha=gte.${filtroDesde}`;
@@ -1178,7 +1187,7 @@ async function cargarHistorial() {
             ${m.observacion ? `<div style="color:var(--muted);font-size:12px;margin-top:2px;">${m.observacion}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
-            <span class="tipo-pill ${esEntrada ? 'tipo-entrada' : 'tipo-salida'}">${ETIQUETAS_TIPO[m.tipo] || m.tipo}</span>
+            <span class="tipo-pill ${esEntrada ? 'tipo-entrada' : 'tipo-salida'}">${etiquetaMovimiento(m)}</span>
             <span style="color:var(--muted);white-space:nowrap;">${m.fecha}</span>
             ${usuarioActual.rol === 'superadmin' ? `
               <button onclick="borrarMovimiento('${m.id}')" title="Borrar (solo superadmin)"
@@ -1208,15 +1217,7 @@ function agruparResumenDeMovs(movs) {
     if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
     if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
     else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
-    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') {
-      // Las devoluciones automáticas de la agencia central (670-00) son un traspaso
-      // interno para poder entregarle ese rango a una subagencia — no es una
-      // devolución real al proveedor externo, así que no se resta del total de
-      // la agencia. En una subagencia sí se resta normal: si le sacan stock para
-      // dárselo a otra, eso genuinamente le reduce lo que tenía para vender.
-      if (m.agencia_id === '670-00' && m.automatica) continue;
-      grupos[key].devuelto += m.cantidad;
-    }
+    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
   }
   return Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
 }
@@ -1302,7 +1303,7 @@ async function exportarPDFSubagencia() {
               <tr>
                 <td>${m.fecha}</td>
                 <td>${m.juego}</td>
-                <td>${ETIQUETAS_TIPO[m.tipo] || m.tipo}</td>
+                <td>${etiquetaMovimiento(m)}</td>
                 <td>${String(m.numero_desde).padStart(5,'0')}–${String(m.numero_hasta).padStart(5,'0')}</td>
                 <td>${m.cantidad}</td>
                 <td>${m.observacion || ''}</td>
@@ -1373,7 +1374,7 @@ async function exportarPDFConsolidado() {
               <td>${m.agencia_id}</td>
               <td>${m.fecha}</td>
               <td>${m.juego}</td>
-              <td>${ETIQUETAS_TIPO[m.tipo] || m.tipo}</td>
+              <td>${etiquetaMovimiento(m)}</td>
               <td>${String(m.numero_desde).padStart(5,'0')}–${String(m.numero_hasta).padStart(5,'0')}</td>
               <td>${m.cantidad}</td>
               <td>${m.observacion || ''}</td>
