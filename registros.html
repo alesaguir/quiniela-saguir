@@ -1217,7 +1217,17 @@ function agruparResumenDeMovs(movs) {
     if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
     if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
     else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
-    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
+    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') {
+      // Un traspaso automático (el sistema liberando stock para dárselo a otra
+      // agencia) no le resta nada a quien lo entrega — solo cuenta como
+      // "Ampliación" para quien lo recibe. Solo las devoluciones reales,
+      // cargadas a mano, restan acá. Confirmado explícitamente: el total general
+      // ya no es "bonos únicos en la red" sino la suma de lo que cada agencia
+      // tiene que rendir por separado — un mismo bono puede contarse en más de
+      // un lugar si pasó por varias manos.
+      if (m.automatica) continue;
+      grupos[key].devuelto += m.cantidad;
+    }
   }
   return Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
 }
