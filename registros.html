@@ -1061,7 +1061,7 @@ async function cargarResumen() {
   const cont = document.getElementById('tabla-resumen');
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,cantidad`,
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,cantidad,automatica`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const data = await res.json() || [];
@@ -1071,16 +1071,7 @@ async function cargarResumen() {
       return;
     }
 
-    const grupos = {}; // "agencia|juego" -> {recibido, ampliacion, devuelto}
-    for (const m of data) {
-      const key = `${m.agencia_id}|${m.juego}`;
-      if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
-      if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
-      else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
-      else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
-    }
-
-    const filas = Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
+    const filas = agruparResumenDeMovs(data);
 
     cont.innerHTML = `
       <table>
@@ -1217,7 +1208,15 @@ function agruparResumenDeMovs(movs) {
     if (!grupos[key]) grupos[key] = { agencia_id: m.agencia_id, juego: m.juego, recibido: 0, ampliacion: 0, devuelto: 0 };
     if (m.tipo === 'entrega_inicial' || m.tipo === 'ingreso_loteria') grupos[key].recibido += m.cantidad;
     else if (m.tipo === 'ampliacion' || m.tipo === 'ampliacion_loteria') grupos[key].ampliacion += m.cantidad;
-    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') grupos[key].devuelto += m.cantidad;
+    else if (m.tipo === 'devolucion_subagencia' || m.tipo === 'devolucion_loteria') {
+      // Las devoluciones automáticas de la agencia central (670-00) son un traspaso
+      // interno para poder entregarle ese rango a una subagencia — no es una
+      // devolución real al proveedor externo, así que no se resta del total de
+      // la agencia. En una subagencia sí se resta normal: si le sacan stock para
+      // dárselo a otra, eso genuinamente le reduce lo que tenía para vender.
+      if (m.agencia_id === '670-00' && m.automatica) continue;
+      grupos[key].devuelto += m.cantidad;
+    }
   }
   return Object.values(grupos).sort((a,b) => a.agencia_id.localeCompare(b.agencia_id) || a.juego.localeCompare(b.juego));
 }
@@ -1261,7 +1260,7 @@ async function exportarPDFSubagencia() {
   const incluirDetalle = document.getElementById('pdf-incluir-detalle').checked;
 
   try {
-    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agenciaId}&select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion&order=fecha.asc`;
+    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agenciaId}&select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,automatica&order=fecha.asc`;
     if (juegoFiltro) url += `&juego=eq.${encodeURIComponent(juegoFiltro)}`;
     if (desde) url += `&fecha=gte.${desde}`;
     if (hasta) url += `&fecha=lte.${hasta}`;
@@ -1324,7 +1323,7 @@ async function exportarPDFSubagencia() {
 async function exportarPDFConsolidado() {
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion&order=agencia_id.asc,fecha.asc`,
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?select=agencia_id,juego,tipo,numero_desde,numero_hasta,cantidad,fecha,observacion,automatica&order=agencia_id.asc,fecha.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const movs = await res.json() || [];
