@@ -241,6 +241,7 @@
             <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
           </div>
         </div>
+        <div id="resumen-agencia-historial"></div>
         <div id="lista-historial" style="max-height:420px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
         <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface2);">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
@@ -1170,6 +1171,7 @@ async function cargarHistorial() {
   const filtroJuego = document.getElementById('historial-filtro-juego').value;
   const filtroDesde = document.getElementById('historial-filtro-desde').value;
   const filtroHasta = document.getElementById('historial-filtro-hasta').value;
+  actualizarResumenAgenciaHistorial();
   try {
     // Con cualquier filtro puesto no tiene sentido el límite de 100 pensado
     // para la vista general sin filtrar — ahí sí queremos ver todo lo que caiga.
@@ -1223,6 +1225,35 @@ async function cargarHistorial() {
 // de impresión — el usuario elige "Guardar como PDF" ahí mismo. No
 // depende de librerías externas ni de conexión a ningún servidor.
 // =====================
+// Muestra, arriba de la lista del historial, el mismo resumen que aparece más
+// abajo en "Resumen por agencia y juego" — pero solo de la agencia elegida en
+// el filtro, para tener el panorama a mano sin bajar a buscarla en la tabla
+// grande. Si el filtro está en "Todas las agencias", no muestra nada acá.
+async function actualizarResumenAgenciaHistorial() {
+  const cont = document.getElementById('resumen-agencia-historial');
+  if (!cont) return;
+  const agencia = document.getElementById('historial-filtro-agencia').value;
+  if (!agencia) { cont.innerHTML = ''; return; }
+
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agencia}&select=agencia_id,juego,tipo,cantidad,automatica`;
+    const juegoFiltro = document.getElementById('historial-filtro-juego').value;
+    if (juegoFiltro) url += `&juego=eq.${encodeURIComponent(juegoFiltro)}`;
+    const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    const data = await res.json() || [];
+
+    if (data.length === 0) {
+      cont.innerHTML = '<div style="padding:12px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);">Esta agencia todavía no tiene movimientos cargados.</div>';
+      return;
+    }
+    const filas = agruparResumenDeMovs(data);
+    cont.innerHTML = `<div style="border-top:1px solid var(--border);">${construirTablaResumenHTML(filas, { incluirAgencia: false, estiloPantalla: true })}</div>`;
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = '';
+  }
+}
+
 function agruparResumenDeMovs(movs) {
   const grupos = {};
   for (const m of movs) {
