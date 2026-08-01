@@ -181,11 +181,11 @@
           <div class="form-row-compact">
             <div class="field-compact" style="width:210px;">
               <label class="form-label">Agencia</label>
-              <select class="form-input" id="mov-agencia" onchange="actualizarTiposSegunAgencia()"></select>
+              <select class="form-input" id="mov-agencia" onchange="actualizarTiposSegunAgencia(); actualizarStockEnMano();"></select>
             </div>
             <div class="field-compact" style="width:170px;">
               <label class="form-label">Juego</label>
-              <select class="form-input" id="mov-juego" onchange="actualizarCifrasJuego()"></select>
+              <select class="form-input" id="mov-juego" onchange="actualizarCifrasJuego(); actualizarStockEnMano();"></select>
             </div>
             <div class="field-compact" style="width:200px;">
               <label class="form-label">Tipo de movimiento</label>
@@ -212,6 +212,8 @@
               <input class="form-input" id="mov-obs" placeholder="Opcional">
             </div>
           </div>
+
+          <div id="stock-en-mano" style="font-size:12.5px;color:var(--muted);margin-bottom:12px;"></div>
 
           <div class="error-msg" id="mov-error" style="margin:12px 0;"></div>
 
@@ -567,6 +569,7 @@ async function initApp() {
   actualizarTiposSegunAgencia();
   await cargarJuegosStockConfig();
   recalcularCantidad();
+  actualizarStockEnMano();
   await Promise.all([cargarResumen(), cargarHistorial(), cargarControlCarga(), cargarJuegosHistorialFiltro()]);
 }
 
@@ -907,6 +910,63 @@ function actualizarCifrasJuego() {
   hasta.placeholder = '0'.repeat(Math.max(0,cifras-1)) + '9';
 }
 
+// Convierte una lista de números en su forma compacta: 60,61,62,66,67 -> "60-62, 66-67"
+function formatearRangosCompactos(numeros) {
+  if (numeros.length === 0) return '';
+  const ordenados = [...numeros].sort((a,b) => a-b);
+  const rangos = [];
+  let inicio = ordenados[0], anterior = ordenados[0];
+  for (let i = 1; i <= ordenados.length; i++) {
+    const actual = ordenados[i];
+    if (actual === anterior + 1) { anterior = actual; continue; }
+    rangos.push(inicio === anterior ? `${inicio}` : `${inicio}-${anterior}`);
+    inicio = actual; anterior = actual;
+  }
+  return rangos.join(', ');
+}
+
+// Muestra qué números tiene ACTUALMENTE en mano la agencia elegida, para el juego
+// elegido — así no hace falta ir a revisar el historial antes de cargar una
+// devolución para saber qué rango es válido devolver.
+let tokenStockEnMano = 0;
+async function actualizarStockEnMano() {
+  const cont = document.getElementById('stock-en-mano');
+  const agencia = document.getElementById('mov-agencia').value;
+  const juego = document.getElementById('mov-juego').value;
+  if (!cont) return;
+  if (!agencia || !juego) { cont.textContent = ''; return; }
+
+  const miToken = ++tokenStockEnMano;
+  cont.textContent = 'Consultando stock en mano...';
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/movimientos_stock?agencia_id=eq.${agencia}&juego=eq.${encodeURIComponent(juego)}&select=tipo,numero_desde,numero_hasta`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const movs = await res.json() || [];
+    if (miToken !== tokenStockEnMano) return; // llegó tarde, ya cambiaron agencia/juego
+
+    const enMano = new Set();
+    movs.forEach(m => {
+      const esEntrada = (m.tipo === 'entrega_inicial' || m.tipo === 'ampliacion' || m.tipo === 'ingreso_loteria' || m.tipo === 'ampliacion_loteria');
+      for (let n = m.numero_desde; n <= m.numero_hasta; n++) {
+        if (esEntrada) enMano.add(n); else enMano.delete(n);
+      }
+    });
+
+    if (movs.length === 0) {
+      cont.textContent = 'Esta agencia todavía no tiene movimientos cargados para este juego.';
+    } else if (enMano.size === 0) {
+      cont.innerHTML = `<span style="color:var(--muted);">📦 En mano: nada — ya devolvió/entregó todo lo que recibió.</span>`;
+    } else {
+      cont.innerHTML = `<span style="color:var(--gold);">📦 En mano ahora (${enMano.size}): ${formatearRangosCompactos([...enMano])}</span>`;
+    }
+  } catch(e) {
+    console.error(e);
+    cont.textContent = '';
+  }
+}
+
 // Filtra a solo dígitos, corta al límite de cifras del juego, y al llegar
 // al límite salta de "Desde" a "Hasta" solo.
 function manejarInputCifras(idCampo, idSiguiente) {
@@ -979,7 +1039,7 @@ async function guardarMovimiento() {
       document.getElementById('mov-obs').value = '';
       recalcularCantidad();
       await cargarJuegosStockConfig();
-      await Promise.all([cargarResumen(), cargarHistorial()]);
+      await Promise.all([cargarResumen(), cargarHistorial(), actualizarStockEnMano()]);
     } else {
       const errData = await res.json().catch(()=>({}));
       errBox.textContent = errData?.message || 'Error al guardar el movimiento.';
