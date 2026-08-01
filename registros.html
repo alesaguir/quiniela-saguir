@@ -676,7 +676,12 @@ async function borrarMasivo() {
   }
 
   const params = [];
-  if (!todo) {
+  if (todo) {
+    // Supabase exige que todo DELETE lleve un filtro (no permite borrar sin WHERE).
+    // "id" nunca es nulo, así que esta condición técnicamente cumple la exigencia
+    // sin dejar afuera ninguna fila — el efecto real sigue siendo "borrar todo".
+    params.push('id=not.is.null');
+  } else {
     if (juego) params.push(`juego=eq.${encodeURIComponent(juego)}`);
     if (desde) params.push(`fecha=gte.${desde}`);
     if (hasta) params.push(`fecha=lte.${hasta}`);
