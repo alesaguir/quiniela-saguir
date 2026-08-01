@@ -710,6 +710,14 @@ function actualizarTiposSegunAgencia() {
   const agencia = document.getElementById('mov-agencia').value;
   const tipos = agencia === '670-00' ? TIPOS_CENTRAL : TIPOS_SUBAGENCIA;
   document.getElementById('mov-tipo').innerHTML = tipos.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+
+  // El historial de abajo se filtra solo por la misma agencia que se está por cargar,
+  // para tener el panorama de esa subagencia a mano sin tocar nada más.
+  const filtroHist = document.getElementById('historial-filtro-agencia');
+  if (filtroHist && filtroHist.value !== agencia) {
+    filtroHist.value = agencia;
+    cargarHistorial();
+  }
 }
 
 function setTabRegistros(nombre, el) {
