@@ -165,8 +165,8 @@
   <div class="topbar">
     <div class="topbar-logo">Quiniela<span>Saguir</span> — Registros</div>
     <div class="topbar-right">
+      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;text-decoration:none;">← Panel principal</a>
       <span class="user-chip" id="chip-user">—</span>
-      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;text-decoration:none;">⚙ Admin</a>
       <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
     </div>
   </div>
@@ -1262,6 +1262,13 @@ async function exportarPDFConsolidado() {
     if (movs.length === 0) { showToast('No hay movimientos cargados todavía', 'err'); return; }
 
     const resumen = agruparResumenDeMovs(movs);
+    const totales = resumen.reduce((acc, f) => {
+      acc.recibido += f.recibido;
+      acc.ampliacion += f.ampliacion;
+      acc.devuelto += f.devuelto;
+      acc.vendido += (f.recibido + f.ampliacion) - f.devuelto;
+      return acc;
+    }, { recibido: 0, ampliacion: 0, devuelto: 0, vendido: 0 });
 
     const html = `
       <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
@@ -1280,6 +1287,13 @@ async function exportarPDFConsolidado() {
               <td class="vendido">${(f.recibido + f.ampliacion) - f.devuelto}</td>
             </tr>
           `).join('')}
+          <tr style="font-weight:bold;border-top:2px solid #888;">
+            <td colspan="2">TOTAL — todas las agencias</td>
+            <td>${totales.recibido}</td>
+            <td>${totales.ampliacion}</td>
+            <td>${totales.devuelto}</td>
+            <td class="vendido">${totales.vendido}</td>
+          </tr>
         </tbody>
       </table>
       <div class="seccion-titulo">Detalle completo de movimientos</div>
