@@ -1622,7 +1622,7 @@ async function exportarPDFSubagencia() {
 
     let html = `
       <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
-      <h2>Subagencia ${agenciaId}${nombre ? ' — ' + nombre : ''} · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
+      <h2>Subagencia ${agenciaId}${nombre ? ' — ' + nombre : ''} · Emitido el ${new Date().toLocaleString('es-AR', { hour12: false })}</h2>
       <div class="seccion-titulo">Resumen</div>
       ${construirTablaResumenHTML(resumen, { incluirAgencia: false })}
     `;
@@ -1669,7 +1669,7 @@ async function exportarPDFConsolidado() {
 
     const html = `
       <h1>Quiniela Agencia N° 670 — Control de Stock</h1>
-      <h2>Consolidado — todas las agencias · Emitido el ${new Date().toLocaleString('es-AR')}</h2>
+      <h2>Consolidado — todas las agencias · Emitido el ${new Date().toLocaleString('es-AR', { hour12: false })}</h2>
       <div class="seccion-titulo">Resumen</div>
       ${construirTablaResumenHTML(resumen, { incluirAgencia: true, conTotal: true, totalesSeparados: incluirTotalesSeparados })}
       <div class="seccion-titulo">Detalle completo de movimientos</div>
