@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0b429">
+<link rel="manifest" href="/quiniela-saguir/manifest.json">
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link rel="apple-touch-icon" href="/quiniela-saguir/icon-192.png">
+<title>Habilitación / Inhabilitación — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --red:#e63946;
+    --green:#2ec4b6; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+  /* LOGIN */
+  .login-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;}
+  .login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
+  .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
+  .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+  textarea.form-input{resize:vertical;min-height:80px;font-family:'DM Sans',sans-serif;}
+
+  .form-row-compact{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px;}
+  .field-compact{display:flex;flex-direction:column;gap:4px;}
+  .field-compact .form-label{margin-bottom:2px;font-size:10px;}
+  .field-compact .form-input{padding:8px 10px;font-size:13px;border-radius:8px;}
+  .field-compact select.form-input{padding-right:24px;background-position:right 8px center;}
+
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
+  .btn-primary:hover{background:#ffd166;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--gold);}
+  .btn-danger{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid rgba(230,57,70,0.3);}
+  .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+  .app{display:none;flex-direction:column;min-height:100vh;}
+
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;row-gap:10px;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-logo span{color:var(--text);}
+  .topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:10px;}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
+
+  .content{padding:28px;max-width:980px;margin:0 auto;width:100%;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-wrap:wrap;gap:8px;}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+  .card-body{padding:20px;}
+
+  .radio-pill{display:flex;gap:10px;}
+  .radio-pill label{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:14px;font-weight:600;flex:1;justify-content:center;}
+  .radio-pill input{width:16px;height:16px;accent-color:var(--gold);cursor:pointer;}
+  .radio-pill label.sel-habilita{border-color:var(--green);color:var(--green);background:rgba(46,196,182,0.08);}
+  .radio-pill label.sel-inhabilita{border-color:var(--red);color:var(--red);background:rgba(230,57,70,0.08);}
+
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;max-width:340px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast-ok{background:var(--surface);border-color:var(--green);color:var(--green);}
+  .toast-err{background:var(--surface);border-color:var(--red);color:var(--red);}
+
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .historial-item{padding:14px;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;}
+  .historial-item:last-child{border-bottom:none;}
+  .historial-item:hover{background:rgba(255,255,255,0.02);}
+  .tipo-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+  .tipo-habilita{background:rgba(46,196,182,0.12);color:var(--green);}
+  .tipo-inhabilita{background:rgba(230,57,70,0.12);color:var(--red);}
+
+  .access-denied{text-align:center;padding:60px 20px;color:var(--muted);}
+  .access-denied h2{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--text);margin-bottom:10px;}
+
+  @media (max-width: 640px) {
+    .topbar{padding:12px 16px;}
+    .topbar-logo{font-size:18px;flex:1 1 100%;}
+    .topbar-right{width:100%;justify-content:flex-start;}
+    .form-row-compact{flex-direction:column;align-items:stretch;}
+    .field-compact{width:100% !important;}
+    .radio-pill{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-title">Habilitación</div>
+    <div class="login-sub">Quiniela Agencia N° 670 · Habilitación / Inhabilitación de sub-agentes</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="inp-user" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos</div>
+    <br>
+    <button class="btn btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="admin.html" style="font-size:12.5px;color:var(--muted);text-decoration:underline;">← Volver al panel principal</a>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Quiniela<span>Saguir</span> — Habilitación/Inhabilitación</div>
+    <div class="topbar-right">
+      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;text-decoration:none;">← Panel principal</a>
+      <span class="user-chip" id="chip-user">—</span>
+      <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- SIN PERMISO -->
+    <div id="sin-permiso" style="display:none;" class="access-denied">
+      <h2>Sin acceso a esta sección</h2>
+      <div>Tu usuario no tiene el permiso habilitado. Pedile a un superadmin que te lo active en el panel principal.</div>
+    </div>
+
+    <div id="contenido-inhabilitaciones" style="display:none;">
+
+      <!-- NUEVO FORMULARIO -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Nuevo formulario</div>
+        </div>
+        <div class="card-body">
+
+          <div class="form-row-compact">
+            <div class="field-compact" style="width:160px;">
+              <label class="form-label">Zona</label>
+              <input class="form-input" id="f-zona" placeholder="Zona">
+            </div>
+            <div class="field-compact" style="width:140px;">
+              <label class="form-label">Agencia</label>
+              <input class="form-input" id="f-agencia" placeholder="670" value="670">
+            </div>
+            <div class="field-compact" style="flex:1;min-width:220px;">
+              <label class="form-label">Titular</label>
+              <input class="form-input" id="f-titular" placeholder="Nombre del titular">
+            </div>
+          </div>
+
+          <div class="form-row-compact">
+            <div class="field-compact" style="width:170px;">
+              <label class="form-label">Fecha</label>
+              <input type="date" class="form-input" id="f-fecha">
+            </div>
+            <div class="field-compact" style="width:140px;">
+              <label class="form-label">Hora</label>
+              <input type="time" class="form-input" id="f-hora">
+            </div>
+            <div class="field-compact" style="flex:1;min-width:220px;">
+              <label class="form-label">Sub-Agencia</label>
+              <select class="form-input" id="f-subagencia"><option value="">Cargando...</option></select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:6px;">
+            <label class="form-label">Acción</label>
+            <div class="radio-pill" id="radio-accion">
+              <label id="lbl-habilita">
+                <input type="radio" name="f-accion" value="habilita" onchange="actualizarEstiloAccion()">
+                ✅ Habilita
+              </label>
+              <label id="lbl-inhabilita">
+                <input type="radio" name="f-accion" value="inhabilita" onchange="actualizarEstiloAccion()">
+                🚫 Inhabilita
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Motivo</label>
+            <textarea class="form-input" id="f-motivo" placeholder="Detalle el motivo de la habilitación o inhabilitación"></textarea>
+          </div>
+
+          <div class="form-row-compact">
+            <div class="field-compact" style="flex:1;min-width:220px;">
+              <label class="form-label">Firma Agente (nombre de quien firma)</label>
+              <input class="form-input" id="f-firma" placeholder="Nombre y apellido">
+            </div>
+            <div class="field-compact" style="flex:1;min-width:220px;">
+              <label class="form-label">Aclaración</label>
+              <input class="form-input" id="f-aclaracion" placeholder="Aclaración de firma">
+            </div>
+          </div>
+
+          <div class="error-msg" id="form-error" style="margin:12px 0;"></div>
+
+          <button class="btn btn-primary" onclick="guardarYGenerarPDF()" id="btn-guardar-form" style="width:auto;padding:10px 26px;">
+            💾 Guardar y generar PDF
+          </button>
+          <button class="btn btn-ghost" onclick="limpiarFormulario()" style="width:auto;padding:10px 20px;margin-left:8px;">
+            ✖ Limpiar formulario
+          </button>
+        </div>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🕒 Historial</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select class="form-input" id="historial-filtro-subagencia" onchange="cargarHistorial()" style="width:auto;font-size:13px;padding:7px 12px;">
+              <option value="">Todas las sub-agencias</option>
+            </select>
+            <input type="date" class="form-input" id="historial-filtro-desde" onchange="cargarHistorial()" title="Desde" style="width:auto;font-size:13px;padding:7px 10px;">
+            <span style="color:var(--muted);font-size:12px;">a</span>
+            <input type="date" class="form-input" id="historial-filtro-hasta" onchange="cargarHistorial()" title="Hasta" style="width:auto;font-size:13px;padding:7px 10px;">
+            <button class="btn btn-ghost" onclick="document.getElementById('historial-filtro-desde').value='';document.getElementById('historial-filtro-hasta').value='';cargarHistorial();" style="font-size:12px;padding:6px 12px;">✖ Limpiar fechas</button>
+            <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+          </div>
+        </div>
+        <div id="lista-historial" style="max-height:520px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================
+// CONFIG (mismo proyecto Supabase que el resto del sistema)
+// =====================
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+let usuarioActual = null;
+let subagenciasCache = [];
+
+// =====================
+// TOAST
+// =====================
+function showToast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${tipo} show`;
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// =====================
+// LOGIN / SESIÓN (mismo patrón que registros.html)
+// =====================
+async function login() {
+  const email = document.getElementById('inp-user').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<div class="loading"></div> Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.access_token) {
+      mostrarErrorLogin('Usuario o contraseña incorrectos');
+      return;
+    }
+
+    const rolRes = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_ver_inhabilitaciones`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
+    );
+    const rolData = await rolRes.json();
+
+    if (!rolData || rolData.length === 0 || !rolData[0].activo) {
+      mostrarErrorLogin('Usuario sin acceso al sistema.');
+      return;
+    }
+
+    usuarioActual = {
+      user_id: data.user.id,
+      nombre: rolData[0].nombre,
+      rol: rolData[0].rol,
+      agencia_id: rolData[0].agencia_id || '670-00',
+      puede_ver_inhabilitaciones: rolData[0].puede_ver_inhabilitaciones === true,
+      email: email,
+      token: data.access_token,
+      refreshToken: data.refresh_token
+    };
+
+    iniciarRenovacionSesion();
+
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('chip-user').textContent = usuarioActual.nombre + (usuarioActual.rol==='superadmin'?' ⬟':'');
+
+    const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_inhabilitaciones;
+    document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
+    document.getElementById('contenido-inhabilitaciones').style.display = tienePermiso ? 'block' : 'none';
+
+    if (tienePermiso) {
+      await initApp();
+    }
+  } catch(e) {
+    console.error(e);
+    mostrarErrorLogin('Ocurrió un error de conexión.');
+  }
+  btn.innerHTML = 'Ingresar';
+  btn.disabled = false;
+}
+
+function mostrarErrorLogin(msg) {
+  const err = document.getElementById('login-error');
+  err.textContent = msg;
+  err.style.display = 'block';
+  document.getElementById('btn-login').innerHTML = 'Ingresar';
+  document.getElementById('btn-login').disabled = false;
+}
+
+let renovacionSesionTimer = null;
+
+function iniciarRenovacionSesion() {
+  if (renovacionSesionTimer) clearInterval(renovacionSesionTimer);
+  renovacionSesionTimer = setInterval(renovarSesion, 20 * 60 * 1000);
+}
+
+function detenerRenovacionSesion() {
+  if (renovacionSesionTimer) { clearInterval(renovacionSesionTimer); renovacionSesionTimer = null; }
+}
+
+async function renovarSesion() {
+  if (!usuarioActual || !usuarioActual.refreshToken) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: usuarioActual.refreshToken })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      usuarioActual.token = data.access_token;
+      usuarioActual.refreshToken = data.refresh_token || usuarioActual.refreshToken;
+    }
+  } catch(e) { console.error('Error de red al renovar la sesión', e); }
+}
+
+async function fetchConRenovacion(url, opciones) {
+  let res = await fetch(url, opciones);
+  if (res.status === 401 && usuarioActual?.refreshToken) {
+    await renovarSesion();
+    const opcionesRenovadas = {
+      ...opciones,
+      headers: { ...(opciones.headers || {}), 'Authorization': `Bearer ${usuarioActual.token}` }
+    };
+    res = await fetch(url, opcionesRenovadas);
+  }
+  return res;
+}
+
+async function logout() {
+  detenerRenovacionSesion();
+  if (usuarioActual && usuarioActual.token) {
+    await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    }).catch(()=>{});
+  }
+  usuarioActual = null;
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('inp-pass').value = '';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+async function registrarActividad(accion, detalle) {
+  try {
+    const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{
+        usuario: usuarioActual.nombre,
+        accion,
+        detalle,
+        dispositivo
+      }])
+    });
+  } catch(e) { console.error('No se pudo registrar actividad', e); }
+}
+
+// =====================
+// INIT
+// =====================
+async function initApp() {
+  setDefaultFechaHora();
+  await cargarSubagencias();
+  await precargarDatosEmisor();
+  await cargarHistorial();
+}
+
+function setDefaultFechaHora() {
+  const ahora = new Date();
+  document.getElementById('f-fecha').value = ahora.toISOString().slice(0,10);
+  document.getElementById('f-hora').value = ahora.toTimeString().slice(0,5);
+}
+
+// Trae Zona/Agencia/Titular del último formulario cargado, para no re-tipearlos
+// cada vez (rara vez cambian). Sub-Agencia, Motivo, Firma y Acción siempre
+// arrancan en blanco porque son específicos de cada formulario.
+async function precargarDatosEmisor() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/habilitaciones_subagentes?order=creado_en.desc&limit=1&select=zona,agencia_emisora,titular`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    if (rows && rows.length > 0) {
+      if (rows[0].zona) document.getElementById('f-zona').value = rows[0].zona;
+      if (rows[0].agencia_emisora) document.getElementById('f-agencia').value = rows[0].agencia_emisora;
+      if (rows[0].titular) document.getElementById('f-titular').value = rows[0].titular;
+    }
+  } catch(e) { console.error(e); }
+}
+
+// =====================
+// SUBAGENCIAS (misma tabla que registros.html — se excluye 670-00, no aplica)
+// =====================
+async function cargarSubagencias() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    subagenciasCache = (await res.json() || []).filter(a => a.agencia_id !== '670-00');
+
+    const opciones = subagenciasCache.map(a =>
+      `<option value="${a.agencia_id}">${a.agencia_id}${a.nombre_titular ? ' — '+a.nombre_titular : ''}</option>`
+    ).join('');
+
+    document.getElementById('f-subagencia').innerHTML = '<option value="">Seleccioná una sub-agencia</option>' + opciones;
+    document.getElementById('historial-filtro-subagencia').innerHTML = '<option value="">Todas las sub-agencias</option>' + opciones;
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar sub-agencias', 'err');
+  }
+}
+
+function nombreDeSubagencia(agencia_id) {
+  const info = subagenciasCache.find(a => a.agencia_id === agencia_id);
+  return info?.nombre_titular || '';
+}
+
+// =====================
+// FORMULARIO
+// =====================
+function actualizarEstiloAccion() {
+  const sel = document.querySelector('input[name="f-accion"]:checked')?.value;
+  document.getElementById('lbl-habilita').className = sel === 'habilita' ? 'sel-habilita' : '';
+  document.getElementById('lbl-inhabilita').className = sel === 'inhabilita' ? 'sel-inhabilita' : '';
+}
+
+function limpiarFormulario() {
+  document.getElementById('f-subagencia').value = '';
+  document.getElementById('f-motivo').value = '';
+  document.getElementById('f-firma').value = '';
+  document.getElementById('f-aclaracion').value = '';
+  document.querySelectorAll('input[name="f-accion"]').forEach(r => r.checked = false);
+  actualizarEstiloAccion();
+  setDefaultFechaHora();
+  document.getElementById('form-error').style.display = 'none';
+}
+
+function mostrarErrorForm(msg) {
+  const el = document.getElementById('form-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function guardarYGenerarPDF() {
+  document.getElementById('form-error').style.display = 'none';
+
+  const zona = document.getElementById('f-zona').value.trim();
+  const agencia_emisora = document.getElementById('f-agencia').value.trim();
+  const titular = document.getElementById('f-titular').value.trim();
+  const fecha = document.getElementById('f-fecha').value;
+  const hora = document.getElementById('f-hora').value;
+  const subagencia_id = document.getElementById('f-subagencia').value;
+  const accion = document.querySelector('input[name="f-accion"]:checked')?.value;
+  const motivo = document.getElementById('f-motivo').value.trim();
+  const firma_agente = document.getElementById('f-firma').value.trim();
+  const aclaracion = document.getElementById('f-aclaracion').value.trim();
+
+  if (!fecha || !hora) { mostrarErrorForm('Completá fecha y hora.'); return; }
+  if (!subagencia_id) { mostrarErrorForm('Seleccioná la sub-agencia.'); return; }
+  if (!accion) { mostrarErrorForm('Elegí si es Habilita o Inhabilita.'); return; }
+  if (!motivo) { mostrarErrorForm('El motivo es obligatorio.'); return; }
+  if (!firma_agente) { mostrarErrorForm('Completá el nombre de quien firma.'); return; }
+
+  const registro = {
+    zona, agencia_emisora, titular, fecha, hora,
+    subagencia_id,
+    subagencia_nombre: nombreDeSubagencia(subagencia_id),
+    accion, motivo, firma_agente, aclaracion,
+    creado_por: usuarioActual.user_id,
+    creado_por_nombre: usuarioActual.nombre
+  };
+
+  const btn = document.getElementById('btn-guardar-form');
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/habilitaciones_subagentes`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify([registro])
+    });
+
+    if (res.ok) {
+      showToast('✅ Formulario guardado', 'ok');
+      registrarActividad(
+        accion === 'habilita' ? 'Habilitación de sub-agencia' : 'Inhabilitación de sub-agencia',
+        `${subagencia_id}${registro.subagencia_nombre ? ' — '+registro.subagencia_nombre : ''}`
+      );
+      imprimirFormulario(registro);
+      limpiarFormulario();
+      cargarHistorial();
+    } else {
+      const err = await res.text();
+      console.error(err);
+      mostrarErrorForm('Error al guardar. Revisá la consola.');
+    }
+  } catch(e) {
+    console.error(e);
+    mostrarErrorForm('Error de conexión.');
+  }
+
+  btn.innerHTML = '💾 Guardar y generar PDF';
+  btn.disabled = false;
+}
+
+// =====================
+// HISTORIAL
+// =====================
+async function cargarHistorial() {
+  const lista = document.getElementById('lista-historial');
+  lista.innerHTML = 'Cargando...';
+
+  const subFiltro = document.getElementById('historial-filtro-subagencia').value;
+  const desde = document.getElementById('historial-filtro-desde').value;
+  const hasta = document.getElementById('historial-filtro-hasta').value;
+
+  let url = `${SUPABASE_URL}/rest/v1/habilitaciones_subagentes?order=creado_en.desc&limit=200`;
+  if (subFiltro) url += `&subagencia_id=eq.${subFiltro}`;
+  if (desde) url += `&fecha=gte.${desde}`;
+  if (hasta) url += `&fecha=lte.${hasta}`;
+
+  try {
+    const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    const rows = await res.json() || [];
+
+    if (rows.length === 0) {
+      lista.innerHTML = '<div style="padding:20px 0;text-align:center;">No hay formularios cargados todavía.</div>';
+      return;
+    }
+
+    lista.innerHTML = rows.map(r => `
+      <div class="historial-item">
+        <div style="min-width:220px;">
+          <div style="color:var(--text);font-weight:600;">
+            ${r.subagencia_id}${r.subagencia_nombre ? ' — '+r.subagencia_nombre : ''}
+          </div>
+          <div style="color:var(--muted);font-size:12px;">${r.fecha} · ${r.hora} · ${r.creado_por_nombre || ''}</div>
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <span class="tipo-pill ${r.accion === 'habilita' ? 'tipo-habilita' : 'tipo-inhabilita'}">
+            ${r.accion === 'habilita' ? '✅ Habilita' : '🚫 Inhabilita'}
+          </span>
+          <div style="margin-top:6px;color:var(--muted);">${(r.motivo || '').substring(0,140)}${(r.motivo||'').length > 140 ? '…' : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='reimprimir(${JSON.stringify(r).replace(/'/g,"&#39;")})'>🖨 Reimprimir</button>
+          ${usuarioActual.rol === 'superadmin' ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" onclick="borrarRegistro(${r.id})">🗑</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error(e);
+    lista.innerHTML = '<div style="padding:20px 0;text-align:center;color:var(--red);">Error al cargar el historial.</div>';
+  }
+}
+
+function reimprimir(registro) {
+  imprimirFormulario(registro);
+}
+
+async function borrarRegistro(id) {
+  if (!confirm('¿Borrar este formulario del historial? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/habilitaciones_subagentes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    });
+    if (res.ok) {
+      showToast('Formulario borrado', 'ok');
+      cargarHistorial();
+    } else {
+      showToast('Error al borrar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+// =====================
+// IMPRESIÓN — dos formularios por hoja A4 (mismo formato que el papel impreso),
+// se completa solo el primero con los datos reales; el segundo queda en blanco.
+// =====================
+function formatearFechaLarga(fechaISO) {
+  if (!fechaISO) return '';
+  const [y,m,d] = fechaISO.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function construirCajaFormulario(r) {
+  const vacio = !r;
+  const zona = vacio ? '' : (r.zona || '');
+  const agencia = vacio ? '' : (r.agencia_emisora || '');
+  const titular = vacio ? '' : (r.titular || '');
+  const fecha = vacio ? '' : formatearFechaLarga(r.fecha);
+  const hora = vacio ? '' : (r.hora || '');
+  const subagencia = vacio ? '' : `${r.subagencia_id}${r.subagencia_nombre ? ' — '+r.subagencia_nombre : ''}`;
+  const habilitaMarcado = !vacio && r.accion === 'habilita';
+  const inhabilitaMarcado = !vacio && r.accion === 'inhabilita';
+  const motivo = vacio ? '' : (r.motivo || '');
+  const firma = vacio ? '' : (r.firma_agente || '');
+  const aclaracion = vacio ? '' : (r.aclaracion || '');
+
+  return `
+    <div class="caja-form">
+      <div class="titulo-form">FORMULARIO HABILITACION / INHABILITACION SUB-AGENTE</div>
+      <table class="tabla-datos">
+        <tr>
+          <td><b>Zona:</b> ${zona}</td>
+          <td><b>Agencia:</b> ${agencia}</td>
+          <td><b>Titular:</b> ${titular}</td>
+        </tr>
+        <tr>
+          <td><b>Fecha:</b> ${fecha}</td>
+          <td><b>Hora:</b> ${hora}</td>
+          <td><b>Sub-Agencia:</b> ${subagencia}
+            &nbsp;&nbsp;
+            <span class="check">${habilitaMarcado ? '☑' : '☐'} Habilita</span>
+            &nbsp;
+            <span class="check">${inhabilitaMarcado ? '☑' : '☐'} Inhabilita</span>
+          </td>
+        </tr>
+      </table>
+      <div class="motivo-box">
+        <b>Motivo:</b>
+        <div class="motivo-texto">${motivo}</div>
+      </div>
+      <div class="firmas">
+        <div class="firma-linea">${firma ? firma : '&nbsp;'}<div class="firma-label">Firma Agente</div></div>
+        <div class="firma-linea">${aclaracion ? aclaracion : '&nbsp;'}<div class="firma-label">Aclaración</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function imprimirFormulario(registro) {
+  const html = `
+    ${construirCajaFormulario(registro)}
+    <div class="separador"></div>
+    ${construirCajaFormulario(null)}
+  `;
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
+  w.document.write(`
+    <html><head><title>Habilitación/Inhabilitación — ${registro.subagencia_id}</title>
+    <meta charset="UTF-8">
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:14mm;}
+      .caja-form{border:2px solid #111;padding:14px;}
+      .titulo-form{text-align:center;font-weight:bold;font-size:14px;background:#eee;border:1px solid #111;padding:6px;margin:-14px -14px 14px -14px;}
+      .tabla-datos{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;}
+      .tabla-datos td{padding:6px 4px;vertical-align:top;}
+      .check{font-size:12px;white-space:nowrap;}
+      .motivo-box{border-top:1px solid #111;padding-top:10px;font-size:12px;min-height:90px;}
+      .motivo-texto{margin-top:6px;white-space:pre-wrap;min-height:70px;}
+      .firmas{display:flex;gap:60px;margin-top:26px;}
+      .firma-linea{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center;font-size:12px;min-height:18px;}
+      .firma-label{color:#555;font-size:10px;margin-top:2px;}
+      .separador{height:14mm;}
+      @media print { @page{margin:12mm;} }
+    </style>
+    </head><body>${html}
+    <script>window.onload = () => setTimeout(() => window.print(), 200);<\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
+</script>
+</body>
+</html>
