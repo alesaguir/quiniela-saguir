@@ -143,6 +143,7 @@
 
       <div style="display:flex;gap:10px;margin-bottom:20px;">
         <button class="btn btn-primary" id="tab-btn-formulario" onclick="cambiarTab('formulario')" style="width:auto;padding:9px 20px;">📋 Formulario</button>
+        <button class="btn btn-ghost" id="tab-btn-sobres" onclick="cambiarTab('sobres')" style="width:auto;padding:9px 20px;display:none;">✉️ Sobres</button>
         <button class="btn btn-ghost" id="tab-btn-configuracion" onclick="cambiarTab('configuracion')" style="width:auto;padding:9px 20px;display:none;">⚙️ Configuración</button>
       </div>
 
@@ -236,6 +237,42 @@
 
       </div><!-- /tab-formulario -->
 
+      <div id="tab-sobres" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">✉️ Imprimir sobre para Lotería Chaqueña</div>
+          </div>
+          <div class="card-body">
+            <div class="form-row-compact">
+              <div class="field-compact" style="flex:1;min-width:240px;">
+                <label class="form-label">Sub-Agencia</label>
+                <select class="form-input" id="sobre-subagencia"><option value="">Cargando...</option></select>
+              </div>
+              <div class="field-compact" style="width:220px;">
+                <label class="form-label">Acción</label>
+                <div class="radio-pill" id="radio-accion-sobre">
+                  <label id="lbl-sobre-habilita">
+                    <input type="radio" name="sobre-accion" value="habilita" onchange="actualizarEstiloAccionSobre()">
+                    ✅ Habilita
+                  </label>
+                  <label id="lbl-sobre-inhabilita">
+                    <input type="radio" name="sobre-accion" value="inhabilita" onchange="actualizarEstiloAccionSobre()">
+                    🚫 Inhabilita
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="error-msg" id="sobre-error" style="margin:12px 0;"></div>
+            <button class="btn btn-primary" onclick="imprimirSobreDesdeFormulario()" style="width:auto;padding:10px 26px;">
+              🖨 Imprimir sobre
+            </button>
+            <div style="color:var(--muted);font-size:12.5px;margin-top:14px;">
+              Este sobre es el que le mandás a Lotería Chaqueña por correo. El formato (letras, tamaños) lo define el superadmin en la pestaña Configuración.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-configuracion" style="display:none;">
         <div class="card">
           <div class="card-header">
@@ -253,6 +290,51 @@
               Afecta el texto del formulario cuando se genera el PDF (Zona, Agencia, Fecha, Motivo, líneas de firma).
               Queda guardado en tu cuenta — te va a acompañar sea cual sea el navegador o el equipo desde el que inicies sesión.
             </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">✉️ Configuración del sobre — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">
+              Editá el texto, tamaño, formato y fuente de cada línea del sobre. En la línea de asunto podés usar
+              <code>{ACCION}</code> (se reemplaza por Habilita/Inhabilita) y <code>{SUBAGENCIA}</code> (se reemplaza por la sub-agencia elegida).
+              Los cambios quedan guardados para todos los que impriman sobres, entren desde donde entren.
+            </div>
+
+            <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+              <label class="form-label">Tamaño de papel del sobre</label>
+              <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:6px;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+                  Ancho
+                  <input type="number" id="sobre-ancho-mm" min="50" max="500" step="0.1" style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;">
+                  mm
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+                  Alto
+                  <input type="number" id="sobre-alto-mm" min="50" max="500" step="0.1" style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;">
+                  mm
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+                  Orientación
+                  <select id="sobre-orientacion" class="form-input" style="width:auto;padding:6px 10px;font-size:12.5px;">
+                    <option value="horizontal">Horizontal</option>
+                    <option value="vertical">Vertical</option>
+                  </select>
+                </label>
+              </div>
+              <div style="color:var(--muted);font-size:11.5px;margin-top:8px;">
+                Poné el ancho y el alto como midas el sobre físico (no importa el orden) — la orientación decide cuál va como base horizontal al imprimir.
+                Si el texto no entra en una sola hoja con este tamaño, se achica automáticamente al imprimir para que nunca se pase ni se corte.
+              </div>
+            </div>
+
+            <div id="lista-lineas-sobre">Cargando...</div>
+            <button class="btn btn-primary" onclick="guardarConfigSobre()" style="width:auto;padding:10px 26px;margin-top:14px;">
+              💾 Guardar configuración del sobre
+            </button>
           </div>
         </div>
       </div>
@@ -273,6 +355,7 @@ const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 let usuarioActual = null;
 let subagenciasCache = [];
 let editandoId = null;
+let configSobre = null; // config de las 6 líneas del sobre, cargada desde Supabase
 
 // =====================
 // TOAST
@@ -339,6 +422,7 @@ async function login() {
     const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_inhabilitaciones;
     document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
     document.getElementById('contenido-inhabilitaciones').style.display = tienePermiso ? 'block' : 'none';
+    document.getElementById('tab-btn-sobres').style.display = tienePermiso ? 'inline-flex' : 'none';
 
     if (usuarioActual.rol === 'superadmin') {
       document.getElementById('tab-btn-configuracion').style.display = 'inline-flex';
@@ -447,6 +531,7 @@ async function initApp() {
   setDefaultFechaHora();
   await cargarSubagencias();
   await cargarHistorial();
+  await cargarConfigSobre();
 }
 
 function setDefaultFechaHora() {
@@ -475,6 +560,7 @@ async function cargarSubagencias() {
 
     document.getElementById('f-subagencia').innerHTML = '<option value="">Seleccioná una sub-agencia</option>' + opciones;
     document.getElementById('historial-filtro-subagencia').innerHTML = '<option value="">Todas las sub-agencias</option>' + opciones;
+    document.getElementById('sobre-subagencia').innerHTML = '<option value="">Seleccioná una sub-agencia</option>' + opciones;
   } catch(e) {
     console.error(e);
     showToast('Error al cargar sub-agencias', 'err');
@@ -664,6 +750,7 @@ async function cargarHistorial() {
         </div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='reimprimir(${JSON.stringify(r).replace(/'/g,"&#39;")})'>🖨 Reimprimir</button>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="imprimirSobre('${r.subagencia_id}', '${r.accion}')">✉️ Sobres</button>
           ${usuarioActual.rol === 'superadmin' ? `<button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='editarRegistro(${JSON.stringify(r).replace(/'/g,"&#39;")})'>✏️ Editar</button>` : ''}
           ${usuarioActual.rol === 'superadmin' ? `<button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" onclick="borrarRegistro(${r.id})">🗑</button>` : ''}
         </div>
@@ -696,17 +783,242 @@ async function borrarRegistro(id) {
 }
 
 // =====================
+// SOBRES — configuración (solo superadmin edita, cualquiera con acceso lee)
+// =====================
+let papelSobre = { ancho_mm: 241.3, alto_mm: 104.8, orientacion: 'horizontal' };
+
+async function cargarConfigSobre() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/configuracion_sobre?id=eq.1&select=lineas,ancho_mm,alto_mm,orientacion`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    configSobre = (rows && rows[0] && rows[0].lineas) ? rows[0].lineas : [];
+    if (rows && rows[0]) {
+      papelSobre = {
+        ancho_mm: rows[0].ancho_mm || 241.3,
+        alto_mm: rows[0].alto_mm || 104.8,
+        orientacion: rows[0].orientacion || 'horizontal'
+      };
+    }
+    if (usuarioActual.rol === 'superadmin') {
+      renderEditorLineasSobre();
+      document.getElementById('sobre-ancho-mm').value = papelSobre.ancho_mm;
+      document.getElementById('sobre-alto-mm').value = papelSobre.alto_mm;
+      document.getElementById('sobre-orientacion').value = papelSobre.orientacion;
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar la configuración del sobre', 'err');
+  }
+}
+
+const ETIQUETA_LINEA_SOBRE = {
+  organizacion: 'Organización (título grande)',
+  ciudad: 'Ciudad destinataria',
+  direccion: 'Dirección / departamento',
+  asunto: 'Asunto ({ACCION} / {SUBAGENCIA})',
+  saludo: 'Saludo',
+  remitente: 'Remitente (Zona / Agencia / vos)'
+};
+
+function renderEditorLineasSobre() {
+  const cont = document.getElementById('lista-lineas-sobre');
+  if (!configSobre || configSobre.length === 0) {
+    cont.innerHTML = '<div style="color:var(--muted);">No hay configuración cargada todavía.</div>';
+    return;
+  }
+  cont.innerHTML = configSobre.map((l, i) => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <label class="form-label">${ETIQUETA_LINEA_SOBRE[l.clave] || l.clave}</label>
+      <input class="form-input" style="margin-bottom:8px;" data-linea="${i}" data-campo="texto" value="${(l.texto||'').replace(/"/g,'&quot;')}">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+          Tamaño
+          <input type="number" min="6" max="90" style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;" data-linea="${i}" data-campo="tamano" value="${l.tamano}">
+          px
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" data-linea="${i}" data-campo="negrita" ${l.negrita?'checked':''} style="accent-color:var(--gold);"> Negrita
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" data-linea="${i}" data-campo="cursiva" ${l.cursiva?'checked':''} style="accent-color:var(--gold);"> Cursiva
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" data-linea="${i}" data-campo="subrayado" ${l.subrayado?'checked':''} style="accent-color:var(--gold);"> Subrayado
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+          Fuente
+          <input style="width:130px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12.5px;" data-linea="${i}" data-campo="fuente" value="${l.fuente||'Arial'}">
+        </label>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function guardarConfigSobre() {
+  const inputs = document.querySelectorAll('#lista-lineas-sobre [data-linea]');
+  inputs.forEach(inp => {
+    const i = parseInt(inp.dataset.linea, 10);
+    const campo = inp.dataset.campo;
+    if (!configSobre[i]) return;
+    if (inp.type === 'checkbox') {
+      configSobre[i][campo] = inp.checked;
+    } else if (campo === 'tamano') {
+      configSobre[i][campo] = parseInt(inp.value, 10) || configSobre[i][campo];
+    } else {
+      configSobre[i][campo] = inp.value;
+    }
+  });
+
+  papelSobre = {
+    ancho_mm: parseFloat(document.getElementById('sobre-ancho-mm').value) || 241.3,
+    alto_mm: parseFloat(document.getElementById('sobre-alto-mm').value) || 104.8,
+    orientacion: document.getElementById('sobre-orientacion').value
+  };
+
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/configuracion_sobre?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        lineas: configSobre,
+        ancho_mm: papelSobre.ancho_mm,
+        alto_mm: papelSobre.alto_mm,
+        orientacion: papelSobre.orientacion,
+        actualizado_en: new Date().toISOString(),
+        actualizado_por: usuarioActual.nombre
+      })
+    });
+    if (res.ok) {
+      showToast('✅ Configuración del sobre guardada', 'ok');
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión', 'err');
+  }
+}
+
+// =====================
+// SOBRES — impresión
+// =====================
+function actualizarEstiloAccionSobre() {
+  const sel = document.querySelector('input[name="sobre-accion"]:checked')?.value;
+  document.getElementById('lbl-sobre-habilita').className = sel === 'habilita' ? 'sel-habilita' : '';
+  document.getElementById('lbl-sobre-inhabilita').className = sel === 'inhabilita' ? 'sel-inhabilita' : '';
+}
+
+function imprimirSobreDesdeFormulario() {
+  const el = document.getElementById('sobre-error');
+  el.style.display = 'none';
+  const subagencia_id = document.getElementById('sobre-subagencia').value;
+  const accion = document.querySelector('input[name="sobre-accion"]:checked')?.value;
+  if (!subagencia_id) { el.textContent = 'Seleccioná la sub-agencia.'; el.style.display = 'block'; return; }
+  if (!accion) { el.textContent = 'Elegí Habilita o Inhabilita.'; el.style.display = 'block'; return; }
+  imprimirSobre(subagencia_id, accion);
+}
+
+function imprimirSobre(subagencia_id, accion) {
+  if (!configSobre || configSobre.length === 0) {
+    showToast('No se pudo cargar la configuración del sobre.', 'err');
+    return;
+  }
+
+  const reemplazos = {
+    '{ACCION}': accion === 'habilita' ? 'HABILITACIÓN' : 'INHABILITACIÓN',
+    '{SUBAGENCIA}': subagencia_id
+  };
+
+  const lineasHtml = configSobre.map(l => {
+    let texto = l.texto || '';
+    Object.keys(reemplazos).forEach(k => { texto = texto.split(k).join(reemplazos[k]); });
+    const estilos = [
+      `font-size:${l.tamano}px`,
+      `font-family:'${(l.fuente||'Arial')}',Arial,sans-serif`,
+      l.negrita ? 'font-weight:bold' : 'font-weight:normal',
+      l.cursiva ? 'font-style:italic' : '',
+      l.subrayado ? 'text-decoration:underline' : ''
+    ].filter(Boolean).join(';');
+    return `<div class="linea-sobre" style="text-align:center;${estilos};margin:4px 0;white-space:pre-wrap;">${texto}</div>`;
+  }).join('');
+
+  // Normaliza ancho/alto según la orientación elegida, sin importar en qué
+  // orden se hayan cargado los dos números en Configuración.
+  const medidas = [papelSobre.ancho_mm, papelSobre.alto_mm].sort((a,b) => b - a); // [mayor, menor]
+  const anchoFinal = papelSobre.orientacion === 'vertical' ? medidas[1] : medidas[0];
+  const altoFinal = papelSobre.orientacion === 'vertical' ? medidas[0] : medidas[1];
+  const margenMm = 8;
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
+  w.document.write(`
+    <html><head><title>Sobre — ${subagencia_id}</title>
+    <meta charset="UTF-8">
+    <style>
+      @page { size: ${anchoFinal}mm ${altoFinal}mm; margin: ${margenMm}mm; }
+      html,body{margin:0;padding:0;}
+      body{font-family:Arial,Helvetica,sans-serif;color:#111;}
+      .pagina{
+        width:${anchoFinal - margenMm*2}mm;
+        height:${altoFinal - margenMm*2}mm;
+        overflow:hidden;
+        position:relative;
+      }
+      .contenido{
+        position:absolute;
+        top:50%;left:50%;
+        width:100%;
+        transform:translate(-50%,-50%);
+        transform-origin:center center;
+      }
+    </style>
+    </head><body>
+    <div class="pagina"><div class="contenido" id="contenido-sobre">${lineasHtml}</div></div>
+    <script>
+      window.onload = () => {
+        // Autoajuste: si el contenido no entra en una sola hoja con el
+        // tamaño configurado, se achica proporcionalmente (nunca se agranda)
+        // para que nunca se pase ni se corte, priorizando que siempre entre
+        // completo y legible.
+        const pagina = document.querySelector('.pagina');
+        const contenido = document.getElementById('contenido-sobre');
+        contenido.style.transform = 'translate(-50%,-50%) scale(1)';
+        const alturaDisponible = pagina.clientHeight;
+        const anchoDisponible = pagina.clientWidth;
+        const alturaContenido = contenido.scrollHeight;
+        const anchoContenido = contenido.scrollWidth;
+        const escalaAlto = alturaDisponible / alturaContenido;
+        const escalaAncho = anchoDisponible / anchoContenido;
+        const escala = Math.min(1, escalaAlto, escalaAncho);
+        if (escala < 1) {
+          contenido.style.transform = 'translate(-50%,-50%) scale(' + escala + ')';
+        }
+        setTimeout(() => window.print(), 200);
+      };
+    <\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
+
+// =====================
 // PESTAÑAS
 // =====================
 function cambiarTab(nombre) {
-  const esFormulario = nombre === 'formulario';
-  document.getElementById('tab-formulario').style.display = esFormulario ? 'block' : 'none';
-  document.getElementById('tab-configuracion').style.display = esFormulario ? 'none' : 'block';
+  document.getElementById('tab-formulario').style.display = nombre === 'formulario' ? 'block' : 'none';
+  document.getElementById('tab-sobres').style.display = nombre === 'sobres' ? 'block' : 'none';
+  document.getElementById('tab-configuracion').style.display = nombre === 'configuracion' ? 'block' : 'none';
 
-  const btnForm = document.getElementById('tab-btn-formulario');
-  const btnConf = document.getElementById('tab-btn-configuracion');
-  btnForm.className = esFormulario ? 'btn btn-primary' : 'btn btn-ghost';
-  btnConf.className = esFormulario ? 'btn btn-ghost' : 'btn btn-primary';
+  document.getElementById('tab-btn-formulario').className = nombre === 'formulario' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-btn-sobres').className = nombre === 'sobres' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-btn-configuracion').className = nombre === 'configuracion' ? 'btn btn-primary' : 'btn btn-ghost';
 }
 
 // =====================
