@@ -143,7 +143,6 @@
 
       <div style="display:flex;gap:10px;margin-bottom:20px;">
         <button class="btn btn-primary" id="tab-btn-formulario" onclick="cambiarTab('formulario')" style="width:auto;padding:9px 20px;">📋 Formulario</button>
-        <button class="btn btn-ghost" id="tab-btn-sobres" onclick="cambiarTab('sobres')" style="width:auto;padding:9px 20px;display:none;">✉️ Sobres</button>
         <button class="btn btn-ghost" id="tab-btn-configuracion" onclick="cambiarTab('configuracion')" style="width:auto;padding:9px 20px;display:none;">⚙️ Configuración</button>
       </div>
 
@@ -237,42 +236,6 @@
 
       </div><!-- /tab-formulario -->
 
-      <div id="tab-sobres" style="display:none;">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">✉️ Imprimir sobre para Lotería Chaqueña</div>
-          </div>
-          <div class="card-body">
-            <div class="form-row-compact">
-              <div class="field-compact" style="flex:1;min-width:240px;">
-                <label class="form-label">Sub-Agencia</label>
-                <select class="form-input" id="sobre-subagencia"><option value="">Cargando...</option></select>
-              </div>
-              <div class="field-compact" style="width:220px;">
-                <label class="form-label">Acción</label>
-                <div class="radio-pill" id="radio-accion-sobre">
-                  <label id="lbl-sobre-habilita">
-                    <input type="radio" name="sobre-accion" value="habilita" onchange="actualizarEstiloAccionSobre()">
-                    ✅ Habilita
-                  </label>
-                  <label id="lbl-sobre-inhabilita">
-                    <input type="radio" name="sobre-accion" value="inhabilita" onchange="actualizarEstiloAccionSobre()">
-                    🚫 Inhabilita
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="error-msg" id="sobre-error" style="margin:12px 0;"></div>
-            <button class="btn btn-primary" onclick="imprimirSobreDesdeFormulario()" style="width:auto;padding:10px 26px;">
-              🖨 Imprimir sobre
-            </button>
-            <div style="color:var(--muted);font-size:12.5px;margin-top:14px;">
-              Este sobre es el que le mandás a Lotería Chaqueña por correo. El formato (letras, tamaños) lo define el superadmin en la pestaña Configuración.
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div id="tab-configuracion" style="display:none;">
         <div class="card">
           <div class="card-header">
@@ -334,6 +297,9 @@
             <div id="lista-lineas-sobre">Cargando...</div>
             <button class="btn btn-primary" onclick="guardarConfigSobre()" style="width:auto;padding:10px 26px;margin-top:14px;">
               💾 Guardar configuración del sobre
+            </button>
+            <button class="btn btn-ghost" onclick="restablecerConfigSobre()" style="width:auto;padding:10px 20px;margin-top:14px;margin-left:8px;">
+              ↺ Restablecer a valores predeterminados
             </button>
           </div>
         </div>
@@ -422,7 +388,6 @@ async function login() {
     const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_inhabilitaciones;
     document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
     document.getElementById('contenido-inhabilitaciones').style.display = tienePermiso ? 'block' : 'none';
-    document.getElementById('tab-btn-sobres').style.display = tienePermiso ? 'inline-flex' : 'none';
 
     if (usuarioActual.rol === 'superadmin') {
       document.getElementById('tab-btn-configuracion').style.display = 'inline-flex';
@@ -560,7 +525,6 @@ async function cargarSubagencias() {
 
     document.getElementById('f-subagencia').innerHTML = '<option value="">Seleccioná una sub-agencia</option>' + opciones;
     document.getElementById('historial-filtro-subagencia').innerHTML = '<option value="">Todas las sub-agencias</option>' + opciones;
-    document.getElementById('sobre-subagencia').innerHTML = '<option value="">Seleccioná una sub-agencia</option>' + opciones;
   } catch(e) {
     console.error(e);
     showToast('Error al cargar sub-agencias', 'err');
@@ -814,6 +778,44 @@ async function cargarConfigSobre() {
   }
 }
 
+// Fuentes disponibles para el sobre — todas de sistema (sin depender de
+// internet), elegidas por ser legibles incluso en tamaños grandes.
+const FUENTES_DISPONIBLES = [
+  'Arial', 'Arial Black', 'Verdana', 'Tahoma', 'Trebuchet MS',
+  'Times New Roman', 'Georgia', 'Courier New', 'Calibri'
+];
+
+// Valores predeterminados — los mismos que traía tu Excel original.
+// Sirven para el botón "Restablecer a valores predeterminados".
+const CONFIG_SOBRE_PREDETERMINADA = {
+  ancho_mm: 241.3,
+  alto_mm: 104.8,
+  orientacion: 'horizontal',
+  lineas: [
+    { clave:'organizacion', texto:'LOTERÍA CHAQUEÑA', tamano:56, negrita:true, cursiva:false, subrayado:false, fuente:'Arial' },
+    { clave:'ciudad', texto:'RESISTENCIA', tamano:10, negrita:false, cursiva:false, subrayado:true, fuente:'Arial' },
+    { clave:'direccion', texto:'DIRECCIÓN DE QUINIELA', tamano:25, negrita:true, cursiva:false, subrayado:false, fuente:'Arial' },
+    { clave:'asunto', texto:'{ACCION} DEL SISTEMA - SUB AGENCIA {SUBAGENCIA}', tamano:23, negrita:false, cursiva:false, subrayado:false, fuente:'Arial' },
+    { clave:'saludo', texto:'A quien corresponda', tamano:23, negrita:false, cursiva:false, subrayado:false, fuente:'Arial' },
+    { clave:'remitente', texto:'ZONA 5 - AGENCIA 670 - SAGUIR, ALEJANDRO ELIAS', tamano:23, negrita:true, cursiva:false, subrayado:false, fuente:'Arial' }
+  ]
+};
+
+function restablecerConfigSobre() {
+  if (!confirm('¿Restablecer a los valores predeterminados? Se van a perder los cambios que no hayas guardado todavía. Vas a poder revisarlo antes de tocar "Guardar".')) return;
+  configSobre = JSON.parse(JSON.stringify(CONFIG_SOBRE_PREDETERMINADA.lineas));
+  papelSobre = {
+    ancho_mm: CONFIG_SOBRE_PREDETERMINADA.ancho_mm,
+    alto_mm: CONFIG_SOBRE_PREDETERMINADA.alto_mm,
+    orientacion: CONFIG_SOBRE_PREDETERMINADA.orientacion
+  };
+  renderEditorLineasSobre();
+  document.getElementById('sobre-ancho-mm').value = papelSobre.ancho_mm;
+  document.getElementById('sobre-alto-mm').value = papelSobre.alto_mm;
+  document.getElementById('sobre-orientacion').value = papelSobre.orientacion;
+  showToast('Valores predeterminados cargados — tocá "Guardar configuración del sobre" para confirmar', 'ok');
+}
+
 const ETIQUETA_LINEA_SOBRE = {
   organizacion: 'Organización (título grande)',
   ciudad: 'Ciudad destinataria',
@@ -850,7 +852,9 @@ function renderEditorLineasSobre() {
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
           Fuente
-          <input style="width:130px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12.5px;" data-linea="${i}" data-campo="fuente" value="${l.fuente||'Arial'}">
+          <select style="width:150px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12.5px;" data-linea="${i}" data-campo="fuente">
+            ${FUENTES_DISPONIBLES.map(f => `<option value="${f}" ${((l.fuente||'Arial') === f) ? 'selected' : ''}>${f}</option>`).join('')}
+          </select>
         </label>
       </div>
     </div>
@@ -909,22 +913,6 @@ async function guardarConfigSobre() {
 // =====================
 // SOBRES — impresión
 // =====================
-function actualizarEstiloAccionSobre() {
-  const sel = document.querySelector('input[name="sobre-accion"]:checked')?.value;
-  document.getElementById('lbl-sobre-habilita').className = sel === 'habilita' ? 'sel-habilita' : '';
-  document.getElementById('lbl-sobre-inhabilita').className = sel === 'inhabilita' ? 'sel-inhabilita' : '';
-}
-
-function imprimirSobreDesdeFormulario() {
-  const el = document.getElementById('sobre-error');
-  el.style.display = 'none';
-  const subagencia_id = document.getElementById('sobre-subagencia').value;
-  const accion = document.querySelector('input[name="sobre-accion"]:checked')?.value;
-  if (!subagencia_id) { el.textContent = 'Seleccioná la sub-agencia.'; el.style.display = 'block'; return; }
-  if (!accion) { el.textContent = 'Elegí Habilita o Inhabilita.'; el.style.display = 'block'; return; }
-  imprimirSobre(subagencia_id, accion);
-}
-
 function imprimirSobre(subagencia_id, accion) {
   if (!configSobre || configSobre.length === 0) {
     showToast('No se pudo cargar la configuración del sobre.', 'err');
@@ -1012,13 +1000,12 @@ function imprimirSobre(subagencia_id, accion) {
 // PESTAÑAS
 // =====================
 function cambiarTab(nombre) {
-  document.getElementById('tab-formulario').style.display = nombre === 'formulario' ? 'block' : 'none';
-  document.getElementById('tab-sobres').style.display = nombre === 'sobres' ? 'block' : 'none';
-  document.getElementById('tab-configuracion').style.display = nombre === 'configuracion' ? 'block' : 'none';
+  const esFormulario = nombre === 'formulario';
+  document.getElementById('tab-formulario').style.display = esFormulario ? 'block' : 'none';
+  document.getElementById('tab-configuracion').style.display = esFormulario ? 'none' : 'block';
 
-  document.getElementById('tab-btn-formulario').className = nombre === 'formulario' ? 'btn btn-primary' : 'btn btn-ghost';
-  document.getElementById('tab-btn-sobres').className = nombre === 'sobres' ? 'btn btn-primary' : 'btn btn-ghost';
-  document.getElementById('tab-btn-configuracion').className = nombre === 'configuracion' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-btn-formulario').className = esFormulario ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-btn-configuracion').className = esFormulario ? 'btn btn-ghost' : 'btn btn-primary';
 }
 
 // =====================
