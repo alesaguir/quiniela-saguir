@@ -141,6 +141,13 @@
 
     <div id="contenido-inhabilitaciones" style="display:none;">
 
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button class="btn btn-primary" id="tab-btn-formulario" onclick="cambiarTab('formulario')" style="width:auto;padding:9px 20px;">📋 Formulario</button>
+        <button class="btn btn-ghost" id="tab-btn-configuracion" onclick="cambiarTab('configuracion')" style="width:auto;padding:9px 20px;display:none;">⚙️ Configuración</button>
+      </div>
+
+      <div id="tab-formulario">
+
       <!-- NUEVO FORMULARIO -->
       <div class="card">
         <div class="card-header">
@@ -227,6 +234,29 @@
         <div id="lista-historial" style="max-height:520px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
       </div>
 
+      </div><!-- /tab-formulario -->
+
+      <div id="tab-configuracion" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">⚙️ Configuración — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <label class="form-label">Tamaño de letra del PDF</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+              <input type="number" id="f-tamano-letra" min="8" max="26" value="12"
+                onchange="guardarTamanoLetra()"
+                style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;">
+              <span style="color:var(--muted);font-size:13px;">px</span>
+            </div>
+            <div style="color:var(--muted);font-size:12.5px;margin-top:12px;">
+              Afecta el texto del formulario cuando se genera el PDF (Zona, Agencia, Fecha, Motivo, líneas de firma).
+              Queda guardado en tu cuenta — te va a acompañar sea cual sea el navegador o el equipo desde el que inicies sesión.
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -278,7 +308,7 @@ async function login() {
     }
 
     const rolRes = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_ver_inhabilitaciones`,
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_ver_inhabilitaciones,tamano_letra_pdf`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
     );
     const rolData = await rolRes.json();
@@ -294,6 +324,7 @@ async function login() {
       rol: rolData[0].rol,
       agencia_id: rolData[0].agencia_id || '670-00',
       puede_ver_inhabilitaciones: rolData[0].puede_ver_inhabilitaciones === true,
+      tamano_letra_pdf: rolData[0].tamano_letra_pdf || null,
       email: email,
       token: data.access_token,
       refreshToken: data.refresh_token
@@ -308,6 +339,11 @@ async function login() {
     const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_inhabilitaciones;
     document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
     document.getElementById('contenido-inhabilitaciones').style.display = tienePermiso ? 'block' : 'none';
+
+    if (usuarioActual.rol === 'superadmin') {
+      document.getElementById('tab-btn-configuracion').style.display = 'inline-flex';
+      document.getElementById('f-tamano-letra').value = obtenerTamanoLetra();
+    }
 
     if (tienePermiso) {
       await initApp();
@@ -415,7 +451,10 @@ async function initApp() {
 
 function setDefaultFechaHora() {
   const ahora = new Date();
-  document.getElementById('f-fecha').value = ahora.toISOString().slice(0,10);
+  const yyyy = ahora.getFullYear();
+  const mm = String(ahora.getMonth() + 1).padStart(2, '0');
+  const dd = String(ahora.getDate()).padStart(2, '0');
+  document.getElementById('f-fecha').value = `${yyyy}-${mm}-${dd}`;
   document.getElementById('f-hora').value = ahora.toTimeString().slice(0,5);
 }
 
@@ -657,6 +696,63 @@ async function borrarRegistro(id) {
 }
 
 // =====================
+// PESTAÑAS
+// =====================
+function cambiarTab(nombre) {
+  const esFormulario = nombre === 'formulario';
+  document.getElementById('tab-formulario').style.display = esFormulario ? 'block' : 'none';
+  document.getElementById('tab-configuracion').style.display = esFormulario ? 'none' : 'block';
+
+  const btnForm = document.getElementById('tab-btn-formulario');
+  const btnConf = document.getElementById('tab-btn-configuracion');
+  btnForm.className = esFormulario ? 'btn btn-primary' : 'btn btn-ghost';
+  btnConf.className = esFormulario ? 'btn btn-ghost' : 'btn btn-primary';
+}
+
+// =====================
+// TAMAÑO DE LETRA DEL PDF (ajustable solo por superadmin, guardado en su
+// cuenta — lo acompaña sea cual sea el navegador o el equipo desde el que
+// inicie sesión, a diferencia de localStorage que queda pegado a un solo
+// navegador/equipo).
+// =====================
+function obtenerTamanoLetra() {
+  const guardado = usuarioActual?.tamano_letra_pdf;
+  return (guardado && guardado >= 8 && guardado <= 26) ? guardado : 12;
+}
+
+async function guardarTamanoLetra() {
+  const input = document.getElementById('f-tamano-letra');
+  let val = parseInt(input.value, 10);
+  if (!val || val < 8) val = 8;
+  if (val > 26) val = 26;
+  input.value = val;
+
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${usuarioActual.user_id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tamano_letra_pdf: val })
+      }
+    );
+    if (res.ok) {
+      usuarioActual.tamano_letra_pdf = val;
+      showToast('✅ Tamaño de letra guardado', 'ok');
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión', 'err');
+  }
+}
+
+// =====================
 // IMPRESIÓN — dos formularios por hoja A4 (mismo formato que el papel impreso),
 // se completa solo el primero con los datos reales; el segundo queda en blanco.
 // =====================
@@ -711,6 +807,10 @@ function imprimirFormulario(registro) {
     ${construirCajaFormulario(registro)}
   `;
 
+  const tam = obtenerTamanoLetra();
+  const tamTitulo = tam + 2;
+  const tamLabel = Math.max(tam - 2, 7);
+
   const w = window.open('', '_blank');
   if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
   w.document.write(`
@@ -719,14 +819,14 @@ function imprimirFormulario(registro) {
     <style>
       body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:14mm;}
       .caja-form{border:2px solid #111;padding:14px;}
-      .titulo-form{text-align:center;font-weight:bold;font-size:14px;background:#eee;border:1px solid #111;padding:6px;margin:-14px -14px 14px -14px;}
-      .fila-datos{display:flex;flex-wrap:wrap;gap:22px;font-size:12px;margin-bottom:10px;}
+      .titulo-form{text-align:center;font-weight:bold;font-size:${tamTitulo}px;background:#eee;border:1px solid #111;padding:6px;margin:-14px -14px 14px -14px;}
+      .fila-datos{display:flex;flex-wrap:wrap;gap:22px;font-size:${tam}px;margin-bottom:10px;}
       .fila-datos .par{white-space:nowrap;}
       .fila-datos b{margin-right:3px;}
-      .motivo-fila{border-top:1px solid #111;padding-top:10px;font-size:12px;min-height:70px;}
+      .motivo-fila{border-top:1px solid #111;padding-top:10px;font-size:${tam}px;min-height:70px;}
       .firmas{display:flex;gap:60px;margin-top:34px;}
-      .firma-linea{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center;font-size:12px;min-height:18px;}
-      .firma-label{color:#555;font-size:10px;margin-top:2px;}
+      .firma-linea{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center;font-size:${tam}px;min-height:18px;}
+      .firma-label{color:#555;font-size:${tamLabel}px;margin-top:2px;}
       .separador{height:30mm;}
       @media print { @page{margin:12mm;} }
     </style>
