@@ -520,7 +520,7 @@ function editarRegistro(r) {
   document.getElementById('f-zona').value = r.zona || '5';
   document.getElementById('f-agencia').value = r.agencia_emisora || '670';
   document.getElementById('f-fecha').value = r.fecha || '';
-  document.getElementById('f-hora').value = r.hora || '';
+  document.getElementById('f-hora').value = soloHoraMin(r.hora);
   document.getElementById('f-subagencia').value = r.subagencia_id || '';
   document.getElementById('f-motivo').value = r.motivo || '';
   document.querySelectorAll('input[name="f-accion"]').forEach(radio => { radio.checked = (radio.value === r.accion); });
@@ -654,7 +654,7 @@ async function cargarHistorial() {
           <div style="color:var(--text);font-weight:600;">
             ${r.subagencia_id}${r.subagencia_nombre ? ' — '+r.subagencia_nombre : ''}
           </div>
-          <div style="color:var(--muted);font-size:12px;">${r.fecha} · ${r.hora} · ${r.creado_por_nombre || ''}</div>
+          <div style="color:var(--muted);font-size:12px;">${r.fecha} · ${soloHoraMin(r.hora)} · ${r.creado_por_nombre || ''}</div>
         </div>
         <div style="flex:1;min-width:180px;">
           <span class="tipo-pill ${r.accion === 'habilita' ? 'tipo-habilita' : 'tipo-inhabilita'}">
@@ -756,6 +756,13 @@ async function guardarTamanoLetra() {
 // IMPRESIÓN — dos formularios por hoja A4 (mismo formato que el papel impreso),
 // se completa solo el primero con los datos reales; el segundo queda en blanco.
 // =====================
+// Postgres devuelve el campo "hora" (tipo time) con segundos incluidos
+// (ej. "07:25:00") aunque solo se haya cargado HH:MM. Se recorta acá,
+// en todos los lugares donde se muestra, para no mostrar segundos.
+function soloHoraMin(hora) {
+  return (hora || '').slice(0, 5);
+}
+
 function formatearFechaLarga(fechaISO) {
   if (!fechaISO) return '';
   const [y,m,d] = fechaISO.split('-');
@@ -768,7 +775,7 @@ function construirCajaFormulario(r) {
   const agencia = vacio ? '' : (r.agencia_emisora || '');
   const titular = vacio ? '' : (r.titular || '');
   const fecha = vacio ? '' : formatearFechaLarga(r.fecha);
-  const hora = vacio ? '' : (r.hora || '');
+  const hora = vacio ? '' : soloHoraMin(r.hora);
   const subagencia = vacio ? '' : soloNumeroSubagencia(r.subagencia_id);
   const habilitaMarcado = !vacio && r.accion === 'habilita';
   const inhabilitaMarcado = !vacio && r.accion === 'inhabilita';
