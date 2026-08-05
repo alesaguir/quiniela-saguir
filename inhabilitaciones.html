@@ -818,6 +818,17 @@ function imprimirFormulario(registro) {
   const tamTitulo = tam + 2;
   const tamLabel = Math.max(tam - 2, 7);
 
+  // El largo del formulario escala junto con el tamaño de letra, tomando como
+  // referencia cómo se ve en 12px (el tamaño de siempre). Así en 12px queda
+  // igual que antes, y con letra más grande el formulario se estira lo
+  // necesario para que la firma y el sello no pierdan espacio.
+  const factor = tam / 12;
+  const padCaja = Math.round(14 * factor);
+  const motivoMinHeight = Math.round(70 * factor);
+  const firmasMarginTop = Math.round(34 * factor);
+  const firmaLineaMinHeight = Math.round(18 * factor);
+  const firmaLineaPaddingTop = Math.round(4 * factor);
+
   const w = window.open('', '_blank');
   if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
   w.document.write(`
@@ -825,14 +836,14 @@ function imprimirFormulario(registro) {
     <meta charset="UTF-8">
     <style>
       body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:14mm;}
-      .caja-form{border:2px solid #111;padding:14px;}
-      .titulo-form{text-align:center;font-weight:bold;font-size:${tamTitulo}px;background:#eee;border:1px solid #111;padding:6px;margin:-14px -14px 14px -14px;}
+      .caja-form{border:2px solid #111;padding:${padCaja}px;}
+      .titulo-form{text-align:center;font-weight:bold;font-size:${tamTitulo}px;background:#eee;border:1px solid #111;padding:6px;margin:-${padCaja}px -${padCaja}px 14px -${padCaja}px;}
       .fila-datos{display:flex;flex-wrap:wrap;gap:22px;font-size:${tam}px;margin-bottom:10px;}
       .fila-datos .par{white-space:nowrap;}
       .fila-datos b{margin-right:3px;}
-      .motivo-fila{border-top:1px solid #111;padding-top:10px;font-size:${tam}px;min-height:70px;}
-      .firmas{display:flex;gap:60px;margin-top:34px;}
-      .firma-linea{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center;font-size:${tam}px;min-height:18px;}
+      .motivo-fila{border-top:1px solid #111;padding-top:10px;font-size:${tam}px;min-height:${motivoMinHeight}px;}
+      .firmas{display:flex;gap:60px;margin-top:${firmasMarginTop}px;}
+      .firma-linea{flex:1;border-top:1px solid #111;padding-top:${firmaLineaPaddingTop}px;text-align:center;font-size:${tam}px;min-height:${firmaLineaMinHeight}px;}
       .firma-label{color:#555;font-size:${tamLabel}px;margin-top:2px;}
       .separador{height:30mm;}
       @media print { @page{margin:12mm;} }
