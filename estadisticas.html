@@ -531,7 +531,7 @@ function construirCartelSemanalHTML(datos, vigenciaDesde, vigenciaHasta) {
     filasHoroscopo.push(SIGNOS_HOROSCOPO.slice(i, i+3));
   }
   const horoscopoHtml = filasHoroscopo.map(fila => `
-    <tr>${fila.map(signo => `<td class="signo-nombre">${signo}</td><td class="signo-num">${pad(datos.horoscopo[signo], 3)}</td>`).join('')}</tr>
+    <tr>${fila.map(signo => `<td class="signo-celda"><span class="signo-nombre">${signo}</span><span class="signo-num">${pad(datos.horoscopo[signo], 3)}</span></td>`).join('')}</tr>
   `).join('');
 
   const sorteosHtml = SORTEOS_SEMANAL.map(sorteo => `
@@ -591,14 +591,15 @@ const ESTILOS_CARTEL_SEMANAL = `
   .cartel-subtitulo{text-align:center;font-size:28px;font-weight:800;border-bottom:2.5px solid #111;padding-bottom:6px;margin-bottom:10px;}
   .tabla-horoscopo{width:100%;border-collapse:collapse;font-size:17px;margin-bottom:14px;}
   .tabla-horoscopo td{border:1.5px solid #111;padding:5px 8px;}
+  .tabla-horoscopo .signo-celda{display:flex;align-items:baseline;justify-content:flex-start;gap:8px;}
   .tabla-horoscopo .signo-nombre{font-weight:700;}
-  .tabla-horoscopo .signo-num{text-align:center;width:70px;font-weight:800;font-size:32px;}
+  .tabla-horoscopo .signo-num{font-weight:800;font-size:32px;}
   .bloque-sorteo{margin-bottom:12px;}
   .titulo-sorteo{color:#111;font-weight:800;font-size:26px;padding:2px 0;text-align:center;letter-spacing:0.5px;border-bottom:2.5px solid #111;margin-bottom:2px;}
   .tabla-semanal{width:100%;border-collapse:collapse;font-size:19px;}
   .tabla-semanal th{border:1.5px solid #111;padding:3px 4px;font-size:12px;text-transform:uppercase;white-space:nowrap;font-weight:700;}
   .tabla-semanal td{border:1.5px solid #111;padding:4px;text-align:center;font-weight:700;}
-  .tabla-semanal .fila-label{font-weight:800;text-align:left;font-size:11px;white-space:nowrap;line-height:1.15;padding-left:4px;}
+  .tabla-semanal .fila-label{font-weight:800;text-align:center;font-size:11px;white-space:nowrap;line-height:1.15;}
   .bloque-final{border:2.5px solid #111;margin-top:14px;padding:10px 14px;}
   .fila-semanal4{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
   .titulo-semanal4{font-weight:800;font-size:20px;}
@@ -614,7 +615,8 @@ function imprimirCartelSemanal() {
   const datos = decodificarHojaSemanal(numHoja);
   if (!datos) { showToast('Elegí una hoja válida.', 'err'); return; }
 
-  const margenMm = 4;
+  const margenVerticalMm = 4;
+  const margenHorizontalMm = 1.5;
 
   const w = window.open('', '_blank');
   if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
@@ -622,12 +624,12 @@ function imprimirCartelSemanal() {
     <html><head><title>Estadistica Semanal Hoja ${numHoja}</title>
     <meta charset="UTF-8">
     <style>
-      @page { size: A4 portrait; margin: ${margenMm}mm; }
+      @page { size: A4 portrait; margin: ${margenVerticalMm}mm ${margenHorizontalMm}mm; }
       html,body{margin:0;padding:0;}
       ${ESTILOS_CARTEL_SEMANAL}
-      .pagina{width:calc(210mm - ${margenMm*2}mm);height:calc(297mm - ${margenMm*2}mm);overflow:hidden;position:relative;}
+      .pagina{width:calc(210mm - ${margenHorizontalMm*2}mm);height:calc(297mm - ${margenVerticalMm*2}mm);overflow:hidden;position:relative;}
       .contenido-escalado{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
-      .cartel-semanal{max-width:none;width:calc(210mm - ${margenMm*2}mm - 4mm);}
+      .cartel-semanal{max-width:none;width:calc(210mm - ${margenHorizontalMm*2}mm - 2mm);}
     </style>
     </head><body>
     <div class="pagina"><div class="contenido-escalado" id="contenido-cartel">${construirCartelSemanalHTML(datos, desde, hasta)}</div></div>
