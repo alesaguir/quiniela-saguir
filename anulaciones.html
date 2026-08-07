@@ -141,6 +141,11 @@
 
             <div id="banner-editando" style="display:none;font-size:12.5px;color:var(--gold);background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;"></div>
 
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;margin-bottom:14px;">
+              <input type="checkbox" id="chk-poceada" onchange="toggleModoPoceada()" style="width:17px;height:17px;accent-color:var(--gold);cursor:pointer;">
+              Es Quiniela Poceada (no usa la columna Quiniela/provincias)
+            </label>
+
             <div style="overflow-x:auto;">
               <table class="tabla-tickets" id="tabla-tickets">
                 <thead><tr id="tabla-tickets-head"></tr></thead>
@@ -236,6 +241,28 @@
 
         <div class="card">
           <div class="card-header">
+            <div class="card-title">🔢 Formato de Secuencia — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:10px;">
+              Cuántas cifras van antes y después de la barra (se completa sola mientras se tipea, y no deja escribir de más).
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);">
+                Cifras antes de la barra
+                <input type="number" id="config-secuencia-izq" min="1" max="10" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;">
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);">
+                Cifras después de la barra
+                <input type="number" id="config-secuencia-der" min="1" max="10" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;">
+              </label>
+              <button class="btn btn-primary" onclick="guardarFormatoSecuencia()" style="width:auto;padding:9px 20px;">💾 Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
             <div class="card-title">📑 Columnas del formulario — solo SuperAdmin</div>
           </div>
           <div class="card-body">
@@ -266,7 +293,20 @@ const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 let usuarioActual = null;
 let subagenciasCache = [];
 let columnasActivas = [];
+let modoPoceada = false;
+
+function columnasEfectivas() {
+  return modoPoceada ? columnasActivas.filter(c => c.tipo !== 'quiniela') : columnasActivas;
+}
+
+function toggleModoPoceada() {
+  modoPoceada = document.getElementById('chk-poceada').checked;
+  filasActuales = [];
+  agregarFila();
+  renderTablaFormulario();
+}
 let ticketsPorFormulario = 15;
+let formatoSecuencia = { izq: 4, der: 3 };
 let filasActuales = [];
 let editandoLoteId = null;
 
@@ -486,16 +526,22 @@ function opcionesSubagencia(seleccionado) {
 async function cargarConfig() {
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1&select=columnas,tickets_por_formulario,estilo_impresion`,
+      `${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1&select=columnas,tickets_por_formulario,estilo_impresion,secuencia_digitos_izq,secuencia_digitos_der`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const rows = await res.json();
     columnasActivas = (rows && rows[0] && rows[0].columnas) ? rows[0].columnas : JSON.parse(JSON.stringify(COLUMNAS_PREDETERMINADAS));
     ticketsPorFormulario = (rows && rows[0] && rows[0].tickets_por_formulario) || 15;
     estiloImpresion = (rows && rows[0] && rows[0].estilo_impresion) || estiloImpresion;
+    formatoSecuencia = {
+      izq: (rows && rows[0] && rows[0].secuencia_digitos_izq) || 4,
+      der: (rows && rows[0] && rows[0].secuencia_digitos_der) || 3
+    };
     renderTablaFormulario();
     if (usuarioActual.rol === 'superadmin') {
       document.getElementById('config-tickets-por-formulario').value = ticketsPorFormulario;
+      document.getElementById('config-secuencia-izq').value = formatoSecuencia.izq;
+      document.getElementById('config-secuencia-der').value = formatoSecuencia.der;
       renderColumnasConfig();
       const selFuente = document.getElementById('config-estilo-fuente');
       selFuente.innerHTML = FUENTES_DISPONIBLES.map(f => `<option value="${f}" ${f===estiloImpresion.fuente?'selected':''}>${f}</option>`).join('');
@@ -511,7 +557,7 @@ async function cargarConfig() {
 
 function renderTablaFormulario() {
   const head = document.getElementById('tabla-tickets-head');
-  head.innerHTML = columnasActivas.map(c => `<th>${c.etiqueta}</th>`).join('') + '<th class="col-quitar"></th>';
+  head.innerHTML = columnasEfectivas().map(c => `<th>${c.etiqueta}</th>`).join('') + '<th class="col-quitar"></th>';
   renderFilasFormulario();
 }
 
@@ -523,15 +569,23 @@ function inputParaColumna(col, valor, filaIdx) {
         <option value="">—</option>
         ${opcionesSubagencia(v)}
       </select>`;
-    case 'quiniela':
-      return `<select onchange="actualizarFila(${filaIdx}, '${col.clave}', this.value)">
-        <option value="">—</option>
-        ${OPCIONES_QUINIELA.map(o => `<option value="${o}" ${o===v?'selected':''}>${o}</option>`).join('')}
-      </select>`;
+    case 'quiniela': {
+      const seleccionadas = v ? v.split(',') : [];
+      return `<div class="quiniela-picker" data-fila="${filaIdx}" data-clave="${col.clave}" style="display:flex;flex-wrap:wrap;gap:2px 8px;min-width:150px;">
+        ${OPCIONES_QUINIELA.map(o => `
+          <label style="display:flex;align-items:center;gap:3px;font-size:11px;white-space:nowrap;cursor:pointer;">
+            <input type="checkbox" value="${o}" ${seleccionadas.includes(o)?'checked':''} onchange="actualizarQuiniela(this)" style="width:13px;height:13px;accent-color:var(--gold);">
+            ${o}
+          </label>
+        `).join('')}
+      </div>`;
+    }
     case 'numero_5':
       return `<input type="text" inputmode="numeric" maxlength="5" placeholder="00000" value="${v}" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,5); actualizarFila(${filaIdx}, '${col.clave}', this.value)">`;
-    case 'secuencia':
-      return `<input type="text" placeholder="0000/000" value="${v}" oninput="actualizarFila(${filaIdx}, '${col.clave}', this.value)">`;
+    case 'secuencia': {
+      const placeholder = '0'.repeat(formatoSecuencia.izq) + '/' + '0'.repeat(formatoSecuencia.der);
+      return `<input type="text" inputmode="numeric" placeholder="${placeholder}" value="${v}" oninput="formatearSecuencia(this, ${filaIdx}, '${col.clave}')">`;
+    }
     case 'moneda':
       return `<input type="number" step="0.01" min="0" placeholder="0.00" value="${v}" oninput="actualizarFila(${filaIdx}, '${col.clave}', this.value); recalcularTotales();">`;
     default:
@@ -539,11 +593,31 @@ function inputParaColumna(col, valor, filaIdx) {
   }
 }
 
+function actualizarQuiniela(checkboxEl) {
+  const cont = checkboxEl.closest('.quiniela-picker');
+  const filaIdx = parseInt(cont.dataset.fila, 10);
+  const clave = cont.dataset.clave;
+  const seleccionadas = Array.from(cont.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+  actualizarFila(filaIdx, clave, seleccionadas.join(','));
+}
+
+function formatearSecuencia(inputEl, filaIdx, clave) {
+  let digitos = inputEl.value.replace(/\D/g, '');
+  const max = formatoSecuencia.izq + formatoSecuencia.der;
+  digitos = digitos.slice(0, max);
+  let formateado = digitos;
+  if (digitos.length > formatoSecuencia.izq) {
+    formateado = digitos.slice(0, formatoSecuencia.izq) + '/' + digitos.slice(formatoSecuencia.izq);
+  }
+  inputEl.value = formateado;
+  actualizarFila(filaIdx, clave, formateado);
+}
+
 function renderFilasFormulario() {
   const body = document.getElementById('tabla-tickets-body');
   body.innerHTML = filasActuales.map((fila, i) => `
     <tr>
-      ${columnasActivas.map(c => `<td>${inputParaColumna(c, fila[c.clave], i)}</td>`).join('')}
+      ${columnasEfectivas().map(c => `<td>${inputParaColumna(c, fila[c.clave], i)}</td>`).join('')}
       <td class="col-quitar"><button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="quitarFila(${i})">🗑</button></td>
     </tr>
   `).join('');
@@ -552,7 +626,7 @@ function renderFilasFormulario() {
 
 function agregarFila() {
   const fila = {};
-  columnasActivas.forEach(c => { fila[c.clave] = ''; });
+  columnasEfectivas().forEach(c => { fila[c.clave] = ''; });
   filasActuales.push(fila);
   renderFilasFormulario();
 }
@@ -573,13 +647,21 @@ function formatearMoneda(valor) {
 }
 
 function recalcularTotales() {
-  const claveImporte = (columnasActivas.find(c => c.tipo === 'moneda') || {}).clave;
+  const claveImporte = (columnasEfectivas().find(c => c.tipo === 'moneda') || {}).clave;
   let total = 0;
   if (claveImporte) {
     filasActuales.forEach(f => { total += parseFloat(f[claveImporte]) || 0; });
   }
   document.getElementById('importe-total-form').textContent = formatearMoneda(total);
   document.getElementById('cantidad-tickets-form').textContent = `${filasActuales.length} ticket${filasActuales.length===1?'':'s'}`;
+
+  // Los tickets de Poceada y de Quiniela no se mezclan en el mismo lote:
+  // una vez que hay algún dato cargado, se bloquea el checkbox hasta que
+  // se vacíe el formulario.
+  const hayDatosCargados = filasActuales.some(f => Object.values(f).some(val => (val || '').toString().trim() !== ''));
+  const chkPoceada = document.getElementById('chk-poceada');
+  chkPoceada.disabled = hayDatosCargados;
+  chkPoceada.title = hayDatosCargados ? 'Vaciá el formulario para poder cambiar entre Quiniela y Poceada' : '';
 
   const aviso = document.getElementById('aviso-capacidad');
   if (filasActuales.length > ticketsPorFormulario) {
@@ -599,13 +681,17 @@ function vaciarFormulario() {
 
 function validarFilas() {
   if (filasActuales.length === 0) return 'Agregá al menos un ticket.';
+  const regexSecuencia = new RegExp(`^\\d{${formatoSecuencia.izq}}\\/\\d{${formatoSecuencia.der}}$`);
   for (let i = 0; i < filasActuales.length; i++) {
     const f = filasActuales[i];
-    for (const c of columnasActivas) {
+    for (const c of columnasEfectivas()) {
       const v = (f[c.clave] || '').toString().trim();
-      if (!v) return `Falta completar "${c.etiqueta}" en el ticket N° ${i+1}.`;
+      if (!v) {
+        if (c.tipo === 'quiniela') return `Elegí al menos una provincia en "${c.etiqueta}" del ticket N° ${i+1}.`;
+        return `Falta completar "${c.etiqueta}" en el ticket N° ${i+1}.`;
+      }
       if (c.tipo === 'numero_5' && !/^\d{5}$/.test(v)) return `"${c.etiqueta}" del ticket N° ${i+1} debe tener 5 cifras.`;
-      if (c.tipo === 'secuencia' && !/^\d{4}\/\d{3}$/.test(v)) return `"${c.etiqueta}" del ticket N° ${i+1} debe tener el formato 0000/000.`;
+      if (c.tipo === 'secuencia' && !regexSecuencia.test(v)) return `"${c.etiqueta}" del ticket N° ${i+1} debe tener el formato ${'0'.repeat(formatoSecuencia.izq)}/${'0'.repeat(formatoSecuencia.der)}.`;
       if (c.tipo === 'moneda' && (isNaN(parseFloat(v)) || parseFloat(v) <= 0)) return `"${c.etiqueta}" del ticket N° ${i+1} debe ser un importe válido.`;
     }
   }
@@ -624,14 +710,14 @@ async function guardarYGenerarPDF() {
     if (!confirm(`Cargaste ${filasActuales.length} tickets, pero cada hoja tiene lugar para ${ticketsPorFormulario}. Se van a generar ${hojas} hojas, todas por triplicado. ¿Continuar?`)) return;
   }
 
-  const claveImporte = (columnasActivas.find(c => c.tipo === 'moneda') || {}).clave;
+  const claveImporte = (columnasEfectivas().find(c => c.tipo === 'moneda') || {}).clave;
   const importeTotal = filasActuales.reduce((acc, f) => acc + (parseFloat(f[claveImporte]) || 0), 0);
 
   const editando = editandoLoteId !== null;
   const registro = {
     zona: '5',
     agencia: '670',
-    columnas_snapshot: columnasActivas,
+    columnas_snapshot: columnasEfectivas(),
     tickets_por_formulario_snapshot: ticketsPorFormulario,
     estilo_snapshot: estiloImpresion,
     filas: filasActuales,
@@ -691,6 +777,8 @@ async function guardarYGenerarPDF() {
 
 function editarLote(registro) {
   editandoLoteId = registro.id;
+  modoPoceada = false;
+  document.getElementById('chk-poceada').checked = false;
   columnasActivas = registro.columnas_snapshot;
   ticketsPorFormulario = registro.tickets_por_formulario_snapshot || ticketsPorFormulario;
   estiloImpresion = registro.estilo_snapshot || estiloImpresion;
@@ -708,6 +796,8 @@ function editarLote(registro) {
 
 async function cancelarEdicion() {
   editandoLoteId = null;
+  modoPoceada = false;
+  document.getElementById('chk-poceada').checked = false;
   document.getElementById('banner-editando').style.display = 'none';
   document.getElementById('btn-cancelar-edicion').style.display = 'none';
   document.getElementById('btn-guardar-form').innerHTML = '🖨 Guardar y generar PDF (por triplicado)';
@@ -877,20 +967,52 @@ async function guardarEstiloImpresion() {
   } catch(e) { showToast('Error de conexión', 'err'); }
 }
 
+async function guardarFormatoSecuencia() {
+  const izq = parseInt(document.getElementById('config-secuencia-izq').value, 10) || 4;
+  const der = parseInt(document.getElementById('config-secuencia-der').value, 10) || 3;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ secuencia_digitos_izq: izq, secuencia_digitos_der: der, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      formatoSecuencia = { izq, der };
+      showToast('✅ Formato de secuencia guardado', 'ok');
+      filasActuales = [];
+      agregarFila();
+      renderTablaFormulario();
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
 function construirTablaImpresion(columnas, filasPagina) {
   const filasHtml = filasPagina.map(f => `
-    <tr>${columnas.map(c => `<td>${f[c.clave] !== undefined && f[c.clave] !== null && f[c.clave] !== '' ? (c.tipo === 'moneda' ? formatearMoneda(f[c.clave]) : f[c.clave]) : ''}</td>`).join('')}</tr>
+    <tr>${columnas.map(c => {
+      let valor = f[c.clave];
+      if (valor === undefined || valor === null || valor === '') return '<td></td>';
+      if (c.tipo === 'moneda') valor = formatearMoneda(valor);
+      else if (c.tipo === 'subagencia') valor = valor.replace('670-', '');
+      return `<td>${valor}</td>`;
+    }).join('')}</tr>
   `).join('');
   return `
     <table class="tabla-anulados">
-      <thead><tr>${columnas.map(c => `<th>${c.etiqueta}</th>`).join('')}</tr></thead>
+      <thead><tr>${columnas.map(c => `<th>${c.tipo === 'subagencia' ? 'Sub<br>Agencia' : c.etiqueta}</th>`).join('')}</tr></thead>
       <tbody>${filasHtml}</tbody>
     </table>
   `;
 }
 
-function construirCopiaImpresion(destinatario, columnas, filasPagina, importeTotalPagina, esBlanco) {
+function construirCopiaImpresion(columnas, filasPagina, importeTotalPagina, esBlanco) {
   const tieneImporte = columnas.some(c => c.tipo === 'moneda');
+  const cantidadSecuencias = esBlanco ? '' : filasPagina.length;
   return `
     <div class="copia">
       <div class="encabezado-copia">
@@ -898,16 +1020,20 @@ function construirCopiaImpresion(destinatario, columnas, filasPagina, importeTot
         <div class="subtitulo-copia">DIRECCIÓN DE QUINIELA</div>
         <div class="subtitulo-copia">Detalle de Tickets Anulados</div>
       </div>
-      <div class="destinatario-copia">${destinatario}</div>
       <div class="datos-copia">
         <span><b>Zona:</b> 5</span>
         <span><b>Agencia:</b> 670</span>
       </div>
       ${construirTablaImpresion(columnas, filasPagina)}
+      <div class="total-copia">Total de Secuencias: ${esBlanco ? '________________' : cantidadSecuencias}</div>
       ${tieneImporte ? `<div class="total-copia">Importe total: ${esBlanco ? '________________' : formatearMoneda(importeTotalPagina)}</div>` : ''}
       <div class="firmas-copia">
-        <span>Firma Agencia: ________________</span>
-        <span>R/Lotería: ________________</span>
+        <div class="firma-box" style="flex:1.6;">
+          <div class="firma-label">Firma Agencia y sello</div>
+        </div>
+        <div class="firma-box" style="flex:1;">
+          <div class="firma-label">R/Lotería</div>
+        </div>
       </div>
     </div>
   `;
@@ -918,7 +1044,6 @@ function imprimirLote(registro, esBlanco) {
   const porHoja = registro.tickets_por_formulario_snapshot || ticketsPorFormulario;
   const estilo = registro.estilo_snapshot || estiloImpresion;
   const claveImporte = (columnas.find(c => c.tipo === 'moneda') || {}).clave;
-  const destinatarios = ['Agencia', 'Lotería Chaqueña — Sede Sáenz Peña', 'Lotería Chaqueña — Sede Resistencia'];
 
   const paginas = [];
   for (let i = 0; i < registro.filas.length; i += porHoja) {
@@ -930,7 +1055,7 @@ function imprimirLote(registro, esBlanco) {
     const totalPagina = claveImporte ? filasPagina.reduce((acc, f) => acc + (parseFloat(f[claveImporte]) || 0), 0) : 0;
     return `
       <div class="hoja">
-        ${destinatarios.map(d => construirCopiaImpresion(d, columnas, filasPagina, totalPagina, esBlanco)).join('')}
+        ${[1,2,3].map(() => construirCopiaImpresion(columnas, filasPagina, totalPagina, esBlanco)).join('')}
       </div>
     `;
   }).join('');
@@ -944,11 +1069,11 @@ function imprimirLote(registro, esBlanco) {
   const cursiva = estilo.cursiva ? 'italic' : 'normal';
   const tamTitulo = Math.round(20 * factor);
   const tamSubtitulo = Math.round(10 * factor);
-  const tamDestinatario = Math.round(11 * factor);
   const tamDatos = Math.round(11 * factor);
   const tamThTabla = Math.round(9.5 * factor);
   const tamTotal = Math.round(12 * factor);
   const tamFirmas = Math.round(10.5 * factor);
+  const tamFirmasEspacio = Math.round(42 * factor);
 
   const w = window.open('', '_blank');
   if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
@@ -965,13 +1090,14 @@ function imprimirLote(registro, esBlanco) {
       .encabezado-copia{border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px;text-align:center;}
       .titulo-copia{font-size:${tamTitulo}px;font-weight:bold;letter-spacing:1px;}
       .subtitulo-copia{font-size:${tamSubtitulo}px;font-weight:bold;letter-spacing:0.5px;}
-      .destinatario-copia{text-align:center;font-size:${tamDestinatario}px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;}
       .datos-copia{display:flex;gap:20px;margin-bottom:8px;font-size:${tamDatos}px;}
       .tabla-anulados{width:100%;border-collapse:collapse;font-size:${tam}px;margin-bottom:10px;}
       .tabla-anulados th{border:1px solid #111;padding:4px;background:#f3f3f3;font-size:${tamThTabla}px;text-transform:uppercase;}
       .tabla-anulados td{border:1px solid #111;padding:4px;text-align:center;height:16px;}
       .total-copia{text-align:right;font-weight:bold;font-size:${tamTotal}px;margin-bottom:16px;}
-      .firmas-copia{display:flex;justify-content:space-between;font-size:${tamFirmas}px;margin-top:10px;}
+      .firmas-copia{display:flex;gap:24px;margin-top:${tamFirmasEspacio}px;}
+      .firma-box{border-top:1px solid #111;padding-top:4px;text-align:center;}
+      .firma-label{font-size:${tamFirmas}px;color:#555;}
       @media print { @page{margin:8mm;} }
     </style>
     </head><body>
@@ -982,24 +1108,25 @@ function imprimirLote(registro, esBlanco) {
   w.document.close();
 }
 
-// Modelo en blanco: mismas columnas, tamaño de hoja y estilo configurados,
-// pero sin datos — para tener copias en papel a mano (ej. corte de luz).
+// Modelo en blanco: mismas columnas (respeta el modo Poceada si está
+// tildado), tamaño de hoja y estilo configurados, pero sin datos — para
+// tener copias en papel a mano (ej. corte de luz).
 function imprimirModeloBlanco() {
+  const columnas = columnasEfectivas();
   const filasBlancas = [];
   for (let i = 0; i < ticketsPorFormulario; i++) {
     const fila = {};
-    columnasActivas.forEach(c => { fila[c.clave] = ''; });
+    columnas.forEach(c => { fila[c.clave] = ''; });
     filasBlancas.push(fila);
   }
   const registroBlanco = {
-    columnas_snapshot: columnasActivas,
+    columnas_snapshot: columnas,
     tickets_por_formulario_snapshot: ticketsPorFormulario,
     estilo_snapshot: estiloImpresion,
     filas: filasBlancas
   };
   imprimirLote(registroBlanco, true);
 }
-
 </script>
 </body>
 </html>
