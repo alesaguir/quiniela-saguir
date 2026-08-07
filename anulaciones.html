@@ -233,6 +233,11 @@
               <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
                 <input type="checkbox" id="config-estilo-cursiva" style="accent-color:var(--gold);"> Cursiva
               </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);">
+                Espacio para firma y sello
+                <input type="number" id="config-estilo-espacio-firma" min="10" max="150" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;">
+                px
+              </label>
             </div>
             <button class="btn btn-primary" onclick="guardarEstiloImpresion()" style="width:auto;padding:9px 20px;margin-top:16px;">💾 Guardar estilo</button>
           </div>
@@ -320,7 +325,7 @@ const FUENTES_DISPONIBLES = [
   'Times New Roman', 'Georgia', 'Courier New', 'Calibri'
 ];
 
-let estiloImpresion = { fuente:'Arial', tamano:11, negrita:false, cursiva:false };
+let estiloImpresion = { fuente:'Arial', tamano:11, negrita:false, cursiva:false, espacioFirma:65 };
 
 const COLUMNAS_PREDETERMINADAS = [
   { clave:'subagencia', etiqueta:'Sub - Agencia', tipo:'subagencia', activo:true },
@@ -551,6 +556,7 @@ async function cargarConfig() {
       document.getElementById('config-estilo-tamano').value = estiloImpresion.tamano;
       document.getElementById('config-estilo-negrita').checked = !!estiloImpresion.negrita;
       document.getElementById('config-estilo-cursiva').checked = !!estiloImpresion.cursiva;
+      document.getElementById('config-estilo-espacio-firma').value = estiloImpresion.espacioFirma || 65;
     }
   } catch(e) {
     console.error(e);
@@ -973,11 +979,13 @@ async function guardarTicketsPorFormulario() {
 
 async function guardarEstiloImpresion() {
   const tamano = parseInt(document.getElementById('config-estilo-tamano').value, 10) || 11;
+  const espacioFirma = parseInt(document.getElementById('config-estilo-espacio-firma').value, 10) || 65;
   estiloImpresion = {
     fuente: document.getElementById('config-estilo-fuente').value,
     tamano,
     negrita: document.getElementById('config-estilo-negrita').checked,
-    cursiva: document.getElementById('config-estilo-cursiva').checked
+    cursiva: document.getElementById('config-estilo-cursiva').checked,
+    espacioFirma
   };
   try {
     const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1`, {
@@ -1155,7 +1163,7 @@ function imprimirLote(registro, esBlanco) {
   const tamThTabla = Math.round(9.5 * factor);
   const tamTotal = Math.round(12 * factor);
   const tamFirmas = Math.round(10.5 * factor);
-  const tamFirmasEspacio = Math.round(42 * factor);
+  const tamFirmasEspacio = Math.round((estilo.espacioFirma || 65) * factor);
 
   const w = window.open('', '_blank');
   if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
