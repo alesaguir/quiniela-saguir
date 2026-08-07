@@ -153,7 +153,7 @@
               </table>
             </div>
 
-            <button class="btn btn-ghost" onclick="agregarFila()" style="width:auto;padding:9px 18px;margin-bottom:16px;">
+            <button class="btn btn-ghost" onclick="agregarFila()" id="btn-agregar-ticket" style="width:auto;padding:9px 18px;margin-bottom:16px;">
               ➕ Agregar ticket
             </button>
 
@@ -161,7 +161,6 @@
               Importe total: <span id="importe-total-form" style="color:var(--gold);">$ 0,00</span>
               · <span id="cantidad-tickets-form" style="color:var(--muted);font-weight:400;font-size:13px;">0 tickets</span>
             </div>
-            <div id="aviso-capacidad" style="display:none;text-align:right;font-size:12.5px;color:var(--gold);background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);border-radius:8px;padding:8px 12px;margin-bottom:16px;"></div>
 
             <div class="error-msg" id="form-error" style="margin-bottom:12px;"></div>
 
@@ -311,6 +310,10 @@ let filasActuales = [];
 let editandoLoteId = null;
 
 const OPCIONES_QUINIELA = ['Provincia', 'Ciudad', 'Chaqueña', 'Corrientes', 'Córdoba'].map(o => o.substring(0,3).toUpperCase());
+// Se usa solo en el PDF cuando el ticket tiene las 5 provincias tildadas,
+// para que entre en una sola línea (en pantalla y con menos de 5 se sigue
+// viendo la abreviación de 3 letras de siempre).
+const OPCIONES_QUINIELA_CORTA = ['Provincia', 'Ciudad', 'Chaqueña', 'Corrientes', 'Córdoba'].map(o => o.substring(0,2).toUpperCase());
 
 const FUENTES_DISPONIBLES = [
   'Arial', 'Arial Black', 'Verdana', 'Tahoma', 'Trebuchet MS',
@@ -649,6 +652,10 @@ function renderFilasFormulario() {
 }
 
 function agregarFila() {
+  if (filasActuales.length >= ticketsPorFormulario) {
+    showToast(`No se pueden cargar más de ${ticketsPorFormulario} tickets por formulario (lo configura el superadmin).`, 'err');
+    return;
+  }
   const fila = {};
   columnasEfectivas().forEach(c => { fila[c.clave] = (modoPoceada && c.tipo === 'quiniela') ? 'POCEADA' : ''; });
   filasActuales.push(fila);
@@ -677,7 +684,14 @@ function recalcularTotales() {
     filasActuales.forEach(f => { total += parseFloat(f[claveImporte]) || 0; });
   }
   document.getElementById('importe-total-form').textContent = formatearMoneda(total);
-  document.getElementById('cantidad-tickets-form').textContent = `${filasActuales.length} ticket${filasActuales.length===1?'':'s'}`;
+  document.getElementById('cantidad-tickets-form').textContent = `${filasActuales.length} / ${ticketsPorFormulario} tickets`;
+
+  const btnAgregar = document.getElementById('btn-agregar-ticket');
+  const alTope = filasActuales.length >= ticketsPorFormulario;
+  btnAgregar.disabled = alTope;
+  btnAgregar.style.opacity = alTope ? '0.5' : '1';
+  btnAgregar.style.cursor = alTope ? 'not-allowed' : 'pointer';
+  btnAgregar.title = alTope ? `Llegaste al máximo de ${ticketsPorFormulario} tickets por formulario` : '';
 
   // Los tickets de Poceada y de Quiniela no se mezclan en el mismo lote:
   // una vez que hay algún dato cargado, se bloquea el checkbox hasta que
@@ -686,15 +700,6 @@ function recalcularTotales() {
   const chkPoceada = document.getElementById('chk-poceada');
   chkPoceada.disabled = hayDatosCargados;
   chkPoceada.title = hayDatosCargados ? 'Vaciá el formulario para poder cambiar entre Quiniela y Poceada' : '';
-
-  const aviso = document.getElementById('aviso-capacidad');
-  if (filasActuales.length > ticketsPorFormulario) {
-    const hojas = Math.ceil(filasActuales.length / ticketsPorFormulario);
-    aviso.style.display = 'block';
-    aviso.textContent = `⚠️ Cargaste ${filasActuales.length} tickets, pero cada hoja tiene lugar para ${ticketsPorFormulario}. Se van a generar ${hojas} hojas (todas por triplicado).`;
-  } else {
-    aviso.style.display = 'none';
-  }
 }
 
 function vaciarFormulario() {
@@ -728,11 +733,6 @@ async function guardarYGenerarPDF() {
 
   const error = validarFilas();
   if (error) { errEl.textContent = error; errEl.style.display = 'block'; return; }
-
-  if (filasActuales.length > ticketsPorFormulario) {
-    const hojas = Math.ceil(filasActuales.length / ticketsPorFormulario);
-    if (!confirm(`Cargaste ${filasActuales.length} tickets, pero cada hoja tiene lugar para ${ticketsPorFormulario}. Se van a generar ${hojas} hojas, todas por triplicado. ¿Continuar?`)) return;
-  }
 
   const claveImporte = (columnasEfectivas().find(c => c.tipo === 'moneda') || {}).clave;
   const importeTotal = filasActuales.reduce((acc, f) => acc + (parseFloat(f[claveImporte]) || 0), 0);
@@ -1019,6 +1019,16 @@ async function guardarFormatoSecuencia() {
 // Ancho relativo de cada columna en el PDF, según su tipo — a la de
 // Quiniela se le deja de sobra porque puede tener hasta 5 provincias
 // tildadas; las demás son angostas porque su contenido es corto.
+function abreviarQuinielaImpresion(valorCrudo) {
+  if (!valorCrudo || valorCrudo === 'POCEADA') return valorCrudo;
+  const partes = valorCrudo.split(',');
+  if (partes.length < OPCIONES_QUINIELA.length) return valorCrudo; // no están las 5, se deja la abreviación de 3 letras
+  return partes.map(p => {
+    const idx = OPCIONES_QUINIELA.indexOf(p);
+    return idx >= 0 ? OPCIONES_QUINIELA_CORTA[idx] : p;
+  }).join(',');
+}
+
 function construirTablaImpresion(columnas, filasPagina) {
   const filasHtml = filasPagina.map(f => `
     <tr>${columnas.map(c => {
@@ -1027,6 +1037,7 @@ function construirTablaImpresion(columnas, filasPagina) {
       if (valor === undefined || valor === null || valor === '') return `<td${claseAncha}></td>`;
       if (c.tipo === 'moneda') valor = formatearMoneda(valor);
       else if (c.tipo === 'subagencia') valor = valor.replace('670-', '');
+      else if (c.tipo === 'quiniela') valor = abreviarQuinielaImpresion(valor);
       return `<td${claseAncha}>${valor}</td>`;
     }).join('')}</tr>
   `).join('');
