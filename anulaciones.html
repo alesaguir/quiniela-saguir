@@ -309,7 +309,7 @@ let formatoSecuencia = { izq: 4, der: 3 };
 let filasActuales = [];
 let editandoLoteId = null;
 
-const OPCIONES_QUINIELA = ['Provincia', 'Ciudad', 'Chaqueña', 'Corrientes', 'Córdoba'].map(o => o.substring(0,3).toUpperCase());
+const OPCIONES_QUINIELA = ['Provincia', 'Ciudad', 'Chaqueña', 'Corrientes', 'Córdoba'].map(o => o.substring(0,4).toUpperCase());
 // Se usa solo en el PDF cuando el ticket tiene las 5 provincias tildadas,
 // para que entre en una sola línea (en pantalla y con menos de 5 se sigue
 // viendo la abreviación de 3 letras de siempre).
@@ -747,6 +747,7 @@ async function guardarYGenerarPDF() {
     filas: filasActuales,
     importe_total: importeTotal,
     cantidad_tickets: filasActuales.length,
+    es_poceada: modoPoceada,
     creado_por: usuarioActual.user_id,
     creado_por_nombre: usuarioActual.nombre
   };
@@ -801,8 +802,8 @@ async function guardarYGenerarPDF() {
 
 function editarLote(registro) {
   editandoLoteId = registro.id;
-  modoPoceada = false;
-  document.getElementById('chk-poceada').checked = false;
+  modoPoceada = !!registro.es_poceada;
+  document.getElementById('chk-poceada').checked = modoPoceada;
   columnasActivas = registro.columnas_snapshot;
   ticketsPorFormulario = registro.tickets_por_formulario_snapshot || ticketsPorFormulario;
   estiloImpresion = registro.estilo_snapshot || estiloImpresion;
@@ -846,7 +847,12 @@ async function cargarHistorial() {
     lista.innerHTML = rows.map(r => `
       <div class="historial-item">
         <div style="min-width:200px;">
-          <div style="color:var(--text);font-weight:600;">${new Date(r.creado_en).toLocaleDateString('es-AR')} · ${r.cantidad_tickets} tickets</div>
+          <div style="color:var(--text);font-weight:600;">
+            ${new Date(r.creado_en).toLocaleDateString('es-AR')} · ${r.cantidad_tickets} tickets
+            <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:0.3px;${r.es_poceada ? 'background:rgba(240,180,41,0.15);color:var(--gold);' : 'background:rgba(46,196,182,0.15);color:var(--green);'}">
+              ${r.es_poceada ? 'POCEADA' : 'QUINIELA'}
+            </span>
+          </div>
           <div style="color:var(--muted);font-size:12px;">${r.creado_por_nombre || ''}</div>
         </div>
         <div style="flex:1;min-width:140px;color:var(--gold);font-weight:600;">${formatearMoneda(r.importe_total)}</div>
@@ -1049,6 +1055,40 @@ function construirTablaImpresion(columnas, filasPagina) {
   `;
 }
 
+// Convierte un número entero a su forma en letras en español (alcanza y
+// sobra para la cantidad de tickets por hoja, que como mucho son unos
+// pocos cientos).
+function numeroALetras(n) {
+  n = Math.round(n);
+  if (n === 0) return 'cero';
+  if (n < 0) return 'menos ' + numeroALetras(-n);
+
+  const UNIDADES = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+  const DIECIS = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+  const VEINTIS = ['veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+  const DECENAS = ['', '', '', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+  const CENTENAS = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+
+  function menorQueCien(num) {
+    if (num < 10) return UNIDADES[num] || 'cero';
+    if (num < 20) return DIECIS[num - 10];
+    if (num < 30) return VEINTIS[num - 20];
+    const d = Math.floor(num / 10), u = num % 10;
+    return DECENAS[d] + (u > 0 ? ' y ' + UNIDADES[u] : '');
+  }
+  function menorQueMil(num) {
+    if (num === 100) return 'cien';
+    if (num < 100) return menorQueCien(num);
+    const c = Math.floor(num / 100), resto = num % 100;
+    return CENTENAS[c] + (resto > 0 ? ' ' + menorQueCien(resto) : '');
+  }
+
+  if (n < 1000) return menorQueMil(n);
+  const miles = Math.floor(n / 1000), resto = n % 1000;
+  const strMiles = miles === 1 ? 'mil' : menorQueMil(miles) + ' mil';
+  return strMiles + (resto > 0 ? ' ' + menorQueMil(resto) : '');
+}
+
 function construirCopiaImpresion(columnas, filasPagina, importeTotalPagina, esBlanco) {
   const tieneImporte = columnas.some(c => c.tipo === 'moneda');
   const cantidadSecuencias = esBlanco ? '' : filasPagina.length;
@@ -1064,7 +1104,7 @@ function construirCopiaImpresion(columnas, filasPagina, importeTotalPagina, esBl
         <span><b>Agencia:</b> 670</span>
       </div>
       ${construirTablaImpresion(columnas, filasPagina)}
-      <div class="total-copia">Total de Secuencias: ${esBlanco ? '________________' : cantidadSecuencias}</div>
+      <div class="total-copia">Total de Secuencias: ${esBlanco ? '________________' : `${cantidadSecuencias} (${numeroALetras(cantidadSecuencias)})`}</div>
       ${tieneImporte ? `<div class="total-copia">Importe total: ${esBlanco ? '________________' : formatearMoneda(importeTotalPagina)}</div>` : ''}
       <div class="firmas-copia">
         <div class="firma-box" style="flex:1.6;">
