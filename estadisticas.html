@@ -385,44 +385,91 @@
 
     <div id="panel-semanales" style="display:none;">
 
-      <div class="nota">
-        <b>Cómo funciona:</b> elegí cuál de las hojas prefabricadas corresponde a esta semana y el rango de vigencia
-        (de lunes a sábado). Se genera el cartel para imprimir y repartir a las sub-agencias — los números de cada
-        hoja son siempre los mismos, lo único que cambia semana a semana es la fecha de vigencia.
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div class="tab active" id="subtab-btn-imprimir" onclick="cambiarSubTabSemanal('imprimir')">🖨 Imprimir</div>
+        <div class="tab" id="subtab-btn-config-semanal" onclick="cambiarSubTabSemanal('config')" style="display:none;">⚙️ Configuración</div>
       </div>
 
-      <div class="search-box">
-        <div class="filter-group">
-          <div class="filter-label">Hoja</div>
-          <select id="sel-hoja-semanal" style="min-width:100px;" onchange="actualizarVistaPreviaSemanal()"></select>
+      <div id="subtab-imprimir">
+
+        <div class="nota">
+          <b>Cómo funciona:</b> elegí cuál de las hojas prefabricadas corresponde a esta semana y el rango de vigencia
+          (de lunes a sábado). Se genera el cartel para imprimir y repartir a las sub-agencias — los números de cada
+          hoja son siempre los mismos, lo único que cambia semana a semana es la fecha de vigencia. Si una hoja o una
+          fecha de vigencia ya se usó antes, te avisa antes de imprimir de nuevo.
         </div>
-        <div class="filter-group">
-          <div class="filter-label">Vigencia desde (lunes)</div>
-          <input type="date" class="form-input" id="input-vigencia-desde" style="width:170px;" onchange="actualizarVistaPreviaSemanal()">
+
+        <div class="search-box">
+          <div class="filter-group">
+            <div class="filter-label">Hoja</div>
+            <select id="sel-hoja-semanal" style="min-width:100px;" onchange="actualizarVistaPreviaSemanal()"></select>
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">Vigencia desde (lunes)</div>
+            <input type="date" class="form-input" id="input-vigencia-desde" style="width:170px;" onchange="actualizarVistaPreviaSemanal()">
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">Vigencia hasta (sábado)</div>
+            <input type="date" class="form-input" id="input-vigencia-hasta" style="width:170px;" onchange="actualizarVistaPreviaSemanal()">
+          </div>
+          <button class="btn btn-primary" style="width:auto;" onclick="imprimirCartelSemanal()">🖨 Imprimir cartel</button>
         </div>
-        <div class="filter-group">
-          <div class="filter-label">Vigencia hasta (sábado)</div>
-          <input type="date" class="form-input" id="input-vigencia-hasta" style="width:170px;" onchange="actualizarVistaPreviaSemanal()">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">👁 Vista previa</div>
+          </div>
+          <div id="vista-previa-semanal" style="padding:20px;overflow-x:auto;"></div>
         </div>
-        <button class="btn btn-primary" style="width:auto;" onclick="imprimirCartelSemanal()">🖨 Imprimir cartel</button>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🕒 Historial de impresiones</div>
+            <button class="btn btn-ghost" onclick="cargarHistorialSemanal()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+          </div>
+          <div id="lista-historial-semanal" style="max-height:400px;overflow-y:auto;padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+        </div>
+
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">👁 Vista previa</div>
+      <div id="subtab-config-semanal" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔤 Estilo de cada parte del cartel — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">
+              Cambiá la fuente, el tamaño y el estilo de cada parte del cartel semanal. Se guarda para todos los que
+              impriman, entren desde donde entren. El autoajuste de tamaño sigue funcionando igual — mantiene las
+              proporciones que definas acá y las agranda o achica lo justo para ocupar toda la hoja.
+            </div>
+            <div id="lista-estilos-semanal">Cargando...</div>
+            <button class="btn btn-primary" onclick="guardarEstilosSemanal()" style="width:auto;padding:10px 26px;margin-top:14px;">💾 Guardar estilos</button>
+            <button class="btn btn-ghost" onclick="restablecerEstilosSemanal()" style="width:auto;padding:10px 20px;margin-top:14px;margin-left:8px;">↺ Restablecer a valores predeterminados</button>
+          </div>
         </div>
-        <div id="vista-previa-semanal" style="padding:20px;overflow-x:auto;"></div>
       </div>
 
     </div>
 
   </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+
+// Fecha en formato AAAA-MM-DD usando el reloj LOCAL, no UTC. new Date().toISOString()
+// convierte a UTC primero, y como Argentina está 3 horas atrás, cualquier
+// hora desde las 21:00 en adelante ya cae en "mañana" en UTC — hace que la
+// fecha calculada salte un día antes de tiempo. Se usa esta función en vez
+// de toISOString() en todos lados donde haga falta "la fecha de hoy" o
+// "la fecha de hace N días".
+function fechaLocalISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 const AGENCIA_ID = '670-00';
 
@@ -507,8 +554,7 @@ function lunesYSabadoDeEstaSemana() {
   lunes.setDate(hoy.getDate() + offsetLunes);
   const sabado = new Date(lunes);
   sabado.setDate(lunes.getDate() + 5);
-  const aISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  return { desde: aISO(lunes), hasta: aISO(sabado) };
+  return { desde: fechaLocalISO(lunes), hasta: fechaLocalISO(sabado) };
 }
 
 function initPanelSemanales() {
@@ -518,7 +564,19 @@ function initPanelSemanales() {
   const { desde, hasta } = lunesYSabadoDeEstaSemana();
   document.getElementById('input-vigencia-desde').value = desde;
   document.getElementById('input-vigencia-hasta').value = hasta;
-  actualizarVistaPreviaSemanal();
+  if (usuarioActual.esSuperadmin) {
+    document.getElementById('subtab-btn-config-semanal').style.display = '';
+  }
+  cargarConfigEstiloSemanal().then(() => actualizarVistaPreviaSemanal());
+  cargarHistorialSemanal();
+}
+
+function cambiarSubTabSemanal(nombre) {
+  const esImprimir = nombre === 'imprimir';
+  document.getElementById('subtab-imprimir').style.display = esImprimir ? 'block' : 'none';
+  document.getElementById('subtab-config-semanal').style.display = esImprimir ? 'none' : 'block';
+  document.getElementById('subtab-btn-imprimir').classList.toggle('active', esImprimir);
+  document.getElementById('subtab-btn-config-semanal').classList.toggle('active', !esImprimir);
 }
 
 function pad(n, largo) {
@@ -580,7 +638,135 @@ function actualizarVistaPreviaSemanal() {
   const datos = decodificarHojaSemanal(numHoja);
   const cont = document.getElementById('vista-previa-semanal');
   if (!datos) { cont.innerHTML = '<div class="lista-vacia">Elegí una hoja.</div>'; return; }
-  cont.innerHTML = `<style>${ESTILOS_CARTEL_SEMANAL}</style>` + construirCartelSemanalHTML(datos, desde, hasta);
+  cont.innerHTML = `<style>${ESTILOS_CARTEL_SEMANAL}\n${generarEstilosPersonalizadosSemanal()}</style>` + construirCartelSemanalHTML(datos, desde, hasta);
+}
+
+// =====================================================================
+// ESTILOS POR SECCIÓN — configurable desde superadmin, guardado en Supabase.
+// Cada sección tiene su propio selector CSS; el resto del diseño (bordes,
+// colores, espaciados) queda fijo, y estas reglas solo pisan fuente,
+// tamaño, negrita y cursiva de cada parte puntual.
+// =====================================================================
+const FUENTES_DISPONIBLES_SEMANAL = [
+  'Arial', 'Arial Black', 'Verdana', 'Tahoma', 'Trebuchet MS',
+  'Times New Roman', 'Georgia', 'Courier New', 'Calibri'
+];
+
+const SELECTORES_ESTILO_SEMANAL = {
+  titulo: '.cartel-titulo',
+  tagline: '.cartel-tagline',
+  direccion: '.cartel-direccion',
+  subtitulo: '.cartel-subtitulo',
+  horoscopoNombre: '.tabla-horoscopo .signo-nombre',
+  horoscopoNumero: '.tabla-horoscopo .signo-num',
+  tituloSorteo: '.titulo-sorteo',
+  tablaHeader: '.tabla-semanal th',
+  tablaDato: '.tabla-semanal td',
+  filaLabel: '.tabla-semanal .fila-label',
+  semanal4Titulo: '.titulo-semanal4',
+  semanal4Numero: '.num-semanal4',
+  vigencia: '.cartel-vigencia'
+};
+
+const ESTILOS_SEMANAL_PREDETERMINADOS = [
+  { clave:'titulo', etiqueta:'Título (QUINIELA SAGUIR)', tamano:56, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'tagline', etiqueta:'Bajada (PARA SAGUIR GANANDO)', tamano:30, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'direccion', etiqueta:'Dirección', tamano:15, negrita:false, cursiva:false, fuente:'Arial' },
+  { clave:'subtitulo', etiqueta:'Subtítulo (QUINI-HORÓSCOPO)', tamano:28, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'horoscopoNombre', etiqueta:'Horóscopo — nombre del signo', tamano:14, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'horoscopoNumero', etiqueta:'Horóscopo — número', tamano:26, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'tituloSorteo', etiqueta:'Título de cada sorteo (PREVIA, etc.)', tamano:26, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'tablaHeader', etiqueta:'Encabezado de provincia', tamano:13, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'tablaDato', etiqueta:'Números (Atrasado/Menor/Salidor)', tamano:23, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'filaLabel', etiqueta:'Etiqueta de fila (Atrasado, etc.)', tamano:12, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'semanal4Titulo', etiqueta:'"Semanal a las 4 cifras" (texto)', tamano:20, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'semanal4Numero', etiqueta:'"Semanal a las 4 cifras" (números)', tamano:64, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'vigencia', etiqueta:'Vigencia', tamano:19, negrita:true, cursiva:false, fuente:'Arial' }
+];
+
+let estilosSemanal = JSON.parse(JSON.stringify(ESTILOS_SEMANAL_PREDETERMINADOS));
+
+async function cargarConfigEstiloSemanal() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/estadisticas_semanales_config?id=eq.1&select=estilos`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    estilosSemanal = (rows && rows[0] && rows[0].estilos) ? rows[0].estilos : JSON.parse(JSON.stringify(ESTILOS_SEMANAL_PREDETERMINADOS));
+    if (usuarioActual.esSuperadmin) renderEditorEstilosSemanal();
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function renderEditorEstilosSemanal() {
+  const cont = document.getElementById('lista-estilos-semanal');
+  cont.innerHTML = estilosSemanal.map((s, i) => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <label class="filter-label" style="display:block;margin-bottom:8px;">${s.etiqueta}</label>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+          Fuente
+          <select data-idx="${i}" data-campo="fuente" onchange="actualizarCampoEstiloSemanal(this)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12.5px;">
+            ${FUENTES_DISPONIBLES_SEMANAL.map(f => `<option value="${f}" ${f===s.fuente?'selected':''}>${f}</option>`).join('')}
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+          Tamaño
+          <input type="number" min="8" max="100" value="${s.tamano}" data-idx="${i}" data-campo="tamano" oninput="actualizarCampoEstiloSemanal(this)" style="width:65px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;">
+          px
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" ${s.negrita?'checked':''} data-idx="${i}" data-campo="negrita" onchange="actualizarCampoEstiloSemanal(this)" style="accent-color:var(--gold);"> Negrita
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" ${s.cursiva?'checked':''} data-idx="${i}" data-campo="cursiva" onchange="actualizarCampoEstiloSemanal(this)" style="accent-color:var(--gold);"> Cursiva
+        </label>
+      </div>
+    </div>
+  `).join('');
+}
+
+function actualizarCampoEstiloSemanal(el) {
+  const i = parseInt(el.dataset.idx, 10);
+  const campo = el.dataset.campo;
+  if (el.type === 'checkbox') estilosSemanal[i][campo] = el.checked;
+  else if (campo === 'tamano') estilosSemanal[i][campo] = parseInt(el.value, 10) || estilosSemanal[i][campo];
+  else estilosSemanal[i][campo] = el.value;
+  actualizarVistaPreviaSemanal();
+}
+
+async function guardarEstilosSemanal() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/estadisticas_semanales_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ estilos: estilosSemanal, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) showToast('✅ Estilos guardados', 'ok');
+    else showToast('Error al guardar', 'err');
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+function restablecerEstilosSemanal() {
+  if (!confirm('¿Restablecer todos los estilos a los valores predeterminados? Se pierden los cambios no guardados en pantalla.')) return;
+  estilosSemanal = JSON.parse(JSON.stringify(ESTILOS_SEMANAL_PREDETERMINADOS));
+  renderEditorEstilosSemanal();
+  actualizarVistaPreviaSemanal();
+  showToast('Valores predeterminados cargados — tocá "Guardar estilos" para confirmar', 'ok');
+}
+
+function generarEstilosPersonalizadosSemanal() {
+  return estilosSemanal.map(s => {
+    const selector = SELECTORES_ESTILO_SEMANAL[s.clave];
+    if (!selector) return '';
+    return `${selector}{font-family:'${s.fuente || 'Arial'}',Arial,sans-serif;font-size:${s.tamano}px;font-weight:${s.negrita ? '800' : '400'};font-style:${s.cursiva ? 'italic' : 'normal'};}`;
+  }).join('\n');
 }
 
 const ESTILOS_CARTEL_SEMANAL = `
@@ -606,13 +792,16 @@ const ESTILOS_CARTEL_SEMANAL = `
   .cartel-vigencia{text-align:center;font-weight:800;font-size:19px;margin-top:10px;}
 `;
 
-function imprimirCartelSemanal() {
+async function imprimirCartelSemanal() {
   const numHoja = parseInt(document.getElementById('sel-hoja-semanal').value, 10);
   const desde = document.getElementById('input-vigencia-desde').value;
   const hasta = document.getElementById('input-vigencia-hasta').value;
   if (!desde || !hasta) { showToast('Completá la vigencia (desde y hasta).', 'err'); return; }
   const datos = decodificarHojaSemanal(numHoja);
   if (!datos) { showToast('Elegí una hoja válida.', 'err'); return; }
+
+  const sigue = await chequearDuplicadosSemanal(numHoja, desde, hasta);
+  if (!sigue) return;
 
   const margenVerticalMm = 4;
   const margenHorizontalMm = 1.5;
@@ -626,6 +815,7 @@ function imprimirCartelSemanal() {
       @page { size: A4 portrait; margin: ${margenVerticalMm}mm ${margenHorizontalMm}mm; }
       html,body{margin:0;padding:0;}
       ${ESTILOS_CARTEL_SEMANAL}
+      ${generarEstilosPersonalizadosSemanal()}
       .pagina{width:calc(210mm - ${margenHorizontalMm*2}mm);height:calc(297mm - ${margenVerticalMm*2}mm);overflow:hidden;position:relative;}
       .contenido-escalado{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
       .cartel-semanal{max-width:none;width:calc(210mm - ${margenHorizontalMm*2}mm - 2mm);}
@@ -650,6 +840,88 @@ function imprimirCartelSemanal() {
     </body></html>
   `);
   w.document.close();
+
+  registrarImpresionSemanal(numHoja, desde, hasta);
+}
+
+// Avisa si esta hoja ya se imprimió antes (cualquier fecha) o si esta
+// fecha de vigencia ya se usó antes (con cualquier hoja). Devuelve true
+// si hay que seguir adelante (no había duplicado, o el usuario confirmó
+// igual), false si hay que frenar.
+async function chequearDuplicadosSemanal(numHoja, desde, hasta) {
+  let historial = [];
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/estadisticas_semanales_historial?select=numero_hoja,vigencia_desde,vigencia_hasta,impreso_en&order=impreso_en.desc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    historial = await res.json() || [];
+  } catch(e) {
+    console.error(e);
+    return true; // si falla la consulta, no bloqueamos la impresión
+  }
+
+  const mismaHoja = historial.find(h => h.numero_hoja === numHoja);
+  const mismaFecha = historial.find(h => h.vigencia_desde === desde && h.vigencia_hasta === hasta);
+
+  if (mismaHoja) {
+    const fecha = new Date(mismaHoja.impreso_en).toLocaleDateString('es-AR');
+    const ok = confirm(`⚠️ La Hoja ${numHoja} ya se imprimió antes (el ${fecha}, vigencia ${formatearFechaSemanal(mismaHoja.vigencia_desde)} al ${formatearFechaSemanal(mismaHoja.vigencia_hasta)}).\n\n¿Confirmás que igual querés imprimirla de nuevo?`);
+    if (!ok) return false;
+  }
+  if (mismaFecha && (!mismaHoja || mismaFecha.numero_hoja !== mismaHoja.numero_hoja)) {
+    const fecha = new Date(mismaFecha.impreso_en).toLocaleDateString('es-AR');
+    const ok = confirm(`⚠️ Ya se imprimió una estadística con vigencia del ${formatearFechaSemanal(desde)} al ${formatearFechaSemanal(hasta)} (Hoja ${mismaFecha.numero_hoja}, el ${fecha}).\n\n¿Confirmás que igual querés continuar?`);
+    if (!ok) return false;
+  }
+  return true;
+}
+
+async function registrarImpresionSemanal(numHoja, desde, hasta) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/estadisticas_semanales_historial`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify([{
+        numero_hoja: numHoja,
+        vigencia_desde: desde,
+        vigencia_hasta: hasta,
+        impreso_por: usuarioActual.nombre
+      }])
+    });
+    cargarHistorialSemanal();
+  } catch(e) { console.error('No se pudo registrar la impresión en el historial', e); }
+}
+
+async function cargarHistorialSemanal() {
+  const cont = document.getElementById('lista-historial-semanal');
+  if (!cont) return;
+  cont.innerHTML = 'Cargando...';
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/estadisticas_semanales_historial?order=impreso_en.desc&limit=60`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json() || [];
+    if (rows.length === 0) {
+      cont.innerHTML = '<div>Todavía no se imprimió ninguna estadística semanal.</div>';
+      return;
+    }
+    cont.innerHTML = rows.map(r => `
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div><b style="color:var(--text);">Hoja ${r.numero_hoja}</b> · vigencia ${formatearFechaSemanal(r.vigencia_desde)} al ${formatearFechaSemanal(r.vigencia_hasta)}</div>
+        <div style="color:var(--muted);">${new Date(r.impreso_en).toLocaleDateString('es-AR')} · ${r.impreso_por || ''}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = '<div style="color:var(--red);">Error al cargar el historial.</div>';
+  }
 }
 
 const PROVINCIAS = [
@@ -738,7 +1010,7 @@ async function login() {
     document.getElementById('app').style.display = 'flex';
     document.getElementById('chip-user').textContent = usuarioActual.nombre + (esSuperadmin ? ' ⬟' : '');
     document.getElementById('login-error').style.display = 'none';
-    document.getElementById('input-fecha-comparar').value = new Date().toISOString().split('T')[0];
+    document.getElementById('input-fecha-comparar').value = fechaLocalISO(new Date());
 
     document.getElementById('tab-rachas').style.display = usuarioActual.puedeVerRachas ? '' : 'none';
     document.getElementById('tab-comparar').style.display = usuarioActual.puedeVerComparacion ? '' : 'none';
@@ -831,7 +1103,7 @@ function fechaDesde(periodo) {
   const dias = periodo === 'semanal' ? 7 : 30;
   const d = new Date();
   d.setDate(d.getDate() - dias);
-  return d.toISOString().split('T')[0];
+  return fechaLocalISO(d);
 }
 
 // =====================
