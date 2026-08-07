@@ -558,15 +558,17 @@ function construirCartelSemanalHTML(datos, vigenciaDesde, vigenciaHasta) {
     <div class="cartel-semanal">
       <div class="cartel-titulo">QUINIELA SAGUIR</div>
       <div class="cartel-tagline">PARA SAGUIR GANANDO</div>
-      <div class="cartel-direccion">COMANDANTE FERNÁNDEZ 435 TEL/FAX 0364-4423920 SÁENZ PEÑA</div>
+      <div class="cartel-direccion">COMANDANTE FERNÁNDEZ 435 - PRESIDENCIA ROQUE SÁENZ PEÑA - CHACO</div>
       <div class="cartel-subtitulo">QUINI-HORÓSCOPO</div>
       <table class="tabla-horoscopo">${horoscopoHtml}</table>
       ${sorteosHtml}
-      <div class="bloque-semanal4">
-        <span class="titulo-semanal4">SEMANAL A LAS 4 CIFRAS</span>
-        ${datos.semanal4.map(n => `<span class="num-semanal4">${n}</span>`).join('')}
+      <div class="bloque-final">
+        <div class="fila-semanal4">
+          <span class="titulo-semanal4">SEMANAL A LAS 4 CIFRAS</span>
+          ${datos.semanal4.map(n => `<span class="num-semanal4">${n}</span>`).join('')}
+        </div>
+        <div class="cartel-vigencia">VIGENCIA: DEL ${formatearFechaSemanal(vigenciaDesde)} HASTA EL ${formatearFechaSemanal(vigenciaHasta)}</div>
       </div>
-      <div class="cartel-vigencia">VIGENCIA: DEL ${formatearFechaSemanal(vigenciaDesde)} HASTA EL ${formatearFechaSemanal(vigenciaHasta)}</div>
     </div>
   `;
 }
@@ -582,24 +584,25 @@ function actualizarVistaPreviaSemanal() {
 }
 
 const ESTILOS_CARTEL_SEMANAL = `
-  .cartel-semanal{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:10px;max-width:640px;margin:0 auto;}
-  .cartel-titulo{text-align:center;font-size:34px;font-weight:800;letter-spacing:1px;}
-  .cartel-tagline{text-align:center;font-size:20px;font-weight:700;margin-top:2px;}
-  .cartel-direccion{text-align:center;font-size:15px;margin:6px 0 10px;}
-  .cartel-subtitulo{text-align:center;font-size:22px;font-weight:800;border-top:2px solid #111;border-bottom:2px solid #111;padding:6px 0;margin-bottom:10px;}
-  .tabla-horoscopo{width:100%;border-collapse:collapse;font-size:18px;margin-bottom:14px;}
-  .tabla-horoscopo td{border:1.5px solid #111;padding:6px 8px;}
+  .cartel-semanal{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:10px;max-width:680px;margin:0 auto;}
+  .cartel-titulo{text-align:center;font-size:56px;font-weight:800;letter-spacing:2px;line-height:1;}
+  .cartel-tagline{text-align:center;font-size:30px;font-weight:800;margin-top:4px;}
+  .cartel-direccion{text-align:center;font-size:15px;margin:6px 0 10px;border-bottom:1.5px solid #111;padding-bottom:8px;}
+  .cartel-subtitulo{text-align:center;font-size:28px;font-weight:800;border-bottom:2.5px solid #111;padding-bottom:6px;margin-bottom:10px;}
+  .tabla-horoscopo{width:100%;border-collapse:collapse;font-size:17px;margin-bottom:14px;}
+  .tabla-horoscopo td{border:1.5px solid #111;padding:5px 8px;}
   .tabla-horoscopo .signo-nombre{font-weight:700;}
-  .tabla-horoscopo .signo-num{text-align:center;width:60px;font-weight:800;}
+  .tabla-horoscopo .signo-num{text-align:center;width:70px;font-weight:800;font-size:32px;}
   .bloque-sorteo{margin-bottom:12px;}
-  .titulo-sorteo{color:#111;font-weight:800;font-size:20px;padding:2px 0;text-align:left;letter-spacing:0.5px;border-bottom:2px solid #111;margin-bottom:2px;}
-  .tabla-semanal{width:100%;border-collapse:collapse;font-size:16px;}
-  .tabla-semanal th{border:1.5px solid #111;padding:4px 5px;font-size:13px;text-transform:uppercase;white-space:nowrap;font-weight:700;}
-  .tabla-semanal td{border:1.5px solid #111;padding:4px 5px;text-align:center;font-weight:700;}
-  .tabla-semanal .fila-label{font-weight:800;text-align:left;font-size:13px;white-space:nowrap;line-height:1.2;}
-  .bloque-semanal4{text-align:center;font-weight:800;font-size:20px;margin:14px 0;border-top:2px solid #111;border-bottom:2px solid #111;padding:8px 0;}
-  .titulo-semanal4{margin-right:16px;}
-  .num-semanal4{display:inline-block;margin:0 10px;font-weight:800;}
+  .titulo-sorteo{color:#111;font-weight:800;font-size:26px;padding:2px 0;text-align:center;letter-spacing:0.5px;border-bottom:2.5px solid #111;margin-bottom:2px;}
+  .tabla-semanal{width:100%;border-collapse:collapse;font-size:19px;}
+  .tabla-semanal th{border:1.5px solid #111;padding:3px 4px;font-size:12px;text-transform:uppercase;white-space:nowrap;font-weight:700;}
+  .tabla-semanal td{border:1.5px solid #111;padding:4px;text-align:center;font-weight:700;}
+  .tabla-semanal .fila-label{font-weight:800;text-align:left;font-size:11px;white-space:nowrap;line-height:1.15;padding-left:4px;}
+  .bloque-final{border:2.5px solid #111;margin-top:14px;padding:10px 14px;}
+  .fila-semanal4{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
+  .titulo-semanal4{font-weight:800;font-size:20px;}
+  .num-semanal4{display:inline-block;font-weight:800;font-size:64px;line-height:1;margin:0 10px;}
   .cartel-vigencia{text-align:center;font-weight:800;font-size:19px;margin-top:10px;}
 `;
 
