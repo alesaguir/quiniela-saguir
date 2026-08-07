@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0b429">
+<link rel="manifest" href="/quiniela-saguir/manifest.json">
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link rel="apple-touch-icon" href="/quiniela-saguir/icon-192.png">
+<title>Anulaciones — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --red:#e63946;
+    --green:#2ec4b6; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+  .login-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;}
+  .login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
+  .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
+  .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
+  .btn-primary:hover{background:#ffd166;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--gold);}
+  .btn-danger{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid rgba(230,57,70,0.3);}
+  .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+  .app{display:none;flex-direction:column;min-height:100vh;}
+
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;row-gap:10px;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-logo span{color:var(--text);}
+  .topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:10px;}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
+
+  .content{padding:28px;max-width:1100px;margin:0 auto;width:100%;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-wrap:wrap;gap:8px;}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+  .card-body{padding:20px;}
+
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;max-width:340px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast-ok{background:var(--surface);border-color:var(--green);color:var(--green);}
+  .toast-err{background:var(--surface);border-color:var(--red);color:var(--red);}
+
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .access-denied{text-align:center;padding:60px 20px;color:var(--muted);}
+  .access-denied h2{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--text);margin-bottom:10px;}
+
+  .tabla-tickets{width:100%;border-collapse:collapse;margin-bottom:14px;}
+  .tabla-tickets th{padding:8px 6px;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:left;border-bottom:1px solid var(--border);}
+  .tabla-tickets td{padding:6px 6px;border-bottom:1px solid var(--border);}
+  .tabla-tickets input, .tabla-tickets select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 8px;font-size:13px;font-family:'DM Sans',sans-serif;}
+  .tabla-tickets .col-quitar{width:34px;}
+
+  .historial-item{padding:14px;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;}
+  .historial-item:last-child{border-bottom:none;}
+  .historial-item:hover{background:rgba(255,255,255,0.02);}
+
+  .linea-columna-config{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+
+  @media (max-width: 640px) {
+    .topbar{padding:12px 16px;}
+    .topbar-logo{font-size:18px;flex:1 1 100%;}
+    .topbar-right{width:100%;justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-title">Anulaciones</div>
+    <div class="login-sub">Quiniela Agencia N° 670 · Anulación de tickets</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="inp-user" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos</div>
+    <br>
+    <button class="btn btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="admin.html" style="font-size:12.5px;color:var(--muted);text-decoration:underline;">← Volver al panel principal</a>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Quiniela<span>Saguir</span> — Anulaciones</div>
+    <div class="topbar-right">
+      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;text-decoration:none;">← Panel principal</a>
+      <span class="user-chip" id="chip-user">—</span>
+      <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div id="sin-permiso" style="display:none;" class="access-denied">
+      <h2>Sin acceso a esta sección</h2>
+      <div>Tu usuario no tiene el permiso habilitado. Pedile a un superadmin que te lo active en el panel principal.</div>
+    </div>
+
+    <div id="contenido-anulaciones" style="display:none;">
+
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button class="btn btn-primary" id="tab-btn-formulario" onclick="cambiarTab('formulario')" style="width:auto;padding:9px 20px;">📋 Formulario</button>
+        <button class="btn btn-ghost" id="tab-btn-configuracion" onclick="cambiarTab('configuracion')" style="width:auto;padding:9px 20px;display:none;">⚙️ Configuración</button>
+      </div>
+
+      <div id="tab-formulario">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🎫 Nuevo lote de tickets anulados</div>
+          </div>
+          <div class="card-body">
+
+            <div id="banner-editando" style="display:none;font-size:12.5px;color:var(--gold);background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;"></div>
+
+            <div style="overflow-x:auto;">
+              <table class="tabla-tickets" id="tabla-tickets">
+                <thead><tr id="tabla-tickets-head"></tr></thead>
+                <tbody id="tabla-tickets-body"></tbody>
+              </table>
+            </div>
+
+            <button class="btn btn-ghost" onclick="agregarFila()" style="width:auto;padding:9px 18px;margin-bottom:16px;">
+              ➕ Agregar ticket
+            </button>
+
+            <div style="text-align:right;font-size:15px;font-weight:600;margin-bottom:8px;">
+              Importe total: <span id="importe-total-form" style="color:var(--gold);">$ 0,00</span>
+              · <span id="cantidad-tickets-form" style="color:var(--muted);font-weight:400;font-size:13px;">0 tickets</span>
+            </div>
+            <div id="aviso-capacidad" style="display:none;text-align:right;font-size:12.5px;color:var(--gold);background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);border-radius:8px;padding:8px 12px;margin-bottom:16px;"></div>
+
+            <div class="error-msg" id="form-error" style="margin-bottom:12px;"></div>
+
+            <button class="btn btn-primary" onclick="guardarYGenerarPDF()" id="btn-guardar-form" style="width:auto;padding:10px 26px;">
+              🖨 Guardar y generar PDF (por triplicado)
+            </button>
+            <button class="btn btn-ghost" onclick="vaciarFormulario()" style="width:auto;padding:10px 20px;margin-left:8px;">
+              ✖ Vaciar
+            </button>
+            <button class="btn btn-ghost" onclick="cancelarEdicion()" id="btn-cancelar-edicion" style="display:none;width:auto;padding:10px 20px;margin-left:8px;">
+              ✖ Cancelar edición
+            </button>
+            <button class="btn btn-ghost" onclick="imprimirModeloBlanco()" style="width:auto;padding:10px 20px;margin-left:8px;">
+              📄 Imprimir modelo en blanco
+            </button>
+            <div style="color:var(--muted);font-size:12px;margin-top:10px;">
+              "Modelo en blanco" imprime el formulario vacío por triplicado (con las columnas y renglones configurados), para tener copias en papel a mano por si se corta la luz.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🕒 Historial de lotes</div>
+            <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+          </div>
+          <div id="lista-historial" style="max-height:520px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
+        </div>
+
+      </div><!-- /tab-formulario -->
+
+      <div id="tab-configuracion" style="display:none;">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔢 Tickets por formulario — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:10px;">
+              Cuántos renglones entran en cada hoja impresa. Si cargás más tickets que esto, se generan hojas adicionales automáticamente (todas por triplicado), y el sistema te avisa antes de imprimir.
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="number" id="config-tickets-por-formulario" min="1" max="60" style="width:90px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;">
+              <button class="btn btn-primary" onclick="guardarTicketsPorFormulario()" style="width:auto;padding:9px 20px;">💾 Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔤 Estilo de impresión — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">
+              Fuente, tamaño y estilo de letra del PDF. Los tres formularios (Agencia / Sáenz Peña / Resistencia) siempre entran en una sola hoja A4 horizontal.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);">
+                Fuente
+                <select id="config-estilo-fuente" class="form-input" style="width:170px;padding:8px 10px;font-size:13px;"></select>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);">
+                Tamaño
+                <input type="number" id="config-estilo-tamano" min="6" max="20" style="width:70px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;">
+                px
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+                <input type="checkbox" id="config-estilo-negrita" style="accent-color:var(--gold);"> Negrita
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+                <input type="checkbox" id="config-estilo-cursiva" style="accent-color:var(--gold);"> Cursiva
+              </label>
+            </div>
+            <button class="btn btn-primary" onclick="guardarEstiloImpresion()" style="width:auto;padding:9px 20px;margin-top:16px;">💾 Guardar estilo</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📑 Columnas del formulario — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">
+              Agregá, quitá o reordená las columnas. Esto solo afecta a los lotes que se carguen de ahora en más — los que ya generaste quedan como estaban.
+            </div>
+            <div id="lista-columnas-config">Cargando...</div>
+            <button class="btn btn-ghost" onclick="agregarColumnaConfig()" style="width:auto;padding:8px 16px;margin-top:6px;">➕ Agregar columna</button>
+            <div style="margin-top:16px;">
+              <button class="btn btn-primary" onclick="guardarColumnasConfig()" style="width:auto;padding:10px 26px;">💾 Guardar columnas</button>
+              <button class="btn btn-ghost" onclick="restablecerColumnasConfig()" style="width:auto;padding:10px 20px;margin-left:8px;">↺ Restablecer a valores predeterminados</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tab-configuracion -->
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+let usuarioActual = null;
+let subagenciasCache = [];
+let columnasActivas = [];
+let ticketsPorFormulario = 15;
+let filasActuales = [];
+let editandoLoteId = null;
+
+const OPCIONES_QUINIELA = ['Provincia', 'Ciudad', 'Chaqueña', 'Corrientes', 'Córdoba'].map(o => o.substring(0,4).toUpperCase());
+
+const FUENTES_DISPONIBLES = [
+  'Arial', 'Arial Black', 'Verdana', 'Tahoma', 'Trebuchet MS',
+  'Times New Roman', 'Georgia', 'Courier New', 'Calibri'
+];
+
+let estiloImpresion = { fuente:'Arial', tamano:11, negrita:false, cursiva:false };
+
+const COLUMNAS_PREDETERMINADAS = [
+  { clave:'subagencia', etiqueta:'Sub - Agencia', tipo:'subagencia', activo:true },
+  { clave:'sorteo', etiqueta:'N° de sorteo', tipo:'numero_5', activo:true },
+  { clave:'quiniela', etiqueta:'Quiniela', tipo:'quiniela', activo:true },
+  { clave:'secuencia', etiqueta:'Secuencia', tipo:'secuencia', activo:true },
+  { clave:'importe', etiqueta:'Importe', tipo:'moneda', activo:true }
+];
+
+const TIPOS_COLUMNA = [
+  { value:'texto', label:'Texto libre' },
+  { value:'numero_5', label:'Número (5 cifras)' },
+  { value:'moneda', label:'Importe ($)' },
+  { value:'secuencia', label:'Secuencia (XXXX/XXX)' },
+  { value:'subagencia', label:'Sub-agencia (lista)' },
+  { value:'quiniela', label:'Quiniela (lista)' }
+];
+
+function showToast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${tipo} show`;
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+async function login() {
+  const email = document.getElementById('inp-user').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<div class="loading"></div> Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.access_token) {
+      mostrarErrorLogin('Usuario o contraseña incorrectos');
+      return;
+    }
+
+    const rolRes = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_ver_anulaciones`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
+    );
+    const rolData = await rolRes.json();
+
+    if (!rolData || rolData.length === 0 || !rolData[0].activo) {
+      mostrarErrorLogin('Usuario sin acceso al sistema.');
+      return;
+    }
+
+    usuarioActual = {
+      user_id: data.user.id,
+      nombre: rolData[0].nombre,
+      rol: rolData[0].rol,
+      agencia_id: rolData[0].agencia_id || '670-00',
+      puede_ver_anulaciones: rolData[0].puede_ver_anulaciones === true,
+      email: email,
+      token: data.access_token,
+      refreshToken: data.refresh_token
+    };
+
+    iniciarRenovacionSesion();
+
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('chip-user').textContent = usuarioActual.nombre + (usuarioActual.rol==='superadmin'?' ⬟':'');
+
+    const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_anulaciones;
+    document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
+    document.getElementById('contenido-anulaciones').style.display = tienePermiso ? 'block' : 'none';
+
+    if (usuarioActual.rol === 'superadmin') {
+      document.getElementById('tab-btn-configuracion').style.display = 'inline-flex';
+    }
+
+    if (tienePermiso) {
+      await initApp();
+    }
+  } catch(e) {
+    console.error(e);
+    mostrarErrorLogin('Ocurrió un error de conexión.');
+  }
+  btn.innerHTML = 'Ingresar';
+  btn.disabled = false;
+}
+
+function mostrarErrorLogin(msg) {
+  const err = document.getElementById('login-error');
+  err.textContent = msg;
+  err.style.display = 'block';
+  document.getElementById('btn-login').innerHTML = 'Ingresar';
+  document.getElementById('btn-login').disabled = false;
+}
+
+let renovacionSesionTimer = null;
+
+function iniciarRenovacionSesion() {
+  if (renovacionSesionTimer) clearInterval(renovacionSesionTimer);
+  renovacionSesionTimer = setInterval(renovarSesion, 20 * 60 * 1000);
+}
+
+function detenerRenovacionSesion() {
+  if (renovacionSesionTimer) { clearInterval(renovacionSesionTimer); renovacionSesionTimer = null; }
+}
+
+async function renovarSesion() {
+  if (!usuarioActual || !usuarioActual.refreshToken) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: usuarioActual.refreshToken })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      usuarioActual.token = data.access_token;
+      usuarioActual.refreshToken = data.refresh_token || usuarioActual.refreshToken;
+    }
+  } catch(e) { console.error('Error de red al renovar la sesión', e); }
+}
+
+async function fetchConRenovacion(url, opciones) {
+  let res = await fetch(url, opciones);
+  if (res.status === 401 && usuarioActual?.refreshToken) {
+    await renovarSesion();
+    const opcionesRenovadas = {
+      ...opciones,
+      headers: { ...(opciones.headers || {}), 'Authorization': `Bearer ${usuarioActual.token}` }
+    };
+    res = await fetch(url, opcionesRenovadas);
+  }
+  return res;
+}
+
+async function logout() {
+  detenerRenovacionSesion();
+  if (usuarioActual && usuarioActual.token) {
+    await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    }).catch(()=>{});
+  }
+  usuarioActual = null;
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('inp-pass').value = '';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+async function registrarActividad(accion, detalle) {
+  try {
+    const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{ usuario: usuarioActual.nombre, accion, detalle, dispositivo }])
+    });
+  } catch(e) { console.error('No se pudo registrar actividad', e); }
+}
+
+function cambiarTab(nombre) {
+  const esFormulario = nombre === 'formulario';
+  document.getElementById('tab-formulario').style.display = esFormulario ? 'block' : 'none';
+  document.getElementById('tab-configuracion').style.display = esFormulario ? 'none' : 'block';
+  document.getElementById('tab-btn-formulario').className = esFormulario ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-btn-configuracion').className = esFormulario ? 'btn btn-ghost' : 'btn btn-primary';
+}
+
+async function initApp() {
+  await cargarSubagencias();
+  await cargarConfig();
+  agregarFila();
+  await cargarHistorial();
+}
+
+async function cargarSubagencias() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    subagenciasCache = await res.json() || [];
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar sub-agencias', 'err');
+  }
+}
+
+function opcionesSubagencia(seleccionado) {
+  const tieneOficial = subagenciasCache.some(a => a.agencia_id === '670-00');
+  const lista = tieneOficial ? subagenciasCache : [{ agencia_id:'670-00', nombre_titular:'Agencia Principal' }, ...subagenciasCache];
+  return lista.map(a => `<option value="${a.agencia_id}" ${a.agencia_id===seleccionado?'selected':''}>${a.agencia_id}${a.nombre_titular ? ' — '+a.nombre_titular : ''}</option>`).join('');
+}
+
+async function cargarConfig() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1&select=columnas,tickets_por_formulario,estilo_impresion`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    columnasActivas = (rows && rows[0] && rows[0].columnas) ? rows[0].columnas : JSON.parse(JSON.stringify(COLUMNAS_PREDETERMINADAS));
+    ticketsPorFormulario = (rows && rows[0] && rows[0].tickets_por_formulario) || 15;
+    estiloImpresion = (rows && rows[0] && rows[0].estilo_impresion) || estiloImpresion;
+    renderTablaFormulario();
+    if (usuarioActual.rol === 'superadmin') {
+      document.getElementById('config-tickets-por-formulario').value = ticketsPorFormulario;
+      renderColumnasConfig();
+      const selFuente = document.getElementById('config-estilo-fuente');
+      selFuente.innerHTML = FUENTES_DISPONIBLES.map(f => `<option value="${f}" ${f===estiloImpresion.fuente?'selected':''}>${f}</option>`).join('');
+      document.getElementById('config-estilo-tamano').value = estiloImpresion.tamano;
+      document.getElementById('config-estilo-negrita').checked = !!estiloImpresion.negrita;
+      document.getElementById('config-estilo-cursiva').checked = !!estiloImpresion.cursiva;
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar la configuración', 'err');
+  }
+}
+
+function renderTablaFormulario() {
+  const head = document.getElementById('tabla-tickets-head');
+  head.innerHTML = columnasActivas.map(c => `<th>${c.etiqueta}</th>`).join('') + '<th class="col-quitar"></th>';
+  renderFilasFormulario();
+}
+
+function inputParaColumna(col, valor, filaIdx) {
+  const v = (valor === undefined || valor === null) ? '' : valor;
+  switch (col.tipo) {
+    case 'subagencia':
+      return `<select onchange="actualizarFila(${filaIdx}, '${col.clave}', this.value)">
+        <option value="">—</option>
+        ${opcionesSubagencia(v)}
+      </select>`;
+    case 'quiniela':
+      return `<select onchange="actualizarFila(${filaIdx}, '${col.clave}', this.value)">
+        <option value="">—</option>
+        ${OPCIONES_QUINIELA.map(o => `<option value="${o}" ${o===v?'selected':''}>${o}</option>`).join('')}
+      </select>`;
+    case 'numero_5':
+      return `<input type="text" inputmode="numeric" maxlength="5" placeholder="00000" value="${v}" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,5); actualizarFila(${filaIdx}, '${col.clave}', this.value)">`;
+    case 'secuencia':
+      return `<input type="text" placeholder="0000/000" value="${v}" oninput="actualizarFila(${filaIdx}, '${col.clave}', this.value)">`;
+    case 'moneda':
+      return `<input type="number" step="0.01" min="0" placeholder="0.00" value="${v}" oninput="actualizarFila(${filaIdx}, '${col.clave}', this.value); recalcularTotales();">`;
+    default:
+      return `<input type="text" value="${v}" oninput="actualizarFila(${filaIdx}, '${col.clave}', this.value)">`;
+  }
+}
+
+function renderFilasFormulario() {
+  const body = document.getElementById('tabla-tickets-body');
+  body.innerHTML = filasActuales.map((fila, i) => `
+    <tr>
+      ${columnasActivas.map(c => `<td>${inputParaColumna(c, fila[c.clave], i)}</td>`).join('')}
+      <td class="col-quitar"><button class="btn btn-danger" style="padding:6px 10px;font-size:12px;" onclick="quitarFila(${i})">🗑</button></td>
+    </tr>
+  `).join('');
+  recalcularTotales();
+}
+
+function agregarFila() {
+  const fila = {};
+  columnasActivas.forEach(c => { fila[c.clave] = ''; });
+  filasActuales.push(fila);
+  renderFilasFormulario();
+}
+
+function quitarFila(i) {
+  filasActuales.splice(i, 1);
+  renderFilasFormulario();
+}
+
+function actualizarFila(i, clave, valor) {
+  if (!filasActuales[i]) return;
+  filasActuales[i][clave] = valor;
+}
+
+function formatearMoneda(valor) {
+  const n = parseFloat(valor) || 0;
+  return n.toLocaleString('es-AR', { style:'currency', currency:'ARS', minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+
+function recalcularTotales() {
+  const claveImporte = (columnasActivas.find(c => c.tipo === 'moneda') || {}).clave;
+  let total = 0;
+  if (claveImporte) {
+    filasActuales.forEach(f => { total += parseFloat(f[claveImporte]) || 0; });
+  }
+  document.getElementById('importe-total-form').textContent = formatearMoneda(total);
+  document.getElementById('cantidad-tickets-form').textContent = `${filasActuales.length} ticket${filasActuales.length===1?'':'s'}`;
+
+  const aviso = document.getElementById('aviso-capacidad');
+  if (filasActuales.length > ticketsPorFormulario) {
+    const hojas = Math.ceil(filasActuales.length / ticketsPorFormulario);
+    aviso.style.display = 'block';
+    aviso.textContent = `⚠️ Cargaste ${filasActuales.length} tickets, pero cada hoja tiene lugar para ${ticketsPorFormulario}. Se van a generar ${hojas} hojas (todas por triplicado).`;
+  } else {
+    aviso.style.display = 'none';
+  }
+}
+
+function vaciarFormulario() {
+  filasActuales = [];
+  agregarFila();
+  document.getElementById('form-error').style.display = 'none';
+}
+
+function validarFilas() {
+  if (filasActuales.length === 0) return 'Agregá al menos un ticket.';
+  for (let i = 0; i < filasActuales.length; i++) {
+    const f = filasActuales[i];
+    for (const c of columnasActivas) {
+      const v = (f[c.clave] || '').toString().trim();
+      if (!v) return `Falta completar "${c.etiqueta}" en el ticket N° ${i+1}.`;
+      if (c.tipo === 'numero_5' && !/^\d{5}$/.test(v)) return `"${c.etiqueta}" del ticket N° ${i+1} debe tener 5 cifras.`;
+      if (c.tipo === 'secuencia' && !/^\d{4}\/\d{3}$/.test(v)) return `"${c.etiqueta}" del ticket N° ${i+1} debe tener el formato 0000/000.`;
+      if (c.tipo === 'moneda' && (isNaN(parseFloat(v)) || parseFloat(v) <= 0)) return `"${c.etiqueta}" del ticket N° ${i+1} debe ser un importe válido.`;
+    }
+  }
+  return null;
+}
+
+async function guardarYGenerarPDF() {
+  const errEl = document.getElementById('form-error');
+  errEl.style.display = 'none';
+
+  const error = validarFilas();
+  if (error) { errEl.textContent = error; errEl.style.display = 'block'; return; }
+
+  if (filasActuales.length > ticketsPorFormulario) {
+    const hojas = Math.ceil(filasActuales.length / ticketsPorFormulario);
+    if (!confirm(`Cargaste ${filasActuales.length} tickets, pero cada hoja tiene lugar para ${ticketsPorFormulario}. Se van a generar ${hojas} hojas, todas por triplicado. ¿Continuar?`)) return;
+  }
+
+  const claveImporte = (columnasActivas.find(c => c.tipo === 'moneda') || {}).clave;
+  const importeTotal = filasActuales.reduce((acc, f) => acc + (parseFloat(f[claveImporte]) || 0), 0);
+
+  const editando = editandoLoteId !== null;
+  const registro = {
+    zona: '5',
+    agencia: '670',
+    columnas_snapshot: columnasActivas,
+    tickets_por_formulario_snapshot: ticketsPorFormulario,
+    estilo_snapshot: estiloImpresion,
+    filas: filasActuales,
+    importe_total: importeTotal,
+    cantidad_tickets: filasActuales.length,
+    creado_por: usuarioActual.user_id,
+    creado_por_nombre: usuarioActual.nombre
+  };
+
+  const btn = document.getElementById('btn-guardar-form');
+  const textoOriginalBtn = btn.innerHTML;
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchConRenovacion(
+      editando
+        ? `${SUPABASE_URL}/rest/v1/anulaciones_lotes?id=eq.${editandoLoteId}`
+        : `${SUPABASE_URL}/rest/v1/anulaciones_lotes`,
+      {
+        method: editando ? 'PATCH' : 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(editando ? registro : [registro])
+      }
+    );
+
+    if (res.ok) {
+      showToast(editando ? '✅ Lote actualizado' : '✅ Lote guardado', 'ok');
+      registrarActividad(
+        editando ? 'Edición de lote de anulaciones' : 'Carga de lote de anulaciones',
+        `${filasActuales.length} tickets — total ${formatearMoneda(importeTotal)}`
+      );
+      imprimirLote(registro);
+      await cancelarEdicion();
+      cargarHistorial();
+    } else {
+      const err = await res.text();
+      console.error(err);
+      errEl.textContent = 'Error al guardar. Revisá la consola.';
+      errEl.style.display = 'block';
+      btn.innerHTML = textoOriginalBtn;
+    }
+  } catch(e) {
+    console.error(e);
+    errEl.textContent = 'Error de conexión.';
+    errEl.style.display = 'block';
+    btn.innerHTML = textoOriginalBtn;
+  }
+
+  btn.disabled = false;
+}
+
+function editarLote(registro) {
+  editandoLoteId = registro.id;
+  columnasActivas = registro.columnas_snapshot;
+  ticketsPorFormulario = registro.tickets_por_formulario_snapshot || ticketsPorFormulario;
+  estiloImpresion = registro.estilo_snapshot || estiloImpresion;
+  filasActuales = JSON.parse(JSON.stringify(registro.filas));
+  renderTablaFormulario();
+
+  document.getElementById('banner-editando').style.display = 'block';
+  document.getElementById('banner-editando').textContent =
+    `✏️ Editando el lote del ${new Date(registro.creado_en).toLocaleDateString('es-AR')} (${registro.cantidad_tickets} tickets). Corregí lo que haga falta y guardá, o cancelá la edición.`;
+  document.getElementById('btn-cancelar-edicion').style.display = 'inline-flex';
+  document.getElementById('btn-guardar-form').innerHTML = '🖨 Guardar cambios';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function cancelarEdicion() {
+  editandoLoteId = null;
+  document.getElementById('banner-editando').style.display = 'none';
+  document.getElementById('btn-cancelar-edicion').style.display = 'none';
+  document.getElementById('btn-guardar-form').innerHTML = '🖨 Guardar y generar PDF (por triplicado)';
+  await cargarConfig();
+  filasActuales = [];
+  agregarFila();
+}
+
+async function cargarHistorial() {
+  const lista = document.getElementById('lista-historial');
+  lista.innerHTML = 'Cargando...';
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/anulaciones_lotes?order=creado_en.desc&limit=100`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json() || [];
+    if (rows.length === 0) {
+      lista.innerHTML = '<div style="padding:20px 0;text-align:center;">No hay lotes cargados todavía.</div>';
+      return;
+    }
+    lista.innerHTML = rows.map(r => `
+      <div class="historial-item">
+        <div style="min-width:200px;">
+          <div style="color:var(--text);font-weight:600;">${new Date(r.creado_en).toLocaleDateString('es-AR')} · ${r.cantidad_tickets} tickets</div>
+          <div style="color:var(--muted);font-size:12px;">${r.creado_por_nombre || ''}</div>
+        </div>
+        <div style="flex:1;min-width:140px;color:var(--gold);font-weight:600;">${formatearMoneda(r.importe_total)}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='reimprimirLote(${JSON.stringify(r).replace(/'/g,"&#39;")})'>🖨 Reimprimir</button>
+          ${usuarioActual.rol === 'superadmin' ? `
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='editarLote(${JSON.stringify(r).replace(/'/g,"&#39;")})'>✏️ Editar</button>
+            <button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" onclick="borrarLote(${r.id})">🗑</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error(e);
+    lista.innerHTML = '<div style="padding:20px 0;text-align:center;color:var(--red);">Error al cargar el historial.</div>';
+  }
+}
+
+function reimprimirLote(registro) {
+  imprimirLote(registro);
+}
+
+async function borrarLote(id) {
+  if (!confirm('¿Borrar este lote del historial? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/anulaciones_lotes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    });
+    if (res.ok) { showToast('Lote borrado', 'ok'); cargarHistorial(); }
+    else { showToast('Error al borrar', 'err'); }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+function renderColumnasConfig() {
+  const cont = document.getElementById('lista-columnas-config');
+  cont.innerHTML = columnasActivas.map((c, i) => `
+    <div class="linea-columna-config">
+      <input class="form-input" style="width:180px;" placeholder="Etiqueta" value="${(c.etiqueta||'').replace(/"/g,'&quot;')}" oninput="columnasActivas[${i}].etiqueta=this.value">
+      <select class="form-input" style="width:190px;" onchange="columnasActivas[${i}].tipo=this.value">
+        ${TIPOS_COLUMNA.map(t => `<option value="${t.value}" ${t.value===c.tipo?'selected':''}>${t.label}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost" style="padding:8px 10px;font-size:12px;" onclick="moverColumnaConfig(${i}, -1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn btn-ghost" style="padding:8px 10px;font-size:12px;" onclick="moverColumnaConfig(${i}, 1)" ${i===columnasActivas.length-1?'disabled':''}>↓</button>
+      <button class="btn btn-danger" style="padding:8px 10px;font-size:12px;" onclick="quitarColumnaConfig(${i})">🗑</button>
+    </div>
+  `).join('');
+}
+
+function agregarColumnaConfig() {
+  columnasActivas.push({ clave: 'col_' + Date.now(), etiqueta: 'Nueva columna', tipo: 'texto', activo: true });
+  renderColumnasConfig();
+}
+
+function quitarColumnaConfig(i) {
+  if (columnasActivas.length <= 1) { showToast('Tiene que quedar al menos una columna', 'err'); return; }
+  columnasActivas.splice(i, 1);
+  renderColumnasConfig();
+}
+
+function moverColumnaConfig(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= columnasActivas.length) return;
+  [columnasActivas[i], columnasActivas[j]] = [columnasActivas[j], columnasActivas[i]];
+  renderColumnasConfig();
+}
+
+async function guardarColumnasConfig() {
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ columnas: columnasActivas, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      showToast('✅ Columnas guardadas — aplican a los próximos lotes', 'ok');
+      filasActuales = [];
+      agregarFila();
+      renderTablaFormulario();
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+function restablecerColumnasConfig() {
+  if (!confirm('¿Restablecer las columnas a los valores predeterminados? Se pierden los cambios no guardados en pantalla.')) return;
+  columnasActivas = JSON.parse(JSON.stringify(COLUMNAS_PREDETERMINADAS));
+  renderColumnasConfig();
+  showToast('Valores predeterminados cargados — tocá "Guardar columnas" para confirmar', 'ok');
+}
+
+async function guardarTicketsPorFormulario() {
+  const val = parseInt(document.getElementById('config-tickets-por-formulario').value, 10);
+  if (!val || val < 1) { showToast('Ingresá un número válido', 'err'); return; }
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ tickets_por_formulario: val, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      ticketsPorFormulario = val;
+      showToast('✅ Guardado', 'ok');
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+async function guardarEstiloImpresion() {
+  const tamano = parseInt(document.getElementById('config-estilo-tamano').value, 10) || 11;
+  estiloImpresion = {
+    fuente: document.getElementById('config-estilo-fuente').value,
+    tamano,
+    negrita: document.getElementById('config-estilo-negrita').checked,
+    cursiva: document.getElementById('config-estilo-cursiva').checked
+  };
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/anulaciones_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ estilo_impresion: estiloImpresion, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      showToast('✅ Estilo de impresión guardado', 'ok');
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+function construirTablaImpresion(columnas, filasPagina) {
+  const filasHtml = filasPagina.map(f => `
+    <tr>${columnas.map(c => `<td>${f[c.clave] !== undefined && f[c.clave] !== null && f[c.clave] !== '' ? (c.tipo === 'moneda' ? formatearMoneda(f[c.clave]) : f[c.clave]) : ''}</td>`).join('')}</tr>
+  `).join('');
+  return `
+    <table class="tabla-anulados">
+      <thead><tr>${columnas.map(c => `<th>${c.etiqueta}</th>`).join('')}</tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
+}
+
+function construirCopiaImpresion(destinatario, columnas, filasPagina, importeTotalPagina, esBlanco) {
+  const tieneImporte = columnas.some(c => c.tipo === 'moneda');
+  return `
+    <div class="copia">
+      <div class="encabezado-copia">
+        <div class="titulo-copia">LOTERÍA CHAQUEÑA</div>
+        <div class="subtitulo-copia">DIRECCIÓN DE QUINIELA</div>
+        <div class="subtitulo-copia">Detalle de Tickets Anulados</div>
+      </div>
+      <div class="destinatario-copia">${destinatario}</div>
+      <div class="datos-copia">
+        <span><b>Zona:</b> 5</span>
+        <span><b>Agencia:</b> 670</span>
+      </div>
+      ${construirTablaImpresion(columnas, filasPagina)}
+      ${tieneImporte ? `<div class="total-copia">Importe total: ${esBlanco ? '________________' : formatearMoneda(importeTotalPagina)}</div>` : ''}
+      <div class="firmas-copia">
+        <span>Firma Agencia: ________________</span>
+        <span>R/Lotería: ________________</span>
+      </div>
+    </div>
+  `;
+}
+
+function imprimirLote(registro, esBlanco) {
+  const columnas = registro.columnas_snapshot;
+  const porHoja = registro.tickets_por_formulario_snapshot || ticketsPorFormulario;
+  const estilo = registro.estilo_snapshot || estiloImpresion;
+  const claveImporte = (columnas.find(c => c.tipo === 'moneda') || {}).clave;
+  const destinatarios = ['Agencia', 'Lotería Chaqueña — Sede Sáenz Peña', 'Lotería Chaqueña — Sede Resistencia'];
+
+  const paginas = [];
+  for (let i = 0; i < registro.filas.length; i += porHoja) {
+    paginas.push(registro.filas.slice(i, i + porHoja));
+  }
+  if (paginas.length === 0) paginas.push([]);
+
+  const paginasHtml = paginas.map(filasPagina => {
+    const totalPagina = claveImporte ? filasPagina.reduce((acc, f) => acc + (parseFloat(f[claveImporte]) || 0), 0) : 0;
+    return `
+      <div class="hoja">
+        ${destinatarios.map(d => construirCopiaImpresion(d, columnas, filasPagina, totalPagina, esBlanco)).join('')}
+      </div>
+    `;
+  }).join('');
+
+  // Tamaños de todo el resto del formulario, proporcionales al tamaño base
+  // elegido en Configuración (11px = el que se ve por defecto).
+  const tam = estilo.tamano || 11;
+  const factor = tam / 11;
+  const fuente = estilo.fuente || 'Arial';
+  const negrita = estilo.negrita ? 'bold' : 'normal';
+  const cursiva = estilo.cursiva ? 'italic' : 'normal';
+  const tamTitulo = Math.round(20 * factor);
+  const tamSubtitulo = Math.round(10 * factor);
+  const tamDestinatario = Math.round(11 * factor);
+  const tamDatos = Math.round(11 * factor);
+  const tamThTabla = Math.round(9.5 * factor);
+  const tamTotal = Math.round(12 * factor);
+  const tamFirmas = Math.round(10.5 * factor);
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
+  w.document.write(`
+    <html><head><title>Anulaciones</title>
+    <meta charset="UTF-8">
+    <style>
+      @page { size: A4 landscape; margin: 10mm; }
+      html,body{margin:0;padding:0;}
+      body{font-family:'${fuente}',Arial,Helvetica,sans-serif;color:#111;font-size:${tam}px;font-weight:${negrita};font-style:${cursiva};}
+      .hoja{display:flex;gap:12px;page-break-after:always;width:100%;}
+      .hoja:last-child{page-break-after:auto;}
+      .copia{flex:1;min-width:0;border:2px solid #111;border-radius:6px;padding:10px;}
+      .encabezado-copia{border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px;text-align:center;}
+      .titulo-copia{font-size:${tamTitulo}px;font-weight:bold;letter-spacing:1px;}
+      .subtitulo-copia{font-size:${tamSubtitulo}px;font-weight:bold;letter-spacing:0.5px;}
+      .destinatario-copia{text-align:center;font-size:${tamDestinatario}px;font-weight:bold;margin-bottom:8px;text-transform:uppercase;}
+      .datos-copia{display:flex;gap:20px;margin-bottom:8px;font-size:${tamDatos}px;}
+      .tabla-anulados{width:100%;border-collapse:collapse;font-size:${tam}px;margin-bottom:10px;}
+      .tabla-anulados th{border:1px solid #111;padding:4px;background:#f3f3f3;font-size:${tamThTabla}px;text-transform:uppercase;}
+      .tabla-anulados td{border:1px solid #111;padding:4px;text-align:center;height:16px;}
+      .total-copia{text-align:right;font-weight:bold;font-size:${tamTotal}px;margin-bottom:16px;}
+      .firmas-copia{display:flex;justify-content:space-between;font-size:${tamFirmas}px;margin-top:10px;}
+      @media print { @page{margin:8mm;} }
+    </style>
+    </head><body>
+    ${paginasHtml}
+    <script>window.onload = () => setTimeout(() => window.print(), 200);<\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
+
+// Modelo en blanco: mismas columnas, tamaño de hoja y estilo configurados,
+// pero sin datos — para tener copias en papel a mano (ej. corte de luz).
+function imprimirModeloBlanco() {
+  const filasBlancas = [];
+  for (let i = 0; i < ticketsPorFormulario; i++) {
+    const fila = {};
+    columnasActivas.forEach(c => { fila[c.clave] = ''; });
+    filasBlancas.push(fila);
+  }
+  const registroBlanco = {
+    columnas_snapshot: columnasActivas,
+    tickets_por_formulario_snapshot: ticketsPorFormulario,
+    estilo_snapshot: estiloImpresion,
+    filas: filasBlancas
+  };
+  imprimirLote(registroBlanco, true);
+}
+
+</script>
+</body>
+</html>
