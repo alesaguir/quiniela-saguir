@@ -596,7 +596,7 @@ function construirCartelSemanalHTML(datos, vigenciaDesde, vigenciaHasta) {
     <div class="bloque-sorteo">
       <div class="titulo-sorteo">${sorteo}</div>
       <table class="tabla-semanal">
-        <thead><tr><th></th>${PROVINCIAS_SEMANAL.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+        <thead><tr><th class="celda-esquina"></th>${PROVINCIAS_SEMANAL.map(p => `<th>${p}</th>`).join('')}</tr></thead>
         <tbody>
           ${FILAS_SEMANAL.map(fila => `
             <tr>
@@ -783,6 +783,7 @@ const ESTILOS_CARTEL_SEMANAL = `
   .titulo-sorteo{color:#111;font-weight:800;font-size:26px;padding:2px 0;text-align:center;letter-spacing:0.5px;border-bottom:2.5px solid #111;margin-bottom:2px;}
   .tabla-semanal{width:100%;border-collapse:collapse;font-size:23px;}
   .tabla-semanal th{border:1.5px solid #111;padding:3px 4px;font-size:13px;text-transform:uppercase;white-space:nowrap;font-weight:700;}
+  .tabla-semanal th.celda-esquina{border:none;}
   .tabla-semanal td{border:1.5px solid #111;padding:4px;text-align:center;font-weight:700;}
   .tabla-semanal .fila-label{font-weight:800;text-align:center;font-size:12px;white-space:nowrap;line-height:1.15;}
   .bloque-final{border:2.5px solid #111;margin-top:14px;padding:10px 14px;}
@@ -861,7 +862,15 @@ async function chequearDuplicadosSemanal(numHoja, desde, hasta) {
     return true; // si falla la consulta, no bloqueamos la impresión
   }
 
-  const mismaHoja = historial.find(h => h.numero_hoja === numHoja);
+  // El aviso de "esta hoja ya se usó" solo mira dentro de la vuelta actual
+  // del ciclo (las últimas N impresiones, donde N = cantidad total de
+  // hojas que existen). Así, cuando se completa una vuelta entera y se
+  // vuelve a la hoja 1, no avisa de nuevo — reutilizar una hoja es
+  // esperable una vez que el ciclo dio la vuelta completa.
+  const totalHojas = Object.keys(HOJAS_ESTADISTICAS).length;
+  const historialCicloActual = historial.slice(0, totalHojas);
+
+  const mismaHoja = historialCicloActual.find(h => h.numero_hoja === numHoja);
   const mismaFecha = historial.find(h => h.vigencia_desde === desde && h.vigencia_hasta === hasta);
 
   if (mismaHoja) {
