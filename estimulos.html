@@ -526,7 +526,7 @@ function inputParaCampo(campo, valor) {
     case 'dni':
       return `<input type="text" inputmode="numeric" class="form-input" value="${v}" placeholder="00.000.000" oninput="formatearDNI(this, '${campo.clave}')">`;
     case 'moneda':
-      return `<input type="number" step="0.01" min="0" class="form-input" value="${v}" oninput="actualizarCampo('${campo.clave}', this.value); actualizarPreviewMontoLetras();">`;
+      return `<input type="text" inputmode="decimal" class="form-input" value="${formatearParaInputMoneda(v)}" placeholder="0" oninput="formatearMontoInput(this, '${campo.clave}')">`;
     default:
       return `<input type="text" class="form-input" value="${v}" oninput="actualizarCampo('${campo.clave}', this.value)">`;
   }
@@ -556,6 +556,35 @@ function formatearDNI(inputEl, clave) {
   const formateado = partes.join('.').split('').reverse().join('');
   inputEl.value = formateado;
   actualizarCampo(clave, formateado);
+}
+
+// Formatea el valor guardado (número plano) para mostrarlo con separador de
+// miles al abrir el formulario (ej. al editar un recibo ya cargado).
+function formatearParaInputMoneda(v) {
+  if (v === '' || v === undefined || v === null) return '';
+  const n = parseFloat(v);
+  if (isNaN(n)) return '';
+  return n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+}
+
+// Le pone separador de miles al importe mientras se tipea (ej. 20000 ->
+// 20.000), permite hasta una coma decimal, y guarda el valor numérico real
+// (sin puntos, con punto decimal) para los cálculos.
+function formatearMontoInput(inputEl, clave) {
+  let raw = inputEl.value.replace(/[^\d,]/g, '');
+  const primeraComa = raw.indexOf(',');
+  if (primeraComa !== -1) {
+    raw = raw.slice(0, primeraComa + 1) + raw.slice(primeraComa + 1).replace(/,/g, '');
+  }
+  const [enteroRaw, decimalRaw] = raw.split(',');
+  const enteroNum = parseInt(enteroRaw || '0', 10) || 0;
+  let formateado = enteroNum.toLocaleString('es-AR');
+  if (raw.includes(',')) formateado += ',' + (decimalRaw || '').slice(0, 2);
+  inputEl.value = formateado;
+
+  const valorNumerico = parseFloat(`${enteroNum}.${(decimalRaw || '0').padEnd(2,'0').slice(0,2)}`) || 0;
+  actualizarCampo(clave, valorNumerico);
+  actualizarPreviewMontoLetras();
 }
 
 function claveCampoPorTipo(tipo, claveEsperada) {
@@ -990,13 +1019,15 @@ function construirReciboHTML(registro, esBlanco) {
         (\$ ${montoNumero}) en concepto de premio correspondiente al SORTEO ESTÍMULO de la fecha ${fechaSorteo}.
       </div>
       <div class="recibo-datos">${filasDatos}</div>
-      <div class="recibo-firma">
-        <div class="recibo-firma-linea"></div>
-        <div class="recibo-firma-label">PAGADO POR AGENCIA</div>
-      </div>
-      <div class="recibo-firma">
-        <div class="recibo-firma-linea"></div>
-        <div class="recibo-firma-label">FIRMA Y ACLARACIÓN DE BENEFICIARIO</div>
+      <div class="recibo-firmas-fila">
+        <div class="recibo-firma-col">
+          <div class="recibo-firma-linea"></div>
+          <div class="recibo-firma-label">FIRMA Y ACLARACIÓN DE BENEFICIARIO</div>
+        </div>
+        <div class="recibo-firma-col">
+          <div class="recibo-firma-linea"></div>
+          <div class="recibo-firma-label">PAGADO POR AGENCIA</div>
+        </div>
       </div>
     </div>
   `;
@@ -1009,10 +1040,11 @@ const ESTILOS_RECIBO_BASE = `
   .recibo-encabezado-fecha{text-align:right;margin-bottom:18px;}
   .recibo-texto-principal{line-height:2.1;margin-bottom:18px;}
   .recibo-monto-letras{padding:0 2px;}
-  .recibo-datos{border-top:1.5px solid #111;border-bottom:1.5px solid #111;padding:14px 0;margin-bottom:30px;}
+  .recibo-datos{border-bottom:1.5px solid #111;padding:14px 0;margin-bottom:30px;}
   .recibo-fila-dato{margin-bottom:8px;}
   .recibo-dato-label{font-weight:700;}
-  .recibo-firma{text-align:center;margin-top:46px;}
+  .recibo-firmas-fila{display:flex;gap:40px;margin-top:46px;}
+  .recibo-firma-col{flex:1;text-align:center;}
   .recibo-firma-linea{border-top:1px solid #111;width:75%;margin:0 auto;}
   .recibo-firma-label{margin-top:6px;}
   .separador-copias{height:12mm;}
