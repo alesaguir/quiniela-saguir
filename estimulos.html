@@ -959,16 +959,6 @@ function generarEstilosPersonalizadosRecibo(estilos) {
   }).join('\n');
 }
 
-function longitudPuntos(tipo) {
-  switch (tipo) {
-    case 'dni': return 12;
-    case 'moneda': return 16;
-    case 'fecha': return 10;
-    case 'numero': return 12;
-    case 'subagencia': return 14;
-    default: return 28; // texto
-  }
-}
 function puntos(n) { return '.'.repeat(n); }
 
 function construirReciboHTML(registro, esBlanco) {
@@ -985,7 +975,7 @@ function construirReciboHTML(registro, esBlanco) {
 
   const filasDatos = camposLista.map(c => {
     if (esBlanco) {
-      return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${puntos(longitudPuntos(c.tipo))}</span></div>`;
+      return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor-blanco">${puntos(200)}</span></div>`;
     }
     let valor = valores[c.clave];
     if (c.tipo === 'fecha') valor = formatearFechaLarga(valor);
@@ -1041,8 +1031,9 @@ const ESTILOS_RECIBO_BASE = `
   .recibo-texto-principal{line-height:2.1;margin-bottom:18px;}
   .recibo-monto-letras{padding:0 2px;}
   .recibo-datos{padding:14px 0;margin-bottom:30px;}
-  .recibo-fila-dato{margin-bottom:8px;}
-  .recibo-dato-label{font-weight:700;}
+  .recibo-fila-dato{display:flex;align-items:baseline;gap:6px;margin-bottom:8px;}
+  .recibo-dato-label{font-weight:700;white-space:nowrap;}
+  .recibo-dato-valor-blanco{flex:1;overflow:hidden;white-space:nowrap;}
   .recibo-firmas-fila{display:flex;gap:40px;margin-top:46px;}
   .recibo-firma-col{flex:1;text-align:center;}
   .recibo-firma-linea{border-top:1px solid #111;width:75%;margin:0 auto;}
