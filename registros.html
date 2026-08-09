@@ -436,6 +436,14 @@
 // CONFIG (mismo proyecto Supabase que admin.html)
 // =====================
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+
+// Fecha en formato AAAA-MM-DD usando el reloj LOCAL, no UTC. new Date().toISOString()
+// convierte a UTC primero, y como Argentina está 3 horas atrás, cualquier
+// hora desde las 21:00 en adelante ya cae en "mañana" en UTC — hace que la
+// fecha calculada salte un día antes de tiempo.
+function fechaLocalISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 
 const TIPOS_CENTRAL = [
@@ -638,7 +646,7 @@ async function registrarActividad(accion, detalle) {
 // INIT
 // =====================
 async function initApp() {
-  document.getElementById('mov-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('mov-fecha').value = fechaLocalISO(new Date());
   await cargarSubagencias();
   actualizarTiposSegunAgencia();
   await cargarJuegosStockConfig();
@@ -917,7 +925,7 @@ async function cargarJuegosStockAdmin() {
       return;
     }
     cont.innerHTML = juegos.map(j => {
-      const hoy = new Date().toISOString().slice(0,10);
+      const hoy = fechaLocalISO(new Date());
       const cerrado = j.fecha_limite_carga && j.fecha_limite_carga < hoy;
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;${j.activo ? '' : 'opacity:.5;'}">
@@ -1050,7 +1058,7 @@ async function cargarJuegosStockConfig() {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const todos = await res.json() || [];
-    const hoy = new Date().toISOString().slice(0,10);
+    const hoy = fechaLocalISO(new Date());
     // Los juegos con período de carga ya cerrado no aparecen para cargar,
     // aunque sigan activos (siguen visibles en historial/resumen/PDFs).
     const juegos = todos.filter(j => !j.fecha_limite_carga || j.fecha_limite_carga >= hoy);
