@@ -534,7 +534,7 @@ function inputParaCampo(campo, valor) {
 
 function renderFormulario() {
   const cont = document.getElementById('campos-formulario');
-  cont.innerHTML = `<div class="form-row-compact">${camposActivos.map(c => `
+  cont.innerHTML = `<div class="form-row-compact">${camposActivos.filter(c => c.clave !== 'pagado_agencia').map(c => `
     <div class="field-compact">
       <label class="form-label">${c.etiqueta}</label>
       ${inputParaCampo(c, valoresActuales[c.clave])}
@@ -981,7 +981,7 @@ function construirReciboHTML(registro, esBlanco) {
   // El resto de los campos (Apellido y Nombre, D.N.I., y cualquiera que se
   // agregue) se listan abajo del párrafo — se excluyen los dos que ya van
   // dentro del párrafo para no repetirlos.
-  const camposLista = campos.filter(c => c !== campoMonto && c !== campoFechaSorteo);
+  const camposLista = campos.filter(c => c !== campoMonto && c !== campoFechaSorteo && c.clave !== 'pagado_agencia');
 
   const filasDatos = camposLista.map(c => {
     if (esBlanco) {
@@ -1022,11 +1022,11 @@ function construirReciboHTML(registro, esBlanco) {
       <div class="recibo-firmas-fila">
         <div class="recibo-firma-col">
           <div class="recibo-firma-linea"></div>
-          <div class="recibo-firma-label">FIRMA Y ACLARACIÓN DE BENEFICIARIO</div>
+          <div class="recibo-firma-label">PAGADO POR AGENCIA</div>
         </div>
         <div class="recibo-firma-col">
           <div class="recibo-firma-linea"></div>
-          <div class="recibo-firma-label">PAGADO POR AGENCIA</div>
+          <div class="recibo-firma-label">FIRMA Y ACLARACIÓN DE BENEFICIARIO</div>
         </div>
       </div>
     </div>
@@ -1040,7 +1040,7 @@ const ESTILOS_RECIBO_BASE = `
   .recibo-encabezado-fecha{text-align:right;margin-bottom:18px;}
   .recibo-texto-principal{line-height:2.1;margin-bottom:18px;}
   .recibo-monto-letras{padding:0 2px;}
-  .recibo-datos{border-bottom:1.5px solid #111;padding:14px 0;margin-bottom:30px;}
+  .recibo-datos{padding:14px 0;margin-bottom:30px;}
   .recibo-fila-dato{margin-bottom:8px;}
   .recibo-dato-label{font-weight:700;}
   .recibo-firmas-fila{display:flex;gap:40px;margin-top:46px;}
