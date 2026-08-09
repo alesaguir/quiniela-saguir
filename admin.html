@@ -1529,6 +1529,7 @@ async function initApp() {
 
 async function setTab(sorteo, el) {
   sorteoActual = sorteo;
+  valoresAlCargar = {}; // se vacía ya mismo — cargarExistentes() lo repuebla cuando termine
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   // Limpiar número de sorteo al cambiar de tab
@@ -1806,7 +1807,7 @@ async function guardarTodo() {
     const vacias = [];
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
-      const key = `${p.key}_${i}`;
+      const key = `${fecha}_${sorteoActual}_${p.key}_${i}`;
       if (el && el.value.length === 4) {
         rows.push({
           fecha,
@@ -1849,7 +1850,7 @@ async function guardarTodo() {
 
     if (res.ok || res.status === 201) {
       // Los números que se acaban de guardar ya son "certeza" para esta sesión.
-      rows.forEach(r => { valoresAlCargar[`${r.provincia}_${r.posicion}`] = true; });
+      rows.forEach(r => { valoresAlCargar[`${fecha}_${sorteoActual}_${r.provincia}_${r.posicion}`] = true; });
 
       // Borrar cualquier posición que haya quedado vacía en el formulario (y que sabíamos
       // con certeza que tenía dato), para que no quede un número viejo guardado en la base
@@ -1860,7 +1861,7 @@ async function guardarTodo() {
           `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
           { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
         ).catch(e => console.error('Error borrando posiciones vacías:', provincia, e));
-        posiciones.forEach(pos => { delete valoresAlCargar[`${provincia}_${pos}`]; });
+        posiciones.forEach(pos => { delete valoresAlCargar[`${fecha}_${sorteoActual}_${provincia}_${pos}`]; });
       }
 
       // Guardar número de sorteo
@@ -1911,7 +1912,7 @@ async function cargarExistentes() {
     rows.forEach(r => {
       const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
       if (el) { el.value = r.numero; el.classList.add('filled'); }
-      valoresAlCargar[`${r.provincia}_${r.posicion}`] = true;
+      valoresAlCargar[`${fecha}_${sorteoActual}_${r.provincia}_${r.posicion}`] = true;
     });
     actualizarTodosLosFaltantes();
     // Cargar número de sorteo si existe
