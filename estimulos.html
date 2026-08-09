@@ -547,7 +547,7 @@ function inputParaCampo(campo, valor) {
     case 'moneda':
       return `<input type="text" inputmode="decimal" class="form-input" value="${formatearParaInputMoneda(v)}" placeholder="0" oninput="formatearMontoInput(this, '${campo.clave}')">`;
     default:
-      return `<input type="text" class="form-input" value="${v}" oninput="actualizarCampo('${campo.clave}', this.value)">`;
+      return `<input type="text" class="form-input" value="${(v||'').toString().toUpperCase()}" oninput="this.value=this.value.toUpperCase(); actualizarCampo('${campo.clave}', this.value)">`;
   }
 }
 
