@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0b429">
+<link rel="manifest" href="/quiniela-saguir/manifest.json">
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link rel="apple-touch-icon" href="/quiniela-saguir/icon-192.png">
+<title>Recibos Estímulo — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --red:#e63946;
+    --green:#2ec4b6; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+  .login-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--gold);margin-bottom:6px;}
+  .login-sub{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .form-group{margin-bottom:16px;}
+  .form-label{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:6px;}
+  .form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all 0.2s;}
+  .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.1);}
+  select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-primary{background:var(--gold);color:#000;width:100%;justify-content:center;}
+  .btn-primary:hover{background:#ffd166;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--gold);}
+  .btn-danger{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid rgba(230,57,70,0.3);}
+  .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+  .app{display:none;flex-direction:column;min-height:100vh;}
+
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;row-gap:10px;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-logo span{color:var(--text);}
+  .topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:10px;}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font-size:13px;color:var(--muted);}
+
+  .content{padding:28px;max-width:900px;margin:0 auto;width:100%;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-wrap:wrap;gap:8px;}
+  .card-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+  .card-body{padding:20px;}
+
+  .form-row-compact{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;}
+  .field-compact{display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px;}
+
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);z-index:9999;border:1px solid;max-width:340px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast-ok{background:var(--surface);border-color:var(--green);color:var(--green);}
+  .toast-err{background:var(--surface);border-color:var(--red);color:var(--red);}
+
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .access-denied{text-align:center;padding:60px 20px;color:var(--muted);}
+  .access-denied h2{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--text);margin-bottom:10px;}
+
+  .historial-item{padding:14px;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;}
+  .historial-item:last-child{border-bottom:none;}
+  .historial-item:hover{background:rgba(255,255,255,0.02);}
+
+  .linea-config{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+
+  @media (max-width: 640px) {
+    .topbar{padding:12px 16px;}
+    .topbar-logo{font-size:18px;flex:1 1 100%;}
+    .topbar-right{width:100%;justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="login-title">Recibos Estímulo</div>
+    <div class="login-sub">Quiniela Agencia N° 670 · Sorteo Estímulo</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="inp-user" type="email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input class="form-input" id="inp-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="error-msg" id="login-error">Usuario o contraseña incorrectos</div>
+    <br>
+    <button class="btn btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="admin.html" style="font-size:12.5px;color:var(--muted);text-decoration:underline;">← Volver al panel principal</a>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Quiniela<span>Saguir</span> — Recibos Estímulo</div>
+    <div class="topbar-right">
+      <a href="admin.html" class="btn btn-ghost" style="padding:7px 14px;font-size:13px;text-decoration:none;">← Panel principal</a>
+      <span class="user-chip" id="chip-user">—</span>
+      <button class="btn btn-ghost" onclick="logout()" style="padding:7px 14px;font-size:13px;">Salir</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div id="sin-permiso" style="display:none;" class="access-denied">
+      <h2>Sin acceso a esta sección</h2>
+      <div>Tu usuario no tiene el permiso habilitado. Pedile a un superadmin que te lo active en el panel principal.</div>
+    </div>
+
+    <div id="contenido-estimulos" style="display:none;">
+
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button class="btn btn-primary" id="tab-btn-formulario" onclick="cambiarTab('formulario')" style="width:auto;padding:9px 20px;">📋 Formulario</button>
+        <button class="btn btn-ghost" id="tab-btn-configuracion" onclick="cambiarTab('configuracion')" style="width:auto;padding:9px 20px;display:none;">⚙️ Configuración</button>
+      </div>
+
+      <div id="tab-formulario">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🎁 Nuevo recibo</div>
+          </div>
+          <div class="card-body">
+
+            <div id="banner-editando" style="display:none;font-size:12.5px;color:var(--gold);background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;"></div>
+
+            <div class="form-row-compact">
+              <div class="field-compact" style="max-width:200px;">
+                <label class="form-label">Fecha de emisión</label>
+                <input type="date" class="form-input" id="f-fecha-emision">
+              </div>
+            </div>
+
+            <div id="campos-formulario"></div>
+
+            <div class="form-group" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+              <label class="form-label" style="margin-bottom:4px;">Suma en letras (se genera sola)</label>
+              <div id="preview-monto-letras" style="font-weight:600;">—</div>
+            </div>
+
+            <div class="error-msg" id="form-error" style="margin:12px 0;"></div>
+
+            <button class="btn btn-primary" onclick="guardarYGenerarPDF()" id="btn-guardar-form" style="width:auto;padding:10px 26px;">
+              💾 Guardar y generar PDF
+            </button>
+            <button class="btn btn-ghost" onclick="limpiarFormulario()" style="width:auto;padding:10px 20px;margin-left:8px;">
+              ✖ Limpiar formulario
+            </button>
+            <button class="btn btn-ghost" onclick="cancelarEdicion()" id="btn-cancelar-edicion" style="display:none;width:auto;padding:10px 20px;margin-left:8px;">
+              ✖ Cancelar edición
+            </button>
+            <button class="btn btn-ghost" onclick="imprimirModeloEnBlanco()" style="width:auto;padding:10px 20px;margin-left:8px;">
+              📄 Imprimir modelo en blanco
+            </button>
+            <div style="color:var(--muted);font-size:12px;margin-top:10px;">
+              El recibo se imprime siempre por duplicado (dos copias iguales en la misma hoja). "Modelo en blanco" imprime las dos copias vacías, con líneas de puntos, para tener papel a mano.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🕒 Historial</div>
+            <button class="btn btn-ghost" onclick="cargarHistorial()" style="font-size:12px;padding:6px 12px;">🔄 Actualizar</button>
+          </div>
+          <div id="lista-historial" style="max-height:520px;overflow-y:auto;color:var(--muted);font-size:13px;padding:16px;">Cargando...</div>
+        </div>
+
+      </div><!-- /tab-formulario -->
+
+      <div id="tab-configuracion" style="display:none;">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📑 Campos del recibo — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">
+              Agregá, quitá o reordená los campos que pide el formulario. Esto solo afecta a los recibos que se
+              carguen de ahora en más — los que ya generaste quedan como estaban.
+            </div>
+            <div id="lista-campos-config">Cargando...</div>
+            <button class="btn btn-ghost" onclick="agregarCampoConfig()" style="width:auto;padding:8px 16px;margin-top:6px;">➕ Agregar campo</button>
+            <div style="margin-top:16px;">
+              <button class="btn btn-primary" onclick="guardarCamposConfig()" style="width:auto;padding:10px 26px;">💾 Guardar campos</button>
+              <button class="btn btn-ghost" onclick="restablecerCamposConfig()" style="width:auto;padding:10px 20px;margin-left:8px;">↺ Restablecer a valores predeterminados</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔤 Estilo de impresión — solo SuperAdmin</div>
+          </div>
+          <div class="card-body">
+            <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">
+              Fuente, tamaño y estilo de cada parte del recibo impreso. Siempre entra en una sola hoja — se
+              agranda o achica automáticamente manteniendo estas proporciones.
+            </div>
+            <div id="lista-estilo-config">Cargando...</div>
+            <button class="btn btn-primary" onclick="guardarEstiloConfig()" style="width:auto;padding:10px 26px;margin-top:14px;">💾 Guardar estilo</button>
+            <button class="btn btn-ghost" onclick="restablecerEstiloConfig()" style="width:auto;padding:10px 20px;margin-top:14px;margin-left:8px;">↺ Restablecer a valores predeterminados</button>
+          </div>
+        </div>
+
+      </div><!-- /tab-configuracion -->
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+let usuarioActual = null;
+let subagenciasCache = [];
+let camposActivos = [];
+let estiloImpresion = [];
+let valoresActuales = {};
+let editandoId = null;
+
+const FUENTES_DISPONIBLES = [
+  'Arial', 'Arial Black', 'Verdana', 'Tahoma', 'Trebuchet MS',
+  'Times New Roman', 'Georgia', 'Courier New', 'Calibri'
+];
+
+const TIPOS_CAMPO = [
+  { value:'texto', label:'Texto libre' },
+  { value:'numero', label:'Número' },
+  { value:'moneda', label:'Importe ($)' },
+  { value:'fecha', label:'Fecha' },
+  { value:'subagencia', label:'Sub-agencia (lista)' }
+];
+
+const CAMPOS_PREDETERMINADOS = [
+  { clave:'apellido_nombre', etiqueta:'Apellido y Nombre', tipo:'texto', activo:true },
+  { clave:'dni', etiqueta:'D.N.I.', tipo:'numero', activo:true },
+  { clave:'monto', etiqueta:'Suma ($)', tipo:'moneda', activo:true },
+  { clave:'sorteo_fecha', etiqueta:'Fecha del Sorteo Estímulo', tipo:'fecha', activo:true },
+  { clave:'pagado_agencia', etiqueta:'Pagado por Agencia', tipo:'subagencia', activo:true }
+];
+
+const SELECTORES_ESTILO = {
+  titulo: '.recibo-titulo',
+  marca: '.recibo-marca',
+  encabezadoFecha: '.recibo-encabezado-fecha',
+  textoPrincipal: '.recibo-texto-principal',
+  montoLetras: '.recibo-monto-letras',
+  datoLabel: '.recibo-dato-label',
+  datoValor: '.recibo-dato-valor',
+  firmaLabel: '.recibo-firma-label'
+};
+
+const ESTILO_PREDETERMINADO = [
+  { clave:'titulo', etiqueta:'Título (RECIBO)', tamano:30, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'marca', etiqueta:'Marca (LOTERÍA CHAQUEÑA)', tamano:16, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'encabezadoFecha', etiqueta:'Encabezado de fecha', tamano:13, negrita:false, cursiva:false, fuente:'Arial' },
+  { clave:'textoPrincipal', etiqueta:'Texto principal (Recibí de Lotería Chaqueña...)', tamano:14, negrita:false, cursiva:false, fuente:'Arial' },
+  { clave:'montoLetras', etiqueta:'Suma en letras', tamano:14, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'datoLabel', etiqueta:'Etiquetas de datos (Apellido, D.N.I., etc.)', tamano:13, negrita:true, cursiva:false, fuente:'Arial' },
+  { clave:'datoValor', etiqueta:'Valores de datos', tamano:15, negrita:false, cursiva:false, fuente:'Arial' },
+  { clave:'firmaLabel', etiqueta:'Firma y aclaración de beneficiario', tamano:12, negrita:false, cursiva:false, fuente:'Arial' }
+];
+
+const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function showToast(msg, tipo='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${tipo} show`;
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// =====================
+// LOGIN / SESIÓN
+// =====================
+async function login() {
+  const email = document.getElementById('inp-user').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<div class="loading"></div> Ingresando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.access_token) {
+      mostrarErrorLogin('Usuario o contraseña incorrectos');
+      return;
+    }
+
+    const rolRes = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/usuarios_roles?user_id=eq.${data.user.id}&select=nombre,rol,activo,agencia_id,puede_ver_estimulos`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${data.access_token}` } }
+    );
+    const rolData = await rolRes.json();
+
+    if (!rolData || rolData.length === 0 || !rolData[0].activo) {
+      mostrarErrorLogin('Usuario sin acceso al sistema.');
+      return;
+    }
+
+    usuarioActual = {
+      user_id: data.user.id,
+      nombre: rolData[0].nombre,
+      rol: rolData[0].rol,
+      agencia_id: rolData[0].agencia_id || '670-00',
+      puede_ver_estimulos: rolData[0].puede_ver_estimulos === true,
+      email: email,
+      token: data.access_token,
+      refreshToken: data.refresh_token
+    };
+
+    iniciarRenovacionSesion();
+
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('chip-user').textContent = usuarioActual.nombre + (usuarioActual.rol==='superadmin'?' ⬟':'');
+
+    const tienePermiso = usuarioActual.rol === 'superadmin' || usuarioActual.puede_ver_estimulos;
+    document.getElementById('sin-permiso').style.display = tienePermiso ? 'none' : 'block';
+    document.getElementById('contenido-estimulos').style.display = tienePermiso ? 'block' : 'none';
+
+    if (usuarioActual.rol === 'superadmin') {
+      document.getElementById('tab-btn-configuracion').style.display = 'inline-flex';
+    }
+
+    if (tienePermiso) {
+      await initApp();
+    }
+  } catch(e) {
+    console.error(e);
+    mostrarErrorLogin('Ocurrió un error de conexión.');
+  }
+  btn.innerHTML = 'Ingresar';
+  btn.disabled = false;
+}
+
+function mostrarErrorLogin(msg) {
+  const err = document.getElementById('login-error');
+  err.textContent = msg;
+  err.style.display = 'block';
+  document.getElementById('btn-login').innerHTML = 'Ingresar';
+  document.getElementById('btn-login').disabled = false;
+}
+
+let renovacionSesionTimer = null;
+
+function iniciarRenovacionSesion() {
+  if (renovacionSesionTimer) clearInterval(renovacionSesionTimer);
+  renovacionSesionTimer = setInterval(renovarSesion, 20 * 60 * 1000);
+}
+
+function detenerRenovacionSesion() {
+  if (renovacionSesionTimer) { clearInterval(renovacionSesionTimer); renovacionSesionTimer = null; }
+}
+
+async function renovarSesion() {
+  if (!usuarioActual || !usuarioActual.refreshToken) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: usuarioActual.refreshToken })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      usuarioActual.token = data.access_token;
+      usuarioActual.refreshToken = data.refresh_token || usuarioActual.refreshToken;
+    }
+  } catch(e) { console.error('Error de red al renovar la sesión', e); }
+}
+
+async function fetchConRenovacion(url, opciones) {
+  let res = await fetch(url, opciones);
+  if (res.status === 401 && usuarioActual?.refreshToken) {
+    await renovarSesion();
+    const opcionesRenovadas = {
+      ...opciones,
+      headers: { ...(opciones.headers || {}), 'Authorization': `Bearer ${usuarioActual.token}` }
+    };
+    res = await fetch(url, opcionesRenovadas);
+  }
+  return res;
+}
+
+async function logout() {
+  detenerRenovacionSesion();
+  if (usuarioActual && usuarioActual.token) {
+    await fetchConRenovacion(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    }).catch(()=>{});
+  }
+  usuarioActual = null;
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('inp-pass').value = '';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+async function registrarActividad(accion, detalle) {
+  try {
+    const dispositivo = `${navigator.platform} — ${navigator.userAgent.split('(')[1]?.split(')')[0] || 'Desconocido'}`.substring(0, 100);
+    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/actividad_log`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify([{ usuario: usuarioActual.nombre, accion, detalle, dispositivo }])
+    });
+  } catch(e) { console.error('No se pudo registrar actividad', e); }
+}
+
+// =====================
+// FECHA LOCAL (evita el corrimiento de día por UTC después de las 21hs)
+// =====================
+function fechaLocalISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// =====================
+// PESTAÑAS
+// =====================
+function cambiarTab(nombre) {
+  const esFormulario = nombre === 'formulario';
+  document.getElementById('tab-formulario').style.display = esFormulario ? 'block' : 'none';
+  document.getElementById('tab-configuracion').style.display = esFormulario ? 'none' : 'block';
+  document.getElementById('tab-btn-formulario').className = esFormulario ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-btn-configuracion').className = esFormulario ? 'btn btn-ghost' : 'btn btn-primary';
+}
+
+// =====================
+// INIT
+// =====================
+async function initApp() {
+  await cargarSubagencias();
+  await cargarConfig();
+  document.getElementById('f-fecha-emision').value = fechaLocalISO(new Date());
+  renderFormulario();
+  await cargarHistorial();
+}
+
+async function cargarSubagencias() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    subagenciasCache = await res.json() || [];
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar sub-agencias', 'err');
+  }
+}
+
+function opcionesSubagencia(seleccionado) {
+  const tieneOficial = subagenciasCache.some(a => a.agencia_id === '670-00');
+  const lista = tieneOficial ? subagenciasCache : [{ agencia_id:'670-00', nombre_titular:'Agencia Principal' }, ...subagenciasCache];
+  return lista.map(a => `<option value="${a.agencia_id}" ${a.agencia_id===seleccionado?'selected':''}>${a.agencia_id}${a.nombre_titular ? ' — '+a.nombre_titular : ''}</option>`).join('');
+}
+
+async function cargarConfig() {
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/estimulos_config?id=eq.1&select=campos,estilo_impresion`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json();
+    camposActivos = (rows && rows[0] && rows[0].campos) ? rows[0].campos : JSON.parse(JSON.stringify(CAMPOS_PREDETERMINADOS));
+    estiloImpresion = (rows && rows[0] && rows[0].estilo_impresion) ? rows[0].estilo_impresion : JSON.parse(JSON.stringify(ESTILO_PREDETERMINADO));
+    if (usuarioActual.rol === 'superadmin') {
+      renderCamposConfig();
+      renderEstiloConfig();
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error al cargar la configuración', 'err');
+  }
+}
+
+// =====================
+// FORMULARIO
+// =====================
+function inputParaCampo(campo, valor) {
+  const v = (valor === undefined || valor === null) ? '' : valor;
+  switch (campo.tipo) {
+    case 'subagencia':
+      return `<select class="form-input" onchange="actualizarCampo('${campo.clave}', this.value)">
+        <option value="">—</option>
+        ${opcionesSubagencia(v)}
+      </select>`;
+    case 'fecha':
+      return `<input type="date" class="form-input" value="${v}" onchange="actualizarCampo('${campo.clave}', this.value)">`;
+    case 'numero':
+      return `<input type="text" inputmode="numeric" class="form-input" value="${v}" oninput="this.value=this.value.replace(/\\D/g,''); actualizarCampo('${campo.clave}', this.value)">`;
+    case 'moneda':
+      return `<input type="number" step="0.01" min="0" class="form-input" value="${v}" oninput="actualizarCampo('${campo.clave}', this.value); actualizarPreviewMontoLetras();">`;
+    default:
+      return `<input type="text" class="form-input" value="${v}" oninput="actualizarCampo('${campo.clave}', this.value)">`;
+  }
+}
+
+function renderFormulario() {
+  const cont = document.getElementById('campos-formulario');
+  cont.innerHTML = `<div class="form-row-compact">${camposActivos.map(c => `
+    <div class="field-compact">
+      <label class="form-label">${c.etiqueta}</label>
+      ${inputParaCampo(c, valoresActuales[c.clave])}
+    </div>
+  `).join('')}</div>`;
+  actualizarPreviewMontoLetras();
+}
+
+function actualizarCampo(clave, valor) {
+  valoresActuales[clave] = valor;
+}
+
+function claveMoneda() {
+  const c = camposActivos.find(c => c.tipo === 'moneda');
+  return c ? c.clave : null;
+}
+
+function actualizarPreviewMontoLetras() {
+  const clave = claveMoneda();
+  const monto = clave ? parseFloat(valoresActuales[clave]) || 0 : 0;
+  document.getElementById('preview-monto-letras').textContent = monto > 0 ? capitalizar(numeroALetras(Math.floor(monto))) + ' PESOS' : '—';
+}
+
+function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function formatearMoneda(valor) {
+  const n = parseFloat(valor) || 0;
+  return n.toLocaleString('es-AR', { style:'currency', currency:'ARS', minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+
+// Convierte un número entero a su forma en letras en español.
+function numeroALetras(n) {
+  n = Math.round(n);
+  if (n === 0) return 'cero';
+  if (n < 0) return 'menos ' + numeroALetras(-n);
+
+  const UNIDADES = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+  const DIECIS = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+  const VEINTIS = ['veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+  const DECENAS = ['', '', '', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+  const CENTENAS = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+
+  function menorQueCien(num) {
+    if (num < 10) return UNIDADES[num] || 'cero';
+    if (num < 20) return DIECIS[num - 10];
+    if (num < 30) return VEINTIS[num - 20];
+    const d = Math.floor(num / 10), u = num % 10;
+    return DECENAS[d] + (u > 0 ? ' y ' + UNIDADES[u] : '');
+  }
+  function menorQueMil(num) {
+    if (num === 100) return 'cien';
+    if (num < 100) return menorQueCien(num);
+    const c = Math.floor(num / 100), resto = num % 100;
+    return CENTENAS[c] + (resto > 0 ? ' ' + menorQueCien(resto) : '');
+  }
+  function menorQueMillon(num) {
+    if (num < 1000) return menorQueMil(num);
+    const miles = Math.floor(num / 1000), resto = num % 1000;
+    const strMiles = miles === 1 ? 'mil' : menorQueMil(miles) + ' mil';
+    return strMiles + (resto > 0 ? ' ' + menorQueMil(resto) : '');
+  }
+
+  if (n < 1000000) return menorQueMillon(n);
+  const millones = Math.floor(n / 1000000), resto = n % 1000000;
+  const strMillones = millones === 1 ? 'un millón' : menorQueMillon(millones) + ' millones';
+  return strMillones + (resto > 0 ? ' ' + menorQueMillon(resto) : '');
+}
+
+function limpiarFormulario() {
+  valoresActuales = {};
+  document.getElementById('f-fecha-emision').value = fechaLocalISO(new Date());
+  renderFormulario();
+  document.getElementById('form-error').style.display = 'none';
+}
+
+function validarFormulario() {
+  for (const c of camposActivos) {
+    const v = (valoresActuales[c.clave] || '').toString().trim();
+    if (!v) return `Falta completar "${c.etiqueta}".`;
+    if (c.tipo === 'moneda' && (isNaN(parseFloat(v)) || parseFloat(v) <= 0)) return `"${c.etiqueta}" debe ser un importe válido.`;
+  }
+  if (!document.getElementById('f-fecha-emision').value) return 'Falta la fecha de emisión.';
+  return null;
+}
+
+// =====================
+// GUARDAR + IMPRIMIR
+// =====================
+async function guardarYGenerarPDF() {
+  const errEl = document.getElementById('form-error');
+  errEl.style.display = 'none';
+
+  const error = validarFormulario();
+  if (error) { errEl.textContent = error; errEl.style.display = 'block'; return; }
+
+  const clave = claveMoneda();
+  const monto = clave ? parseFloat(valoresActuales[clave]) || 0 : 0;
+  const montoLetras = monto > 0 ? capitalizar(numeroALetras(Math.floor(monto))) + ' PESOS' : '';
+
+  const editando = editandoId !== null;
+  const registro = {
+    campos_snapshot: camposActivos,
+    estilo_snapshot: estiloImpresion,
+    valores: valoresActuales,
+    fecha_emision: document.getElementById('f-fecha-emision').value,
+    monto_letras: montoLetras,
+    creado_por: usuarioActual.user_id,
+    creado_por_nombre: usuarioActual.nombre
+  };
+
+  const btn = document.getElementById('btn-guardar-form');
+  const textoOriginal = btn.innerHTML;
+  btn.innerHTML = '<div class="loading"></div> Guardando...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetchConRenovacion(
+      editando
+        ? `${SUPABASE_URL}/rest/v1/estimulos_recibos?id=eq.${editandoId}`
+        : `${SUPABASE_URL}/rest/v1/estimulos_recibos`,
+      {
+        method: editando ? 'PATCH' : 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(editando ? registro : [registro])
+      }
+    );
+
+    if (res.ok) {
+      showToast(editando ? '✅ Recibo actualizado' : '✅ Recibo guardado', 'ok');
+      registrarActividad(
+        editando ? 'Edición de recibo estímulo' : 'Carga de recibo estímulo',
+        `${valoresActuales[camposActivos[0]?.clave] || ''} — ${formatearMoneda(monto)}`
+      );
+      imprimirRecibo(registro);
+      await cancelarEdicion();
+      cargarHistorial();
+    } else {
+      const err = await res.text();
+      console.error(err);
+      errEl.textContent = 'Error al guardar. Revisá la consola.';
+      errEl.style.display = 'block';
+      btn.innerHTML = textoOriginal;
+    }
+  } catch(e) {
+    console.error(e);
+    errEl.textContent = 'Error de conexión.';
+    errEl.style.display = 'block';
+    btn.innerHTML = textoOriginal;
+  }
+
+  btn.disabled = false;
+}
+
+function editarRecibo(registro) {
+  editandoId = registro.id;
+  camposActivos = registro.campos_snapshot;
+  estiloImpresion = registro.estilo_snapshot;
+  valoresActuales = JSON.parse(JSON.stringify(registro.valores));
+  document.getElementById('f-fecha-emision').value = registro.fecha_emision;
+  renderFormulario();
+
+  document.getElementById('banner-editando').style.display = 'block';
+  document.getElementById('banner-editando').textContent =
+    `✏️ Editando el recibo del ${new Date(registro.creado_en).toLocaleDateString('es-AR')}. Corregí lo que haga falta y guardá, o cancelá la edición.`;
+  document.getElementById('btn-cancelar-edicion').style.display = 'inline-flex';
+  document.getElementById('btn-guardar-form').innerHTML = '💾 Guardar cambios';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function cancelarEdicion() {
+  editandoId = null;
+  document.getElementById('banner-editando').style.display = 'none';
+  document.getElementById('btn-cancelar-edicion').style.display = 'none';
+  document.getElementById('btn-guardar-form').innerHTML = '💾 Guardar y generar PDF';
+  await cargarConfig();
+  valoresActuales = {};
+  document.getElementById('f-fecha-emision').value = fechaLocalISO(new Date());
+  renderFormulario();
+}
+
+// =====================
+// HISTORIAL
+// =====================
+async function cargarHistorial() {
+  const lista = document.getElementById('lista-historial');
+  lista.innerHTML = 'Cargando...';
+  try {
+    const res = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/estimulos_recibos?order=creado_en.desc&limit=100`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+    );
+    const rows = await res.json() || [];
+    if (rows.length === 0) {
+      lista.innerHTML = '<div style="padding:20px 0;text-align:center;">No hay recibos cargados todavía.</div>';
+      return;
+    }
+    lista.innerHTML = rows.map(r => {
+      const claveNombre = (r.campos_snapshot.find(c => c.tipo === 'texto') || {}).clave;
+      const claveMonto = (r.campos_snapshot.find(c => c.tipo === 'moneda') || {}).clave;
+      const nombre = claveNombre ? (r.valores[claveNombre] || '') : '';
+      const monto = claveMonto ? (parseFloat(r.valores[claveMonto]) || 0) : 0;
+      return `
+      <div class="historial-item">
+        <div style="min-width:220px;">
+          <div style="color:var(--text);font-weight:600;">${nombre || '(sin nombre)'}</div>
+          <div style="color:var(--muted);font-size:12px;">${new Date(r.creado_en).toLocaleDateString('es-AR')} · ${r.creado_por_nombre || ''}</div>
+        </div>
+        <div style="flex:1;min-width:120px;color:var(--gold);font-weight:600;">${formatearMoneda(monto)}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='reimprimirRecibo(${JSON.stringify(r).replace(/'/g,"&#39;")})'>🖨 Reimprimir</button>
+          ${usuarioActual.rol === 'superadmin' ? `
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick='editarRecibo(${JSON.stringify(r).replace(/'/g,"&#39;")})'>✏️ Editar</button>
+            <button class="btn btn-danger" style="font-size:12px;padding:6px 10px;" onclick="borrarRecibo(${r.id})">🗑</button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+    lista.innerHTML = '<div style="padding:20px 0;text-align:center;color:var(--red);">Error al cargar el historial.</div>';
+  }
+}
+
+function reimprimirRecibo(registro) {
+  imprimirRecibo(registro);
+}
+
+async function borrarRecibo(id) {
+  if (!confirm('¿Borrar este recibo del historial? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/estimulos_recibos?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` }
+    });
+    if (res.ok) { showToast('Recibo borrado', 'ok'); cargarHistorial(); }
+    else { showToast('Error al borrar', 'err'); }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+// =====================
+// CONFIGURACIÓN — campos
+// =====================
+function renderCamposConfig() {
+  const cont = document.getElementById('lista-campos-config');
+  cont.innerHTML = camposActivos.map((c, i) => `
+    <div class="linea-config">
+      <input class="form-input" style="width:220px;" placeholder="Etiqueta" value="${(c.etiqueta||'').replace(/"/g,'&quot;')}" oninput="camposActivos[${i}].etiqueta=this.value">
+      <select class="form-input" style="width:190px;" onchange="camposActivos[${i}].tipo=this.value">
+        ${TIPOS_CAMPO.map(t => `<option value="${t.value}" ${t.value===c.tipo?'selected':''}>${t.label}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost" style="padding:8px 10px;font-size:12px;" onclick="moverCampoConfig(${i}, -1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn btn-ghost" style="padding:8px 10px;font-size:12px;" onclick="moverCampoConfig(${i}, 1)" ${i===camposActivos.length-1?'disabled':''}>↓</button>
+      <button class="btn btn-danger" style="padding:8px 10px;font-size:12px;" onclick="quitarCampoConfig(${i})">🗑</button>
+    </div>
+  `).join('');
+}
+
+function agregarCampoConfig() {
+  camposActivos.push({ clave: 'campo_' + Date.now(), etiqueta: 'Nuevo campo', tipo: 'texto', activo: true });
+  renderCamposConfig();
+}
+
+function quitarCampoConfig(i) {
+  if (camposActivos.length <= 1) { showToast('Tiene que quedar al menos un campo', 'err'); return; }
+  camposActivos.splice(i, 1);
+  renderCamposConfig();
+}
+
+function moverCampoConfig(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= camposActivos.length) return;
+  [camposActivos[i], camposActivos[j]] = [camposActivos[j], camposActivos[i]];
+  renderCamposConfig();
+}
+
+async function guardarCamposConfig() {
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/estimulos_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ campos: camposActivos, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) {
+      showToast('✅ Campos guardados — aplican a los próximos recibos', 'ok');
+      valoresActuales = {};
+      renderFormulario();
+    } else {
+      showToast('Error al guardar', 'err');
+    }
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+function restablecerCamposConfig() {
+  if (!confirm('¿Restablecer los campos a los valores predeterminados? Se pierden los cambios no guardados en pantalla.')) return;
+  camposActivos = JSON.parse(JSON.stringify(CAMPOS_PREDETERMINADOS));
+  renderCamposConfig();
+  showToast('Valores predeterminados cargados — tocá "Guardar campos" para confirmar', 'ok');
+}
+
+// =====================
+// CONFIGURACIÓN — estilo de impresión
+// =====================
+function renderEstiloConfig() {
+  const cont = document.getElementById('lista-estilo-config');
+  cont.innerHTML = estiloImpresion.map((s, i) => `
+    <div class="linea-config">
+      <label class="form-label" style="width:100%;margin-bottom:0;">${s.etiqueta}</label>
+      <select style="width:150px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12.5px;" onchange="estiloImpresion[${i}].fuente=this.value">
+        ${FUENTES_DISPONIBLES.map(f => `<option value="${f}" ${f===s.fuente?'selected':''}>${f}</option>`).join('')}
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);">
+        Tamaño
+        <input type="number" min="8" max="80" value="${s.tamano}" oninput="estiloImpresion[${i}].tamano=parseInt(this.value,10)||estiloImpresion[${i}].tamano" style="width:65px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;">
+        px
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" ${s.negrita?'checked':''} onchange="estiloImpresion[${i}].negrita=this.checked" style="accent-color:var(--gold);"> Negrita
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" ${s.cursiva?'checked':''} onchange="estiloImpresion[${i}].cursiva=this.checked" style="accent-color:var(--gold);"> Cursiva
+      </label>
+    </div>
+  `).join('');
+}
+
+async function guardarEstiloConfig() {
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/estimulos_config?id=eq.1`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ estilo_impresion: estiloImpresion, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+    });
+    if (res.ok) showToast('✅ Estilo guardado', 'ok');
+    else showToast('Error al guardar', 'err');
+  } catch(e) { showToast('Error de conexión', 'err'); }
+}
+
+function restablecerEstiloConfig() {
+  if (!confirm('¿Restablecer el estilo a los valores predeterminados? Se pierden los cambios no guardados en pantalla.')) return;
+  estiloImpresion = JSON.parse(JSON.stringify(ESTILO_PREDETERMINADO));
+  renderEstiloConfig();
+  showToast('Valores predeterminados cargados — tocá "Guardar estilo" para confirmar', 'ok');
+}
+
+// =====================
+// IMPRESIÓN
+// =====================
+function formatearFechaLarga(fechaISO) {
+  if (!fechaISO) return '';
+  const [y,m,d] = fechaISO.split('-');
+  return `${parseInt(d,10)} de ${MESES_ES[parseInt(m,10)-1]} del ${y}`;
+}
+
+function generarEstilosPersonalizadosRecibo(estilos) {
+  return estilos.map(s => {
+    const selector = SELECTORES_ESTILO[s.clave];
+    if (!selector) return '';
+    return `${selector}{font-family:'${s.fuente || 'Arial'}',Arial,sans-serif;font-size:${s.tamano}px;font-weight:${s.negrita ? '800' : '400'};font-style:${s.cursiva ? 'italic' : 'normal'};}`;
+  }).join('\n');
+}
+
+function construirReciboHTML(registro, esBlanco) {
+  const campos = registro.campos_snapshot;
+  const valores = registro.valores;
+  const puntos = '..........................';
+
+  const filasDatos = campos.map(c => {
+    if (esBlanco) {
+      return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${puntos}</span></div>`;
+    }
+    let valor = valores[c.clave];
+    if (c.tipo === 'moneda') valor = formatearMoneda(valor);
+    else if (c.tipo === 'fecha') valor = formatearFechaLarga(valor);
+    else if (c.tipo === 'subagencia') valor = (valor || '').replace('670-', '');
+    return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${valor || ''}</span></div>`;
+  }).join('');
+
+  const encabezadoFecha = esBlanco ? `Presidencia Roque Sáenz Peña, ....... de ................. del ..........` : `Presidencia Roque Sáenz Peña, ${formatearFechaLarga(registro.fecha_emision)}`;
+  const montoLetras = esBlanco ? puntos : (registro.monto_letras || '');
+
+  return `
+    <div class="recibo-hoja">
+      <div class="recibo-marca">LOTERÍA CHAQUEÑA</div>
+      <div class="recibo-titulo">RECIBO</div>
+      <div class="recibo-encabezado-fecha">${encabezadoFecha}</div>
+      <div class="recibo-texto-principal">
+        Recibí de LOTERÍA CHAQUEÑA la suma de PESOS
+        <span class="recibo-monto-letras">${montoLetras}</span>
+        en concepto de premio correspondiente al SORTEO ESTÍMULO.
+      </div>
+      <div class="recibo-datos">${filasDatos}</div>
+      <div class="recibo-firma">
+        <div class="recibo-firma-linea"></div>
+        <div class="recibo-firma-label">Firma y Aclaración de Beneficiario</div>
+      </div>
+    </div>
+  `;
+}
+
+const ESTILOS_RECIBO_BASE = `
+  .recibo-hoja{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:16px;max-width:680px;margin:0 auto;}
+  .recibo-marca{text-align:center;font-weight:800;}
+  .recibo-titulo{text-align:center;font-weight:800;margin:4px 0 14px;border-bottom:2px solid #111;padding-bottom:8px;}
+  .recibo-encabezado-fecha{text-align:right;margin-bottom:18px;}
+  .recibo-texto-principal{line-height:1.7;margin-bottom:18px;}
+  .recibo-monto-letras{border-bottom:1px dotted #111;padding:0 4px;}
+  .recibo-datos{border-top:1.5px solid #111;border-bottom:1.5px solid #111;padding:14px 0;margin-bottom:40px;}
+  .recibo-fila-dato{margin-bottom:8px;}
+  .recibo-dato-label{font-weight:700;}
+  .recibo-firma{text-align:center;margin-top:20px;}
+  .recibo-firma-linea{border-top:1px solid #111;width:70%;margin:0 auto;}
+  .recibo-firma-label{margin-top:6px;}
+  .separador-copias{height:12mm;}
+`;
+
+function imprimirRecibo(registro, esBlanco) {
+  const estilos = registro.estilo_snapshot || estiloImpresion;
+  const contenidoDuplicado = construirReciboHTML(registro, esBlanco) + '<div class="separador-copias"></div>' + construirReciboHTML(registro, esBlanco);
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('El navegador bloqueó la ventana. Habilitá pop-ups para este sitio.', 'err'); return; }
+  w.document.write(`
+    <html><head><title>Recibo Estimulo ${esBlanco ? 'modelo' : formatearFechaLarga(registro.fecha_emision)}</title>
+    <meta charset="UTF-8">
+    <style>
+      @page { size: A4 portrait; margin: 10mm; }
+      html,body{margin:0;padding:0;}
+      ${ESTILOS_RECIBO_BASE}
+      ${generarEstilosPersonalizadosRecibo(estilos)}
+      .pagina{width:calc(210mm - 20mm);height:calc(297mm - 20mm);overflow:hidden;position:relative;}
+      .contenido-escalado{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
+      .recibo-hoja{max-width:none;width:calc(210mm - 20mm - 4mm);}
+    </style>
+    </head><body>
+    <div class="pagina"><div class="contenido-escalado" id="contenido-recibo">${contenidoDuplicado}</div></div>
+    <script>
+      window.onload = () => {
+        const pagina = document.querySelector('.pagina');
+        const contenido = document.getElementById('contenido-recibo');
+        contenido.style.transform = 'translate(-50%,-50%) scale(1)';
+        const escalaAlto = pagina.clientHeight / contenido.scrollHeight;
+        const escalaAncho = pagina.clientWidth / contenido.scrollWidth;
+        const escala = Math.min(1, escalaAlto, escalaAncho);
+        contenido.style.transform = 'translate(-50%,-50%) scale(' + escala + ')';
+        setTimeout(() => window.print(), 200);
+      };
+    <\/script>
+    </body></html>
+  `);
+  w.document.close();
+}
+
+// Modelo en blanco: misma estructura (por duplicado, dos copias), pero con
+// líneas de puntos en vez de datos — para tener copias en papel a mano.
+function imprimirModeloEnBlanco() {
+  const registroBlanco = {
+    campos_snapshot: camposActivos,
+    estilo_snapshot: estiloImpresion,
+    valores: {},
+    fecha_emision: '',
+    monto_letras: ''
+  };
+  imprimirRecibo(registroBlanco, true);
+}
+</script>
+</body>
+</html>
