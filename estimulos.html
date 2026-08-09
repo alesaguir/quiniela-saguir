@@ -244,17 +244,21 @@ const FUENTES_DISPONIBLES = [
 const TIPOS_CAMPO = [
   { value:'texto', label:'Texto libre' },
   { value:'numero', label:'Número' },
+  { value:'dni', label:'D.N.I. (con puntos de miles)' },
   { value:'moneda', label:'Importe ($)' },
   { value:'fecha', label:'Fecha' },
   { value:'subagencia', label:'Sub-agencia (lista)' }
 ];
 
+// Monto y Fecha del Sorteo Estímulo son configurables como cualquier otro
+// campo, pero se ubican fijos dentro del párrafo principal del recibo
+// (igual que en el papel) — se buscan por su clave al armar el texto, y
+// no se repiten como fila suelta en la lista de datos de abajo.
 const CAMPOS_PREDETERMINADOS = [
   { clave:'apellido_nombre', etiqueta:'Apellido y Nombre', tipo:'texto', activo:true },
-  { clave:'dni', etiqueta:'D.N.I.', tipo:'numero', activo:true },
+  { clave:'dni', etiqueta:'D.N.I.', tipo:'dni', activo:true },
   { clave:'monto', etiqueta:'Suma ($)', tipo:'moneda', activo:true },
-  { clave:'sorteo_fecha', etiqueta:'Fecha del Sorteo Estímulo', tipo:'fecha', activo:true },
-  { clave:'pagado_agencia', etiqueta:'Pagado por Agencia', tipo:'subagencia', activo:true }
+  { clave:'sorteo_fecha', etiqueta:'Fecha del Sorteo Estímulo', tipo:'fecha', activo:true }
 ];
 
 const SELECTORES_ESTILO = {
@@ -519,6 +523,8 @@ function inputParaCampo(campo, valor) {
       return `<input type="date" class="form-input" value="${v}" onchange="actualizarCampo('${campo.clave}', this.value)">`;
     case 'numero':
       return `<input type="text" inputmode="numeric" class="form-input" value="${v}" oninput="this.value=this.value.replace(/\\D/g,''); actualizarCampo('${campo.clave}', this.value)">`;
+    case 'dni':
+      return `<input type="text" inputmode="numeric" class="form-input" value="${v}" placeholder="00.000.000" oninput="formatearDNI(this, '${campo.clave}')">`;
     case 'moneda':
       return `<input type="number" step="0.01" min="0" class="form-input" value="${v}" oninput="actualizarCampo('${campo.clave}', this.value); actualizarPreviewMontoLetras();">`;
     default:
@@ -541,13 +547,26 @@ function actualizarCampo(clave, valor) {
   valoresActuales[clave] = valor;
 }
 
-function claveMoneda() {
-  const c = camposActivos.find(c => c.tipo === 'moneda');
-  return c ? c.clave : null;
+// Formatea el D.N.I. con puntos de miles mientras se tipea (ej. 14235689 ->
+// 14.235.689) y no deja escribir más de 8 cifras.
+function formatearDNI(inputEl, clave) {
+  let digitos = inputEl.value.replace(/\D/g, '').slice(0, 8);
+  const invertido = digitos.split('').reverse().join('');
+  const partes = invertido.match(/.{1,3}/g) || [];
+  const formateado = partes.join('.').split('').reverse().join('');
+  inputEl.value = formateado;
+  actualizarCampo(clave, formateado);
+}
+
+function claveCampoPorTipo(tipo, claveEsperada) {
+  const porClave = camposActivos.find(c => c.clave === claveEsperada);
+  if (porClave) return porClave.clave;
+  const porTipo = camposActivos.find(c => c.tipo === tipo);
+  return porTipo ? porTipo.clave : null;
 }
 
 function actualizarPreviewMontoLetras() {
-  const clave = claveMoneda();
+  const clave = claveCampoPorTipo('moneda', 'monto');
   const monto = clave ? parseFloat(valoresActuales[clave]) || 0 : 0;
   document.getElementById('preview-monto-letras').textContent = monto > 0 ? capitalizar(numeroALetras(Math.floor(monto))) + ' PESOS' : '—';
 }
@@ -624,8 +643,8 @@ async function guardarYGenerarPDF() {
   const error = validarFormulario();
   if (error) { errEl.textContent = error; errEl.style.display = 'block'; return; }
 
-  const clave = claveMoneda();
-  const monto = clave ? parseFloat(valoresActuales[clave]) || 0 : 0;
+  const claveMonto = claveCampoPorTipo('moneda', 'monto');
+  const monto = claveMonto ? parseFloat(valoresActuales[claveMonto]) || 0 : 0;
   const montoLetras = monto > 0 ? capitalizar(numeroALetras(Math.floor(monto))) + ' PESOS' : '';
 
   const editando = editandoId !== null;
@@ -733,9 +752,9 @@ async function cargarHistorial() {
     }
     lista.innerHTML = rows.map(r => {
       const claveNombre = (r.campos_snapshot.find(c => c.tipo === 'texto') || {}).clave;
-      const claveMonto = (r.campos_snapshot.find(c => c.tipo === 'moneda') || {}).clave;
       const nombre = claveNombre ? (r.valores[claveNombre] || '') : '';
-      const monto = claveMonto ? (parseFloat(r.valores[claveMonto]) || 0) : 0;
+      const claveMontoHist = (r.campos_snapshot.find(c => c.clave === 'monto') || r.campos_snapshot.find(c => c.tipo === 'moneda') || {}).clave;
+      const monto = claveMontoHist ? (parseFloat(r.valores[claveMontoHist]) || 0) : 0;
       return `
       <div class="historial-item">
         <div style="min-width:220px;">
@@ -897,6 +916,12 @@ function formatearFechaLarga(fechaISO) {
   return `${parseInt(d,10)} de ${MESES_ES[parseInt(m,10)-1]} del ${y}`;
 }
 
+function formatearFechaCorta(fechaISO) {
+  if (!fechaISO) return '';
+  const [y,m,d] = fechaISO.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function generarEstilosPersonalizadosRecibo(estilos) {
   return estilos.map(s => {
     const selector = SELECTORES_ESTILO[s.clave];
@@ -905,24 +930,55 @@ function generarEstilosPersonalizadosRecibo(estilos) {
   }).join('\n');
 }
 
+function longitudPuntos(tipo) {
+  switch (tipo) {
+    case 'dni': return 12;
+    case 'moneda': return 16;
+    case 'fecha': return 10;
+    case 'numero': return 12;
+    case 'subagencia': return 14;
+    default: return 28; // texto
+  }
+}
+function puntos(n) { return '.'.repeat(n); }
+
 function construirReciboHTML(registro, esBlanco) {
   const campos = registro.campos_snapshot;
-  const valores = registro.valores;
-  const puntos = '..........................';
+  const valores = registro.valores || {};
 
-  const filasDatos = campos.map(c => {
+  const campoMonto = campos.find(c => c.clave === 'monto') || campos.find(c => c.tipo === 'moneda');
+  const campoFechaSorteo = campos.find(c => c.clave === 'sorteo_fecha') || campos.find(c => c.tipo === 'fecha');
+
+  // El resto de los campos (Apellido y Nombre, D.N.I., y cualquiera que se
+  // agregue) se listan abajo del párrafo — se excluyen los dos que ya van
+  // dentro del párrafo para no repetirlos.
+  const camposLista = campos.filter(c => c !== campoMonto && c !== campoFechaSorteo);
+
+  const filasDatos = camposLista.map(c => {
     if (esBlanco) {
-      return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${puntos}</span></div>`;
+      return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${puntos(longitudPuntos(c.tipo))}</span></div>`;
     }
     let valor = valores[c.clave];
-    if (c.tipo === 'moneda') valor = formatearMoneda(valor);
-    else if (c.tipo === 'fecha') valor = formatearFechaLarga(valor);
+    if (c.tipo === 'fecha') valor = formatearFechaLarga(valor);
     else if (c.tipo === 'subagencia') valor = (valor || '').replace('670-', '');
     return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${valor || ''}</span></div>`;
   }).join('');
 
-  const encabezadoFecha = esBlanco ? `Presidencia Roque Sáenz Peña, ....... de ................. del ..........` : `Presidencia Roque Sáenz Peña, ${formatearFechaLarga(registro.fecha_emision)}`;
-  const montoLetras = esBlanco ? puntos : (registro.monto_letras || '');
+  const encabezadoFecha = esBlanco
+    ? `Presidencia Roque Sáenz Peña, ${puntos(6)} de ${puntos(16)} del ${puntos(6)}`
+    : `Presidencia Roque Sáenz Peña, ${formatearFechaLarga(registro.fecha_emision)}`;
+
+  const montoLetras = esBlanco
+    ? puntos(38)
+    : `<span class="recibo-monto-letras">${registro.monto_letras || ''}</span>`;
+
+  const montoNumero = esBlanco
+    ? puntos(18)
+    : (campoMonto ? parseFloat(valores[campoMonto.clave] || 0).toLocaleString('es-AR', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '');
+
+  const fechaSorteo = esBlanco
+    ? `${puntos(4)}/${puntos(4)}/${puntos(4)}`
+    : (campoFechaSorteo ? formatearFechaCorta(valores[campoFechaSorteo.clave]) : '');
 
   return `
     <div class="recibo-hoja">
@@ -930,14 +986,17 @@ function construirReciboHTML(registro, esBlanco) {
       <div class="recibo-titulo">RECIBO</div>
       <div class="recibo-encabezado-fecha">${encabezadoFecha}</div>
       <div class="recibo-texto-principal">
-        Recibí de LOTERÍA CHAQUEÑA la suma de PESOS
-        <span class="recibo-monto-letras">${montoLetras}</span>
-        en concepto de premio correspondiente al SORTEO ESTÍMULO.
+        Recibí de LOTERÍA CHAQUEÑA la suma de PESOS ${montoLetras}
+        (\$ ${montoNumero}) en concepto de premio correspondiente al SORTEO ESTÍMULO de la fecha ${fechaSorteo}.
       </div>
       <div class="recibo-datos">${filasDatos}</div>
       <div class="recibo-firma">
         <div class="recibo-firma-linea"></div>
-        <div class="recibo-firma-label">Firma y Aclaración de Beneficiario</div>
+        <div class="recibo-firma-label">PAGADO POR AGENCIA</div>
+      </div>
+      <div class="recibo-firma">
+        <div class="recibo-firma-linea"></div>
+        <div class="recibo-firma-label">FIRMA Y ACLARACIÓN DE BENEFICIARIO</div>
       </div>
     </div>
   `;
@@ -948,13 +1007,13 @@ const ESTILOS_RECIBO_BASE = `
   .recibo-marca{text-align:center;font-weight:800;}
   .recibo-titulo{text-align:center;font-weight:800;margin:4px 0 14px;border-bottom:2px solid #111;padding-bottom:8px;}
   .recibo-encabezado-fecha{text-align:right;margin-bottom:18px;}
-  .recibo-texto-principal{line-height:1.7;margin-bottom:18px;}
-  .recibo-monto-letras{border-bottom:1px dotted #111;padding:0 4px;}
-  .recibo-datos{border-top:1.5px solid #111;border-bottom:1.5px solid #111;padding:14px 0;margin-bottom:40px;}
+  .recibo-texto-principal{line-height:2.1;margin-bottom:18px;}
+  .recibo-monto-letras{padding:0 2px;}
+  .recibo-datos{border-top:1.5px solid #111;border-bottom:1.5px solid #111;padding:14px 0;margin-bottom:30px;}
   .recibo-fila-dato{margin-bottom:8px;}
   .recibo-dato-label{font-weight:700;}
-  .recibo-firma{text-align:center;margin-top:20px;}
-  .recibo-firma-linea{border-top:1px solid #111;width:70%;margin:0 auto;}
+  .recibo-firma{text-align:center;margin-top:46px;}
+  .recibo-firma-linea{border-top:1px solid #111;width:75%;margin:0 auto;}
   .recibo-firma-label{margin-top:6px;}
   .separador-copias{height:12mm;}
 `;
