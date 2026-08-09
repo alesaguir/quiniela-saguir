@@ -141,7 +141,7 @@
             <div class="form-row-compact">
               <div class="field-compact" style="max-width:200px;">
                 <label class="form-label">Fecha de emisión</label>
-                <input type="date" class="form-input" id="f-fecha-emision">
+                <input type="date" class="form-input" id="f-fecha-emision" onchange="actualizarMinFechaSorteo()">
               </div>
             </div>
 
@@ -212,6 +212,19 @@
               agranda o achica automáticamente manteniendo estas proporciones.
             </div>
             <div id="lista-estilo-config">Cargando...</div>
+
+            <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:14px;">
+              <label class="form-label">Espacio para firmar (agente y beneficiario)</label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <input type="number" id="config-espacio-firma" min="5" max="80" step="1" style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;">
+                <span style="color:var(--muted);font-size:13px;">mm</span>
+              </div>
+              <div style="color:var(--muted);font-size:11.5px;margin-top:6px;">
+                Cuánto lugar en blanco queda arriba de las líneas de firma, para que entren cómodas la firma del
+                cliente y la del agente.
+              </div>
+            </div>
+
             <button class="btn btn-primary" onclick="guardarEstiloConfig()" style="width:auto;padding:10px 26px;margin-top:14px;">💾 Guardar estilo</button>
             <button class="btn btn-ghost" onclick="restablecerEstiloConfig()" style="width:auto;padding:10px 20px;margin-top:14px;margin-left:8px;">↺ Restablecer a valores predeterminados</button>
           </div>
@@ -233,6 +246,7 @@ let usuarioActual = null;
 let subagenciasCache = [];
 let camposActivos = [];
 let estiloImpresion = [];
+let espacioFirmaMm = 15;
 let valoresActuales = {};
 let editandoId = null;
 
@@ -492,15 +506,17 @@ function opcionesSubagencia(seleccionado) {
 async function cargarConfig() {
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/estimulos_config?id=eq.1&select=campos,estilo_impresion`,
+      `${SUPABASE_URL}/rest/v1/estimulos_config?id=eq.1&select=campos,estilo_impresion,espacio_firma_mm`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const rows = await res.json();
     camposActivos = (rows && rows[0] && rows[0].campos) ? rows[0].campos : JSON.parse(JSON.stringify(CAMPOS_PREDETERMINADOS));
     estiloImpresion = (rows && rows[0] && rows[0].estilo_impresion) ? rows[0].estilo_impresion : JSON.parse(JSON.stringify(ESTILO_PREDETERMINADO));
+    espacioFirmaMm = (rows && rows[0] && rows[0].espacio_firma_mm) || 15;
     if (usuarioActual.rol === 'superadmin') {
       renderCamposConfig();
       renderEstiloConfig();
+      document.getElementById('config-espacio-firma').value = espacioFirmaMm;
     }
   } catch(e) {
     console.error(e);
@@ -519,8 +535,11 @@ function inputParaCampo(campo, valor) {
         <option value="">—</option>
         ${opcionesSubagencia(v)}
       </select>`;
-    case 'fecha':
-      return `<input type="date" class="form-input" value="${v}" onchange="actualizarCampo('${campo.clave}', this.value)">`;
+    case 'fecha': {
+      const esFechaSorteo = campo.clave === 'sorteo_fecha';
+      const minFecha = esFechaSorteo ? (document.getElementById('f-fecha-emision')?.value || '') : '';
+      return `<input type="date" class="form-input ${esFechaSorteo ? 'campo-fecha-sorteo' : ''}" value="${v}" ${minFecha ? `min="${minFecha}"` : ''} onchange="actualizarCampo('${campo.clave}', this.value)">`;
+    }
     case 'numero':
       return `<input type="text" inputmode="numeric" class="form-input" value="${v}" oninput="this.value=this.value.replace(/\\D/g,''); actualizarCampo('${campo.clave}', this.value)">`;
     case 'dni':
@@ -541,6 +560,21 @@ function renderFormulario() {
     </div>
   `).join('')}</div>`;
   actualizarPreviewMontoLetras();
+}
+
+function actualizarMinFechaSorteo() {
+  const minFecha = document.getElementById('f-fecha-emision').value;
+  document.querySelectorAll('.campo-fecha-sorteo').forEach(inp => {
+    inp.min = minFecha;
+    // Si ya había una fecha cargada y quedó antes de la nueva fecha de
+    // emisión, se limpia para que no quede un dato inválido sin que se note.
+    if (minFecha && inp.value && inp.value < minFecha) {
+      inp.value = '';
+      const clave = camposActivos.find(c => c.clave === 'sorteo_fecha')?.clave;
+      if (clave) actualizarCampo(clave, '');
+      showToast('La Fecha del Sorteo Estímulo se limpió porque quedó anterior a la fecha de emisión.', 'err');
+    }
+  });
 }
 
 function actualizarCampo(clave, valor) {
@@ -658,7 +692,15 @@ function validarFormulario() {
     if (!v) return `Falta completar "${c.etiqueta}".`;
     if (c.tipo === 'moneda' && (isNaN(parseFloat(v)) || parseFloat(v) <= 0)) return `"${c.etiqueta}" debe ser un importe válido.`;
   }
-  if (!document.getElementById('f-fecha-emision').value) return 'Falta la fecha de emisión.';
+  const fechaEmision = document.getElementById('f-fecha-emision').value;
+  if (!fechaEmision) return 'Falta la fecha de emisión.';
+  const campoSorteoFecha = camposActivos.find(c => c.clave === 'sorteo_fecha') || camposActivos.find(c => c.tipo === 'fecha');
+  if (campoSorteoFecha) {
+    const valorSorteo = valoresActuales[campoSorteoFecha.clave];
+    if (valorSorteo && valorSorteo < fechaEmision) {
+      return `"${campoSorteoFecha.etiqueta}" no puede ser anterior a la fecha de emisión (${fechaEmision}).`;
+    }
+  }
   return null;
 }
 
@@ -680,6 +722,7 @@ async function guardarYGenerarPDF() {
   const registro = {
     campos_snapshot: camposActivos,
     estilo_snapshot: estiloImpresion,
+    espacio_firma_mm: espacioFirmaMm,
     valores: valoresActuales,
     fecha_emision: document.getElementById('f-fecha-emision').value,
     monto_letras: montoLetras,
@@ -739,6 +782,7 @@ function editarRecibo(registro) {
   editandoId = registro.id;
   camposActivos = registro.campos_snapshot;
   estiloImpresion = registro.estilo_snapshot;
+  espacioFirmaMm = registro.espacio_firma_mm || espacioFirmaMm;
   valoresActuales = JSON.parse(JSON.stringify(registro.valores));
   document.getElementById('f-fecha-emision').value = registro.fecha_emision;
   renderFormulario();
@@ -914,6 +958,7 @@ function renderEstiloConfig() {
 }
 
 async function guardarEstiloConfig() {
+  espacioFirmaMm = parseInt(document.getElementById('config-espacio-firma').value, 10) || 15;
   try {
     const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/estimulos_config?id=eq.1`, {
       method: 'PATCH',
@@ -922,7 +967,7 @@ async function guardarEstiloConfig() {
         'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ estilo_impresion: estiloImpresion, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
+      body: JSON.stringify({ estilo_impresion: estiloImpresion, espacio_firma_mm: espacioFirmaMm, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre })
     });
     if (res.ok) showToast('✅ Estilo guardado', 'ok');
     else showToast('Error al guardar', 'err');
@@ -932,7 +977,9 @@ async function guardarEstiloConfig() {
 function restablecerEstiloConfig() {
   if (!confirm('¿Restablecer el estilo a los valores predeterminados? Se pierden los cambios no guardados en pantalla.')) return;
   estiloImpresion = JSON.parse(JSON.stringify(ESTILO_PREDETERMINADO));
+  espacioFirmaMm = 15;
   renderEstiloConfig();
+  document.getElementById('config-espacio-firma').value = espacioFirmaMm;
   showToast('Valores predeterminados cargados — tocá "Guardar estilo" para confirmar', 'ok');
 }
 
@@ -980,6 +1027,7 @@ function construirReciboHTML(registro, esBlanco) {
     let valor = valores[c.clave];
     if (c.tipo === 'fecha') valor = formatearFechaLarga(valor);
     else if (c.tipo === 'subagencia') valor = (valor || '').replace('670-', '');
+    else if (c.tipo === 'texto') valor = (valor || '').toUpperCase();
     return `<div class="recibo-fila-dato"><span class="recibo-dato-label">${c.etiqueta}:</span> <span class="recibo-dato-valor">${valor || ''}</span></div>`;
   }).join('');
 
@@ -1043,6 +1091,7 @@ const ESTILOS_RECIBO_BASE = `
 
 function imprimirRecibo(registro, esBlanco) {
   const estilos = registro.estilo_snapshot || estiloImpresion;
+  const espacioMm = registro.espacio_firma_mm || espacioFirmaMm;
   const contenidoDuplicado = construirReciboHTML(registro, esBlanco) + '<div class="separador-copias"></div>' + construirReciboHTML(registro, esBlanco);
 
   const w = window.open('', '_blank');
@@ -1055,6 +1104,7 @@ function imprimirRecibo(registro, esBlanco) {
       html,body{margin:0;padding:0;}
       ${ESTILOS_RECIBO_BASE}
       ${generarEstilosPersonalizadosRecibo(estilos)}
+      .recibo-firmas-fila{margin-top:${espacioMm}mm;}
       .pagina{width:calc(210mm - 20mm);height:calc(297mm - 20mm);overflow:hidden;position:relative;}
       .contenido-escalado{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
       .recibo-hoja{max-width:none;width:calc(210mm - 20mm - 4mm);}
@@ -1084,6 +1134,7 @@ function imprimirModeloEnBlanco() {
   const registroBlanco = {
     campos_snapshot: camposActivos,
     estilo_snapshot: estiloImpresion,
+    espacio_firma_mm: espacioFirmaMm,
     valores: {},
     fecha_emision: '',
     monto_letras: ''
