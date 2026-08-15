@@ -1782,6 +1782,10 @@ async function guardarTodo() {
   if (bloqueoActual.bloqueado) { showToast('Este sorteo está marcado como sin actividad — no se puede guardar','err'); return; }
   const fecha = document.getElementById('fecha-sel').value;
   const numSorteo = document.getElementById('num-sorteo').value;
+  const sorteoDeEsteGuardado = sorteoActual; // se congela ACÁ — si el usuario cambia de
+                                               // pestaña mientras esto espera respuestas de
+                                               // red, este guardado sigue apuntando al sorteo
+                                               // que estaba activo cuando se tocó el botón
   if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
   if (!numSorteo || numSorteo.length !== 5) { showToast('Ingresá el número de sorteo (5 cifras)','err'); return; }
 
@@ -1789,7 +1793,7 @@ async function guardarTodo() {
   // (el mismo día sí puede repetirse — eso es solo editar/confirmar el número que ya estaba)
   try {
     const resDup = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${usuarioActual.agencia_id}&sorteo=eq.${sorteoActual}&numero_sorteo=eq.${numSorteo}&fecha=neq.${fecha}&select=fecha`,
+      `${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${usuarioActual.agencia_id}&sorteo=eq.${sorteoDeEsteGuardado}&numero_sorteo=eq.${numSorteo}&fecha=neq.${fecha}&select=fecha`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const dup = await resDup.json();
@@ -1807,11 +1811,11 @@ async function guardarTodo() {
     const vacias = [];
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
-      const key = `${fecha}_${sorteoActual}_${p.key}_${i}`;
+      const key = `${fecha}_${sorteoDeEsteGuardado}_${p.key}_${i}`;
       if (el && el.value.length === 4) {
         rows.push({
           fecha,
-          sorteo: sorteoActual,
+          sorteo: sorteoDeEsteGuardado,
           provincia: p.key,
           posicion: i,
           numero: el.value,
@@ -1850,7 +1854,7 @@ async function guardarTodo() {
 
     if (res.ok || res.status === 201) {
       // Los números que se acaban de guardar ya son "certeza" para esta sesión.
-      rows.forEach(r => { valoresAlCargar[`${fecha}_${sorteoActual}_${r.provincia}_${r.posicion}`] = true; });
+      rows.forEach(r => { valoresAlCargar[`${fecha}_${sorteoDeEsteGuardado}_${r.provincia}_${r.posicion}`] = true; });
 
       // Borrar cualquier posición que haya quedado vacía en el formulario (y que sabíamos
       // con certeza que tenía dato), para que no quede un número viejo guardado en la base
@@ -1858,10 +1862,10 @@ async function guardarTodo() {
       // — la 5 tiene que quedar en "----").
       for (const [provincia, posiciones] of Object.entries(vaciasPorProvincia)) {
         await fetchConRenovacion(
-          `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
+          `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEsteGuardado}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
           { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
         ).catch(e => console.error('Error borrando posiciones vacías:', provincia, e));
-        posiciones.forEach(pos => { delete valoresAlCargar[`${fecha}_${sorteoActual}_${provincia}_${pos}`]; });
+        posiciones.forEach(pos => { delete valoresAlCargar[`${fecha}_${sorteoDeEsteGuardado}_${provincia}_${pos}`]; });
       }
 
       // Guardar número de sorteo
@@ -1873,9 +1877,9 @@ async function guardarTodo() {
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify([{ fecha, sorteo: sorteoActual, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
+        body: JSON.stringify([{ fecha, sorteo: sorteoDeEsteGuardado, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
       });
-      const nombreSorteo = sorteoActual.charAt(0).toUpperCase() + sorteoActual.slice(1);
+      const nombreSorteo = sorteoDeEsteGuardado.charAt(0).toUpperCase() + sorteoDeEsteGuardado.slice(1);
       showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
       registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
       actualizarEstadoDia();
@@ -1895,16 +1899,28 @@ async function guardarTodo() {
 // =====================
 // CARGAR EXISTENTES
 // =====================
+let cargarExistentesToken = 0; // se usa para detectar y descartar respuestas
+                                 // desactualizadas cuando se cambia de pestaña rápido
 async function cargarExistentes() {
   if (bloqueoActual.bloqueado) return; // no mostrar nada mientras esté bloqueado
   const fecha = document.getElementById('fecha-sel').value;
+  const sorteoDeEstaLlamada = sorteoActual; // se congela ACÁ, no se vuelve a leer después del await
   if (!fecha) return;
+
+  const miToken = ++cargarExistentesToken;
+
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}&order=posicion.asc`,
+      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${usuarioActual.agencia_id}&order=posicion.asc`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
+
+    // Si mientras se esperaba la respuesta el usuario ya cambió de pestaña (o de fecha),
+    // esta respuesta quedó vieja — se descarta entera, sin tocar el formulario ni
+    // valoresAlCargar, para no pisar con datos de otro sorteo lo que ya se cargó bien.
+    if (miToken !== cargarExistentesToken || sorteoActual !== sorteoDeEstaLlamada) return;
+
     // Se resetea acá (no antes del fetch) para que, si la consulta falla, no se pierda
     // la referencia previa por accidente.
     valoresAlCargar = {};
@@ -1912,15 +1928,16 @@ async function cargarExistentes() {
     rows.forEach(r => {
       const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
       if (el) { el.value = r.numero; el.classList.add('filled'); }
-      valoresAlCargar[`${fecha}_${sorteoActual}_${r.provincia}_${r.posicion}`] = true;
+      valoresAlCargar[`${fecha}_${sorteoDeEstaLlamada}_${r.provincia}_${r.posicion}`] = true;
     });
     actualizarTodosLosFaltantes();
     // Cargar número de sorteo si existe
     const resSorteo = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoActual}&agencia_id=eq.${usuarioActual.agencia_id}`,
+      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${usuarioActual.agencia_id}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const sorteoInfo = await resSorteo.json();
+    if (miToken !== cargarExistentesToken || sorteoActual !== sorteoDeEstaLlamada) return; // volver a chequear, por si cambió durante esta segunda espera
     if (sorteoInfo && sorteoInfo.length > 0) {
       document.getElementById('num-sorteo').value = sorteoInfo[0].numero_sorteo;
     }
