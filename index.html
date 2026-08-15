@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; cursor:none; }
+  body.mostrar-cursor, body.mostrar-cursor * { cursor: default !important; }
   body {
     background: #1a0a00;
     color: #fff;
@@ -947,6 +948,41 @@ async function init() {
 }
 
 init();
+
+// =====================
+// OCULTAR EL PUNTERO DEL CONTROL REMOTO (Smart TV)
+// =====================
+// Muchos navegadores de Smart TV ocultan solos el puntero tipo "mano" del
+// control remoto cuando la página está en pantalla completa y no hay
+// movimiento — por eso con el sistema anterior desaparecía solo. Acá se
+// intenta entrar a pantalla completa para que ese comportamiento nativo se
+// active. Como algunos navegadores exigen que sea a partir de una acción
+// del usuario (un clic o botón del control), también se reintenta apenas
+// se detecta la primera interacción.
+function intentarPantallaCompleta() {
+  const el = document.documentElement;
+  const pedir = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (pedir && !document.fullscreenElement) {
+    pedir.call(el).catch(() => {}); // si el navegador lo bloquea, no pasa nada — se reintenta con la próxima interacción
+  }
+}
+intentarPantallaCompleta();
+['click', 'keydown', 'pointerdown'].forEach(evento => {
+  document.addEventListener(evento, intentarPantallaCompleta, { once: true });
+});
+
+// Resguardo propio, además de lo anterior: se muestra el puntero mientras
+// hay movimiento, y se vuelve a ocultar a los 3 segundos de inactividad.
+let temporizadorCursor = null;
+function actividadDeCursorDetectada() {
+  document.body.classList.add('mostrar-cursor');
+  clearTimeout(temporizadorCursor);
+  temporizadorCursor = setTimeout(() => {
+    document.body.classList.remove('mostrar-cursor');
+  }, 3000);
+}
+document.addEventListener('mousemove', actividadDeCursorDetectada);
+document.addEventListener('pointermove', actividadDeCursorDetectada);
 </script>
 </body>
 </html>
