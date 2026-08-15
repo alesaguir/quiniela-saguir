@@ -566,25 +566,7 @@ async function resolverAgenciaDesdeCodigoAcceso() {
   }
 
   if (agenciaParam) {
-    // Compatibilidad con el link viejo (?agencia=670-XX) — SOLO se permite mientras esa agencia
-    // todavía NO tenga un código de acceso (?t=) generado. Apenas se le genera uno desde
-    // "Códigos de Acceso", el acceso por número queda bloqueado para forzar el uso del link seguro.
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaParam)}&clave=eq.url_token&select=valor`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      );
-      const filas = await res.json();
-      const yaTieneCodigo = filas && filas.length > 0 && filas[0].valor;
-      if (yaTieneCodigo) {
-        codigoAccesoValido = false; // esta agencia ya tiene código propio — el acceso por número queda cerrado
-        return;
-      }
-    } catch(e) {
-      console.error('Error verificando si la agencia ya tiene código de acceso:', e);
-      codigoAccesoValido = false; // si no se puede verificar, por seguridad no se deja pasar
-      return;
-    }
+    // Compatibilidad con el link viejo (?agencia=670-XX), sin validar contra la base
     URL_AGENCIA_ID = agenciaParam;
     URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
     codigoAccesoValido = true;
@@ -644,11 +626,8 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   // salvo el que está en pantalla ahora mismo (ese se saca de la lista, no se repite)
   const slotsAMostrar = sorteoKeys.filter(s => s !== sorteoEfectivo);
 
-  // Antes esto era un "for" con "await" adentro: una consulta detrás de la otra, una por cada
-  // sorteo (hasta 4 seguidas). Son completamente independientes entre sí, así que ahora se
-  // disparan todas juntas con Promise.all — Promise.all respeta el orden del array de entrada,
-  // así que el resultado sigue llegando en el mismo orden fijo de siempre.
-  const datosPorSlot = await Promise.all(slotsAMostrar.map(async (slot) => {
+  const datosPorSlot = [];
+  for (const slot of slotsAMostrar) {
     const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
     let entrada = { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
     try {
@@ -675,8 +654,8 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
     const nombreDia = diasNombres[d.getDay()];
     const labelSorteo = LABELS_SORTEO[slot];
     const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
-    return { sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada };
-  }));
+    datosPorSlot.push({ sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada });
+  }
 
   // Ya vienen en el orden fijo correcto (Previa→Primera→Matutina→Vespertina→Nocturna, sin el actual)
   cabezasParaMostrar = datosPorSlot;
@@ -746,30 +725,25 @@ let bloqueCartelesEnCurso = false;
 function esperarMs(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 async function cargarConfigCarteles() {
-  // Las 2 son independientes — antes se traían una atrás de la otra.
-  await Promise.all([
-    (async () => {
-      try {
-        const resFrec = await fetch(
-          `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`,
-          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-        );
-        const filas = await resFrec.json();
-        cartelesConfig.frecuenciaMin = (filas && filas[0] && parseInt(filas[0].valor, 10)) || 60;
-      } catch(e) { console.error('Error frecuencia carteles:', e); }
-    })(),
-    (async () => {
-      try {
-        const resCarteles = await fetch(
-          `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`,
-          { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-        );
-        const filas = await resCarteles.json();
-        // Un cartel sin ninguna línea con texto no entra en la rotación
-        cartelesConfig.lista = (filas || []).filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
-      } catch(e) { console.error('Error cargando carteles:', e); cartelesConfig.lista = []; }
-    })()
-  ]);
+  try {
+    const resFrec = await fetch(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const filas = await resFrec.json();
+    cartelesConfig.frecuenciaMin = (filas && filas[0] && parseInt(filas[0].valor, 10)) || 60;
+  } catch(e) { console.error('Error frecuencia carteles:', e); }
+
+  try {
+    const resCarteles = await fetch(
+      `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const filas = await resCarteles.json();
+    // Un cartel sin texto no entra en la rotación
+    // Un cartel sin ninguna línea con texto no entra en la rotación
+    cartelesConfig.lista = (filas || []).filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
+  } catch(e) { console.error('Error cargando carteles:', e); cartelesConfig.lista = []; }
 }
 
 function escaparHtml(str) {
@@ -914,16 +888,12 @@ function getFechaConsulta() {
 // INIT
 // =====================
 async function calcularYCargarSlotEfectivo() {
-  // Las 3 son independientes entre sí (ninguna necesita el resultado de otra) — antes se traían
-  // en fila, ahora se disparan juntas y se espera solo a la más lenta de las tres.
-  await Promise.all([
-    cargarDuracionSorteando(),
-    cargarDuracionVerde(),
-    cargarMapaSorteosActivos(fechaLocalStr(new Date()))
-  ]);
-  const natural = getSorteoActual(); // necesita que cargarDuracionSorteando ya haya terminado — lo hizo, arriba
+  await cargarDuracionSorteando(); // hay que tenerlo ANTES de llamar a getSorteoActual()
+  await cargarDuracionVerde();
+  const natural = getSorteoActual();
   const fechaNatural = getFechaConsulta();
 
+  await cargarMapaSorteosActivos(fechaLocalStr(new Date()));
   const resuelto = resolverSlotEfectivo(fechaNatural, natural.key);
   const huboFeriado = (resuelto.fecha !== fechaNatural || resuelto.sorteoKey !== natural.key);
 
@@ -941,36 +911,39 @@ async function init() {
 
   await calcularYCargarSlotEfectivo();
 
-  // Estas 5 son independientes entre sí — ninguna necesita el resultado de otra, solo hace
-  // falta que las 5 hayan terminado antes de dibujar la pantalla con render(). Antes se traían
-  // una atrás de la otra (5 viajes de red seguidos); ahora corren todas al mismo tiempo.
-  const [datosResultado] = await Promise.all([
-    cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key),
-    cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key),
-    cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key),
-    aplicarConfigVisual(),
-    cargarCantidadTV(slotEfectivo.key)
-  ]);
-  datos[slotEfectivo.key] = datosResultado;
+  datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+  await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
+  await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
+  await aplicarConfigVisual();
+  await cargarCantidadTV(slotEfectivo.key);
   render();
 
   await cargarConfigCarteles();
   programarProximaRotacionCarteles();
 
-  // Actualizar cada 30 segundos
-  setInterval(async () => {
-    await calcularYCargarSlotEfectivo();
-    const [datosResultado] = await Promise.all([
-      cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key),
-      cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key),
-      cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key),
-      aplicarConfigVisual(),
-      cargarCantidadTV(slotEfectivo.key)
-    ]);
-    datos[slotEfectivo.key] = datosResultado;
-    render();
-    await intentarMostrarBloqueCarteles();
-  }, 30000);
+  // Actualizar cada 30 segundos — con setInterval, si un ciclo tarda más de
+  // 30s (una demora de red, algo normal que pasa de tanto en tanto), el
+  // siguiente ciclo arranca IGUAL sin esperar a que termine el anterior.
+  // Ahí quedan dos actualizaciones corriendo en simultáneo, pisándose los
+  // datos entre sí — eso es lo que hacía aparecer y desaparecer números sin
+  // que nadie tocara nada. Con este esquema, el siguiente ciclo se programa
+  // recién cuando el anterior terminó del todo, así nunca se superponen.
+  async function cicloActualizacion() {
+    try {
+      await calcularYCargarSlotEfectivo();
+      datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+      await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
+      await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
+      await aplicarConfigVisual();
+      await cargarCantidadTV(slotEfectivo.key);
+      render();
+      await intentarMostrarBloqueCarteles();
+    } catch(e) {
+      console.error('Error en el ciclo de actualización:', e);
+    }
+    setTimeout(cicloActualizacion, 30000);
+  }
+  setTimeout(cicloActualizacion, 30000);
 }
 
 init();
