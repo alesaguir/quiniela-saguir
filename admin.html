@@ -549,6 +549,16 @@
                   <option value="enter">Con la tecla Enter</option>
                 </select>
               </div>
+              <div>
+                <label class="form-label">Vista de provincias al cargar</label>
+                <select class="form-input" id="modo-carga-sel">
+                  <option value="clasico">Todas juntas (como ahora)</option>
+                  <option value="pestanas">Por pestañas — una provincia a la vez</option>
+                </select>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                  Con pestañas, al completar la última posición de una provincia pasa solo a la siguiente.
+                </div>
+              </div>
             </div>
             <div id="grilla-columnas-wrap" style="display:none;">
               <label class="form-label">Agrupación en columnas (posiciones por columna, separadas por coma)</label>
@@ -1530,6 +1540,7 @@ async function initApp() {
 async function setTab(sorteo, el) {
   sorteoActual = sorteo;
   valoresAlCargar = {}; // se vacía ya mismo — cargarExistentes() lo repuebla cuando termine
+  provinciaActivaPestana = PROVINCIAS[0].key; // arranca siempre desde la primera provincia
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   // Limpiar número de sorteo al cambiar de tab
@@ -1558,13 +1569,16 @@ function actualizarTitulos() {
 // Config de disposición de la grilla y modo de avance — se carga por agencia, una sola vez al loguearse
 let gridConfig = { orden: 'fila', columnas: [10, 10] };
 let configTeclado = { modo: 'automatico' };
+let modoCarga = 'clasico'; // 'clasico' = todas las provincias juntas | 'pestanas' = una por vez
+let provinciaActivaPestana = PROVINCIAS[0].key;
 
 async function cargarConfigCarga() {
   gridConfig = { orden: 'fila', columnas: [10, 10] };
   configTeclado = { modo: 'automatico' };
+  modoCarga = 'clasico';
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance)&select=clave,valor`,
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga)&select=clave,valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
@@ -1575,6 +1589,7 @@ async function cargarConfigCarga() {
         if (partes.length > 0) gridConfig.columnas = partes;
       }
       if (r.clave === 'modo_avance' && (r.valor === 'automatico' || r.valor === 'enter')) configTeclado.modo = r.valor;
+      if (r.clave === 'modo_carga' && (r.valor === 'clasico' || r.valor === 'pestanas')) modoCarga = r.valor;
     });
   } catch(e) { console.error('Error cargando config de carga:', e); }
 }
@@ -1611,10 +1626,22 @@ function buildColumnasHTML(provKey, total) {
 function buildForm() {
   const container = document.getElementById('form-provincias');
   let html = '';
+
+  if (modoCarga === 'pestanas') {
+    // Si la provincia activa no existe más (cambió la config), usar la primera
+    if (!PROVINCIAS.some(p => p.key === provinciaActivaPestana)) {
+      provinciaActivaPestana = PROVINCIAS[0].key;
+    }
+    html += `<div class="tabs" id="tabs-provincias-pestana" style="margin-bottom:18px;">
+      ${PROVINCIAS.map(p => `<div class="tab ${p.key===provinciaActivaPestana?'active':''}" onclick="setProvinciaTab('${p.key}')">${nombreProvincia(p.key)}</div>`).join('')}
+    </div>`;
+  }
+
   PROVINCIAS.forEach((p, idx) => {
     const total = cantidadProvincia(p.key);
     const nombreProv = nombreProvincia(p.key);
-    html += `<div class="prov-section">
+    const oculta = modoCarga === 'pestanas' && p.key !== provinciaActivaPestana;
+    html += `<div class="prov-section" id="prov-section-${p.key}" style="${oculta ? 'display:none;' : ''}">
       <div class="prov-title">${nombreProv}</div>`;
     if (gridConfig.orden === 'columna') {
       html += buildColumnasHTML(p.key, total);
@@ -1628,7 +1655,9 @@ function buildForm() {
     // duplicado sin nada en el medio. "Limpiar esta provincia" va abajo de él, como
     // texto chico — la función principal del programa es cargar y publicar, no
     // limpiar, así que nunca debe competir visualmente con el botón de Guardar.
-    if (idx < PROVINCIAS.length - 1) {
+    // En modo por pestañas no hace falta repetirlo (solo se ve una provincia a la
+    // vez, ya está corto) — el botón de abajo alcanza y sobra.
+    if (modoCarga !== 'pestanas' && idx < PROVINCIAS.length - 1) {
       html += `<div style="padding:14px 0 6px;">
         <button class="btn btn-primary btn-guardar-publicar" style="width:100%;" onclick="guardarTodo()">
           💾 Guardar y publicar en pantalla
@@ -1647,13 +1676,39 @@ function buildForm() {
   // La última provincia no tiene botón "Guardar" propio repetido — usa el original
   // de más abajo. Su link de "Limpiar" va DESPUÉS de ese botón (no antes), para que
   // el orden visual sea siempre el mismo: primero Guardar, después Limpiar.
-  const ultima = PROVINCIAS[PROVINCIAS.length - 1];
+  // En modo por pestañas, siempre muestra el link de "Limpiar" de la provincia activa
+  // (no de la última de la lista), porque solo esa es la que se ve en pantalla.
+  const provParaLimpiar = modoCarga === 'pestanas' ? provinciaActivaPestana : PROVINCIAS[PROVINCIAS.length - 1].key;
   document.getElementById('limpiar-ultima-provincia').innerHTML = `
-    <span onclick="limpiarProvincia('${ultima.key}')" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;">
-      🗑 Limpiar ${nombreProvincia(ultima.key)}
+    <span onclick="limpiarProvincia('${provParaLimpiar}')" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;">
+      🗑 Limpiar ${nombreProvincia(provParaLimpiar)}
     </span>`;
 
   actualizarTodosLosFaltantes();
+}
+
+// Cambia qué provincia se ve en modo por pestañas — no toca datos, solo visibilidad.
+function setProvinciaTab(provKey) {
+  provinciaActivaPestana = provKey;
+  document.querySelectorAll('#tabs-provincias-pestana .tab').forEach(t => t.classList.remove('active'));
+  PROVINCIAS.forEach(p => {
+    const sec = document.getElementById(`prov-section-${p.key}`);
+    if (sec) sec.style.display = (p.key === provKey) ? '' : 'none';
+  });
+  const idx = PROVINCIAS.findIndex(p => p.key === provKey);
+  const tabs = document.querySelectorAll('#tabs-provincias-pestana .tab');
+  if (tabs[idx]) tabs[idx].classList.add('active');
+  document.getElementById('limpiar-ultima-provincia').innerHTML = `
+    <span onclick="limpiarProvincia('${provKey}')" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;">
+      🗑 Limpiar ${nombreProvincia(provKey)}
+    </span>`;
+  // Foco directo en la primera celda vacía de la provincia recién mostrada, para
+  // poder seguir tipeando sin tener que tocar la pantalla.
+  const total = cantidadProvincia(provKey);
+  for (let i = 1; i <= total; i++) {
+    const el = document.getElementById(`n_${provKey}_${i}`);
+    if (el && el.value.length < 4) { el.focus(); break; }
+  }
 }
 
 function avanzarSiguiente(el) {
@@ -1663,7 +1718,9 @@ function avanzarSiguiente(el) {
   if (next) { next.focus(); return; }
   const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
   if (provIdx < PROVINCIAS.length-1) {
-    const np = document.getElementById(`n_${PROVINCIAS[provIdx+1].key}_1`);
+    const siguienteProv = PROVINCIAS[provIdx+1].key;
+    if (modoCarga === 'pestanas') { setProvinciaTab(siguienteProv); return; }
+    const np = document.getElementById(`n_${siguienteProv}_1`);
     if (np) np.focus();
   }
 }
@@ -2785,6 +2842,7 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('grilla-orden-sel'); if (el) { el.value = 'fila'; el.dispatchEvent(new Event('change')); } }
   { const el = document.getElementById('grilla-columnas-input'); if (el) el.value = '10,10'; }
   { const el = document.getElementById('modo-avance-sel'); if (el) el.value = 'automatico'; }
+  { const el = document.getElementById('modo-carga-sel'); if (el) el.value = 'clasico'; }
   try {
     const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
@@ -2810,6 +2868,9 @@ async function cargarConfigVisual() {
           if (el) el.value = r.valor;
         } else if (r.clave === 'modo_avance') {
           const el = document.getElementById('modo-avance-sel');
+          if (el) el.value = r.valor;
+        } else if (r.clave === 'modo_carga') {
+          const el = document.getElementById('modo-carga-sel');
           if (el) el.value = r.valor;
         } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
           Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
@@ -2904,6 +2965,7 @@ async function guardarVisual() {
   const ordenGrilla = document.getElementById('grilla-orden-sel')?.value || 'fila';
   const columnasGrilla = (document.getElementById('grilla-columnas-input')?.value || '10,10').trim() || '10,10';
   const modoAvance = document.getElementById('modo-avance-sel')?.value || 'automatico';
+  const modoCargaSel = document.getElementById('modo-carga-sel')?.value || 'clasico';
   rows.push({
     agencia_id: agencia, clave: 'grilla_orden',
     valor: ordenGrilla, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
@@ -2915,6 +2977,10 @@ async function guardarVisual() {
   rows.push({
     agencia_id: agencia, clave: 'modo_avance',
     valor: modoAvance, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'modo_carga',
+    valor: modoCargaSel, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
   });
 
   try {
