@@ -66,8 +66,8 @@
 
   /* INPUTS NÚMEROS */
   .num-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
-  .num-group{display:flex;flex-direction:column;gap:5px;}
-  .num-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;text-align:center;}
+  .num-group{display:flex;flex-direction:row;align-items:center;gap:10px;}
+  .num-label{font-family:'Bebas Neue',sans-serif;font-size:var(--tam-fuente-numeros, 26px);color:var(--gold);letter-spacing:1px;text-align:right;min-width:2.2em;flex-shrink:0;}
   .num-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:var(--pad-numeros, 10px 6px);font-family:'Bebas Neue',sans-serif;font-size:var(--tam-fuente-numeros, 26px);text-align:center;width:100%;outline:none;letter-spacing:2px;transition:all 0.2s;}
   .num-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
   .num-input.filled{border-color:rgba(240,180,41,0.4);color:var(--gold);}
