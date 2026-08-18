@@ -68,7 +68,7 @@
   .num-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
   .num-group{display:flex;flex-direction:column;gap:5px;}
   .num-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;text-align:center;}
-  .num-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 6px;font-family:'Bebas Neue',sans-serif;font-size:26px;text-align:center;width:100%;outline:none;letter-spacing:2px;transition:all 0.2s;}
+  .num-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:var(--pad-numeros, 10px 6px);font-family:'Bebas Neue',sans-serif;font-size:var(--tam-fuente-numeros, 26px);text-align:center;width:100%;outline:none;letter-spacing:2px;transition:all 0.2s;}
   .num-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
   .num-input.filled{border-color:rgba(240,180,41,0.4);color:var(--gold);}
   .num-input::placeholder{color:rgba(255,255,255,0.1);}
@@ -557,6 +557,16 @@
                 </select>
                 <div style="font-size:11px;color:var(--muted);margin-top:4px;">
                   Con pestañas, al completar la última posición de una provincia pasa solo a la siguiente.
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Tamaño de letra de los números cargados</label>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <input type="range" id="tamano-numeros-sel" min="14" max="34" step="1" value="26" style="flex:1;" oninput="document.getElementById('tamano-numeros-valor').textContent = this.value + 'px'; previsualizarTamanoNumeros(this.value);">
+                  <span id="tamano-numeros-valor" style="font-size:12.5px;color:var(--muted);min-width:36px;">26px</span>
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                  Achicando la letra entran más números en pantalla sin scrollear.
                 </div>
               </div>
             </div>
@@ -1572,13 +1582,30 @@ let configTeclado = { modo: 'automatico' };
 let modoCarga = 'clasico'; // 'clasico' = todas las provincias juntas | 'pestanas' = una por vez
 let provinciaActivaPestana = PROVINCIAS[0].key;
 
+// Aplica el tamaño de letra de los números cargados en toda la página (vía
+// variables CSS) — el padding de cada celda se achica en proporción, para
+// ganar espacio de verdad y no solo achicar el texto dentro de una celda
+// del mismo tamaño de siempre.
+function aplicarTamanoNumeros(tam) {
+  const t = parseInt(tam, 10) || 26;
+  const padVertical = Math.round(t * 0.38);
+  const padHorizontal = Math.round(t * 0.23);
+  document.documentElement.style.setProperty('--tam-fuente-numeros', `${t}px`);
+  document.documentElement.style.setProperty('--pad-numeros', `${padVertical}px ${padHorizontal}px`);
+}
+
+function previsualizarTamanoNumeros(tam) {
+  aplicarTamanoNumeros(tam); // solo visual en esta pestaña — para guardarlo de verdad hay que tocar "Guardar cambios"
+}
+
 async function cargarConfigCarga() {
   gridConfig = { orden: 'fila', columnas: [10, 10] };
   configTeclado = { modo: 'automatico' };
   modoCarga = 'clasico';
+  aplicarTamanoNumeros(26); // valor por defecto hasta que se sepa si hay uno guardado
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga)&select=clave,valor`,
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga,tamano_fuente_numeros)&select=clave,valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
@@ -1590,6 +1617,7 @@ async function cargarConfigCarga() {
       }
       if (r.clave === 'modo_avance' && (r.valor === 'automatico' || r.valor === 'enter')) configTeclado.modo = r.valor;
       if (r.clave === 'modo_carga' && (r.valor === 'clasico' || r.valor === 'pestanas')) modoCarga = r.valor;
+      if (r.clave === 'tamano_fuente_numeros' && r.valor) aplicarTamanoNumeros(r.valor);
     });
   } catch(e) { console.error('Error cargando config de carga:', e); }
 }
@@ -2877,6 +2905,7 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('grilla-columnas-input'); if (el) el.value = '10,10'; }
   { const el = document.getElementById('modo-avance-sel'); if (el) el.value = 'automatico'; }
   { const el = document.getElementById('modo-carga-sel'); if (el) el.value = 'clasico'; }
+  { const el = document.getElementById('tamano-numeros-sel'); if (el) { el.value = '26'; document.getElementById('tamano-numeros-valor').textContent = '26px'; } }
   try {
     const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
@@ -2906,6 +2935,9 @@ async function cargarConfigVisual() {
         } else if (r.clave === 'modo_carga') {
           const el = document.getElementById('modo-carga-sel');
           if (el) el.value = r.valor;
+        } else if (r.clave === 'tamano_fuente_numeros') {
+          const el = document.getElementById('tamano-numeros-sel');
+          if (el) { el.value = r.valor; document.getElementById('tamano-numeros-valor').textContent = r.valor + 'px'; }
         } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
           Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
             const el = document.getElementById(`nombre_prov_${k}`);
@@ -3000,6 +3032,7 @@ async function guardarVisual() {
   const columnasGrilla = (document.getElementById('grilla-columnas-input')?.value || '10,10').trim() || '10,10';
   const modoAvance = document.getElementById('modo-avance-sel')?.value || 'automatico';
   const modoCargaSel = document.getElementById('modo-carga-sel')?.value || 'clasico';
+  const tamanoNumerosSel = document.getElementById('tamano-numeros-sel')?.value || '26';
   rows.push({
     agencia_id: agencia, clave: 'grilla_orden',
     valor: ordenGrilla, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
@@ -3015,6 +3048,10 @@ async function guardarVisual() {
   rows.push({
     agencia_id: agencia, clave: 'modo_carga',
     valor: modoCargaSel, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'tamano_fuente_numeros',
+    valor: tamanoNumerosSel, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
   });
 
   try {
