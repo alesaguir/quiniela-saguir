@@ -223,7 +223,7 @@
         <button class="btn btn-ghost" onclick="limpiarTodo()" id="btn-limpiar" style="font-size:12px;padding:6px 14px;">🗑 Limpiar todas las provincias</button>
       </div>
       <div class="card-body" id="form-provincias"></div>
-      <div style="padding:0 20px 20px;display:flex;gap:10px;">
+      <div style="padding:0 20px 20px;display:flex;gap:10px;margin-top:-10px;">
         <button class="btn btn-primary btn-guardar-publicar" style="flex:1" onclick="guardarTodo()" id="btn-guardar">
           💾 Guardar y publicar en pantalla
         </button>
@@ -1687,7 +1687,7 @@ function buildForm() {
     } else {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
-    html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:14px;"></div>`;
+    html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:8px;"></div>`;
     // Botón repetido después de cada provincia, para no tener que scrollear hasta el
     // final del formulario — guarda y publica todo igual que el de abajo. Se salta
     // en la última provincia porque ahí quedaría pegado al botón original de abajo,
@@ -1697,7 +1697,7 @@ function buildForm() {
     // En modo por pestañas no hace falta repetirlo (solo se ve una provincia a la
     // vez, ya está corto) — el botón de abajo alcanza y sobra.
     if (modoCarga !== 'pestanas' && idx < PROVINCIAS.length - 1) {
-      html += `<div style="padding:14px 0 6px;">
+      html += `<div style="padding:6px 0 6px;">
         <button class="btn btn-primary btn-guardar-publicar" style="width:100%;" onclick="guardarTodo()">
           💾 Guardar y publicar en pantalla
         </button>
