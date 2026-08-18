@@ -1633,7 +1633,9 @@ function buildForm() {
       provinciaActivaPestana = PROVINCIAS[0].key;
     }
     html += `<div class="tabs" id="tabs-provincias-pestana" style="margin-bottom:18px;">
-      ${PROVINCIAS.map(p => `<div class="tab ${p.key===provinciaActivaPestana?'active':''}" onclick="setProvinciaTab('${p.key}')">${nombreProvincia(p.key)}</div>`).join('')}
+      ${PROVINCIAS.map(p => `<div class="tab ${p.key===provinciaActivaPestana?'active':''}" onclick="setProvinciaTab('${p.key}')">
+        ${nombreProvincia(p.key)} <span id="badge-pub-${p.key}" class="badge-publicado" style="display:none;color:var(--green);font-weight:800;">✓</span>
+      </div>`).join('')}
     </div>`;
   }
 
@@ -1685,9 +1687,34 @@ function buildForm() {
     </span>`;
 
   actualizarTodosLosFaltantes();
+  actualizarIndicadoresPublicado();
 }
 
 // Cambia qué provincia se ve en modo por pestañas — no toca datos, solo visibilidad.
+// Una provincia está "publicada" cuando TODAS sus posiciones, para el sorteo y
+// fecha que se está viendo ahora mismo, están confirmadas como guardadas en la
+// base (vía valoresAlCargar — lo mismo que ya se usa para no borrar por error).
+function provinciaPublicadaCompleta(provKey) {
+  const fecha = document.getElementById('fecha-sel').value;
+  const total = cantidadProvincia(provKey);
+  if (total <= 0) return false;
+  for (let i = 1; i <= total; i++) {
+    if (!valoresAlCargar[`${fecha}_${sorteoActual}_${provKey}_${i}`]) return false;
+  }
+  return true;
+}
+
+// Prende o apaga el "✓" de cada pestaña de provincia según si ya está publicada
+// completa. Se llama después de cargar datos existentes y después de guardar —
+// no reconstruye el formulario entero, solo toca los badges.
+function actualizarIndicadoresPublicado() {
+  if (modoCarga !== 'pestanas') return;
+  PROVINCIAS.forEach(p => {
+    const badge = document.getElementById(`badge-pub-${p.key}`);
+    if (badge) badge.style.display = provinciaPublicadaCompleta(p.key) ? 'inline' : 'none';
+  });
+}
+
 function setProvinciaTab(provKey) {
   provinciaActivaPestana = provKey;
   document.querySelectorAll('#tabs-provincias-pestana .tab').forEach(t => t.classList.remove('active'));
@@ -1940,6 +1967,7 @@ async function guardarTodo() {
       showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
       registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
       actualizarEstadoDia();
+      actualizarIndicadoresPublicado();
     } else {
       const err = await res.text();
       console.error(err);
@@ -1981,13 +2009,14 @@ async function cargarExistentes() {
     // Se resetea acá (no antes del fetch) para que, si la consulta falla, no se pierda
     // la referencia previa por accidente.
     valoresAlCargar = {};
-    if (!rows || rows.length === 0) return;
+    if (!rows || rows.length === 0) { actualizarIndicadoresPublicado(); return; }
     rows.forEach(r => {
       const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
       if (el) { el.value = r.numero; el.classList.add('filled'); }
       valoresAlCargar[`${fecha}_${sorteoDeEstaLlamada}_${r.provincia}_${r.posicion}`] = true;
     });
     actualizarTodosLosFaltantes();
+    actualizarIndicadoresPublicado();
     // Cargar número de sorteo si existe
     const resSorteo = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${usuarioActual.agencia_id}`,
