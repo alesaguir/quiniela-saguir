@@ -1645,6 +1645,9 @@ function buildForm() {
     const oculta = modoCarga === 'pestanas' && p.key !== provinciaActivaPestana;
     html += `<div class="prov-section" id="prov-section-${p.key}" style="${oculta ? 'display:none;' : ''}">
       <div class="prov-title">${nombreProv}</div>`;
+    if (modoCarga === 'pestanas') {
+      html += `<div id="faltan-top-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-bottom:16px;"></div>`;
+    }
     if (gridConfig.orden === 'columna') {
       html += buildColumnasHTML(p.key, total);
     } else {
@@ -1762,11 +1765,13 @@ function actualizarFaltantesProvincia(provKey) {
     const el = document.getElementById(`n_${provKey}_${i}`);
     if (!el || el.value.length < 4) faltan.push(i + '°');
   }
-  const cont = document.getElementById(`faltan-${provKey}`);
-  if (!cont) return;
-  cont.innerHTML = faltan.length === 0
+  const html = faltan.length === 0
     ? `<span style="color:var(--green);">✓ Completo</span>`
     : `<span style="color:var(--gold);">⏳ Falta cargar: ${faltan.join(', ')}</span>`;
+  const cont = document.getElementById(`faltan-${provKey}`);
+  if (cont) cont.innerHTML = html;
+  const contTop = document.getElementById(`faltan-top-${provKey}`);
+  if (contTop) contTop.innerHTML = html;
 }
 
 function actualizarTodosLosFaltantes() {
