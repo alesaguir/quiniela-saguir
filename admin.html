@@ -1677,8 +1677,10 @@ function buildForm() {
     const total = cantidadProvincia(p.key);
     const nombreProv = nombreProvincia(p.key);
     const oculta = modoCarga === 'pestanas' && p.key !== provinciaActivaPestana;
-    html += `<div class="prov-section" id="prov-section-${p.key}" style="${oculta ? 'display:none;' : ''}">
-      <div class="prov-title">${nombreProv}</div>`;
+    html += `<div class="prov-section" id="prov-section-${p.key}" style="${oculta ? 'display:none;' : ''}">`;
+    if (modoCarga !== 'pestanas') {
+      html += `<div class="prov-title">${nombreProv}</div>`;
+    }
     if (modoCarga === 'pestanas') {
       html += `<div id="faltan-top-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-bottom:16px;"></div>`;
     }
