@@ -68,7 +68,7 @@
   .num-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
   .num-group{display:flex;flex-direction:row;align-items:center;gap:10px;}
   .num-label{font-family:'Bebas Neue',sans-serif;font-size:var(--tam-fuente-numeros, 26px);color:var(--gold);letter-spacing:1px;text-align:right;min-width:2.2em;flex-shrink:0;}
-  .num-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:var(--pad-numeros, 10px 6px);font-family:'Bebas Neue',sans-serif;font-size:var(--tam-fuente-numeros, 26px);text-align:center;width:100%;outline:none;letter-spacing:2px;transition:all 0.2s;}
+  .num-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:var(--pad-numeros, 10px 6px);font-family:'Bebas Neue',sans-serif;font-size:var(--tam-fuente-numeros, 26px);text-align:center;width:100%;min-width:0;flex:1 1 auto;outline:none;letter-spacing:2px;transition:all 0.2s;}
   .num-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,180,41,0.12);}
   .num-input.filled{border-color:rgba(240,180,41,0.4);color:var(--gold);}
   .num-input::placeholder{color:rgba(255,255,255,0.1);}
@@ -1635,17 +1635,23 @@ function buildCeldasHTML(provKey, desde, hasta) {
 }
 
 function buildColumnasHTML(provKey, total) {
-  let html = '<div class="num-columnas-wrap" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">';
+  // flex-wrap:nowrap fuerza a que las columnas siempre queden lado a lado
+  // (nunca apiladas verticalmente, ni siquiera con pantalla dividida) — si
+  // en algún caso extremo no entran igual, aparece scroll horizontal en vez
+  // de romper el orden configurado. min-width bien angosto para que el
+  // recuadro de cada número se achique solo lo necesario para que las
+  // columnas entren juntas.
+  let html = '<div class="num-columnas-wrap" style="display:flex;gap:10px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:20px;">';
   let pos = 1;
   const grupos = (gridConfig.columnas && gridConfig.columnas.length > 0) ? gridConfig.columnas : [total];
   for (const tam of grupos) {
     if (pos > total) break;
     const hasta = Math.min(pos + tam - 1, total);
-    html += `<div class="num-columna" style="display:flex;flex-direction:column;gap:10px;min-width:90px;">${buildCeldasHTML(provKey, pos, hasta)}</div>`;
+    html += `<div class="num-columna" style="display:flex;flex-direction:column;gap:10px;min-width:100px;flex:1 1 0;">${buildCeldasHTML(provKey, pos, hasta)}</div>`;
     pos = hasta + 1;
   }
   if (pos <= total) {
-    html += `<div class="num-columna" style="display:flex;flex-direction:column;gap:10px;min-width:90px;">${buildCeldasHTML(provKey, pos, total)}</div>`;
+    html += `<div class="num-columna" style="display:flex;flex-direction:column;gap:10px;min-width:100px;flex:1 1 0;">${buildCeldasHTML(provKey, pos, total)}</div>`;
   }
   html += '</div>';
   return html;
