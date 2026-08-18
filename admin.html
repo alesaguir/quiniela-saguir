@@ -1689,7 +1689,9 @@ function buildForm() {
     } else {
       html += `<div class="num-grid">${buildCeldasHTML(p.key, 1, total)}</div>`;
     }
-    html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:8px;"></div>`;
+    if (modoCarga !== 'pestanas') {
+      html += `<div id="faltan-${p.key}" class="prov-faltantes" style="font-size:12.5px;margin-top:8px;"></div>`;
+    }
     // Botón repetido después de cada provincia, para no tener que scrollear hasta el
     // final del formulario — guarda y publica todo igual que el de abajo. Se salta
     // en la última provincia porque ahí quedaría pegado al botón original de abajo,
