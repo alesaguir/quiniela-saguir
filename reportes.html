@@ -965,24 +965,18 @@ async function cargarFormularioParaContexto() {
   try {
     limpiarFormulario();
     contextoActual = { fecha, agencia_id: agenciaSeleccionada.agencia_id };
-
-    if (borradores[key]) {
-      cargarReporteEnFormulario(borradores[key]);
-      document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
-      // NO marcamos sinGuardarCambios acá solo por existir un borrador — eso se marca
-      // únicamente cuando el usuario tipea de verdad (ver el listener de 'input' más
-      // abajo). Si el borrador coincide con lo que ya está guardado, no hay nada
-      // "sin guardar"; marcarlo igual generaba falsos positivos al cambiar rápido
-      // entre subagencias, y en el peor caso llevaba a re-guardar un borrador vacío
-      // encima de un reporte real ya guardado.
-      renderAvisoCombinado();
-      recalcularTicket();
-      return;
-    }
-
-    sinGuardarCambios.delete(agenciaSeleccionada.agencia_id); // lo que sigue viene de la base, está al día
     renderAvisoCombinado();
 
+    // SIEMPRE se consulta la base primero — nunca se salta este paso solo porque
+    // ya haya un borrador local guardado en esta sesión. Motivo: si otra persona
+    // (u otro dispositivo tuyo) guardó el reporte real de esta subagencia DESPUÉS
+    // de que vos armaste un borrador acá (por ejemplo, cargaste un premio temprano
+    // cuando el reporte todavía estaba en cero, y más tarde alguien más — u otra
+    // pestaña tuya — terminó de cargar el reporte real), el borrador viejo nunca
+    // se enteraba de eso y quedaba tapando para siempre, en esta sesión, el dato
+    // real ya guardado. Por eso el reporte generado en PDF salía bien (lee la base
+    // directo) pero la pantalla mostraba vacío: estaba mirando su propio borrador
+    // viejo, no la base.
     const res = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaSeleccionada.agencia_id}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
@@ -992,16 +986,35 @@ async function cargarFormularioParaContexto() {
     // fecha, esta respuesta llegó tarde y ya no corresponde a lo que está en pantalla
     // ahora — la descartamos para no pisar el contexto nuevo con datos viejos.
     if (miToken !== tokenCargaFormulario) return;
+
     if (rows && rows.length > 0) {
+      // La base ya tiene un reporte guardado de verdad (por cualquier persona, en
+      // cualquier sesión) — esto manda siempre, por encima de cualquier borrador
+      // local desactualizado.
       cargarReporteEnFormulario(rows[0]);
       document.getElementById('hint-estado').textContent = '✏️ Ya existe un reporte para esta fecha — estás corrigiéndolo.';
+      delete borradores[key]; // el borrador viejo ya cumplió su función o quedó obsoleto — se descarta
+    } else if (borradores[key]) {
+      // Todavía no hay nada guardado en la base para esta subagencia — acá sí vale
+      // usar el borrador local, para no perder algo que se estaba tipeando en esta
+      // misma sesión sin haber guardado todavía.
+      cargarReporteEnFormulario(borradores[key]);
+      document.getElementById('hint-estado').textContent = '📝 Recuperando lo que habías empezado a cargar en esta sesión.';
     } else {
       reporteExistenteId = null;
       document.getElementById('hint-estado').textContent = '';
     }
+    // NO marcamos sinGuardarCambios acá solo por existir un borrador — eso se marca
+    // únicamente cuando el usuario tipea de verdad (ver el listener de 'input' más
+    // abajo). Si el borrador coincide con lo que ya está guardado, no hay nada
+    // "sin guardar"; marcarlo igual generaba falsos positivos al cambiar rápido
+    // entre subagencias, y en el peor caso llevaba a re-guardar un borrador vacío
+    // encima de un reporte real ya guardado.
+    sinGuardarCambios.delete(agenciaSeleccionada.agencia_id);
+    renderAvisoCombinado();
+    recalcularTicket();
   } catch(e) { console.error(e); }
   finally { if (miToken === tokenCargaFormulario) cargandoFormulario = false; }
-  recalcularTicket();
 }
 
 function limpiarFormulario() {
@@ -1166,7 +1179,6 @@ document.addEventListener('input', (e) => {
 // sensible hacia abajo (donde está el riesgo real de pérdida silenciosa) que hacia arriba
 // (donde alertar todo el tiempo solo generaría que se empiece a ignorar el aviso).
 // =====================
-let promedioReporteAgencia = null;
 
 // Ajustes generales (retención + parámetros del aviso de monto inusual) — configurables desde
 // Super Admin en vez de estar fijos en el código.
@@ -1230,7 +1242,11 @@ async function guardarAjustesGenerales() {
   } catch(e) { console.error(e); showToast('Error de conexión', 'err'); }
 }
 
+let promedioReporteAgencia = null;
+let tokenPromedioHistorico = 0; // evita que el promedio de una subagencia vieja se aplique a la que se ve ahora
+
 async function cargarPromedioHistorico(agenciaId) {
+  const miToken = ++tokenPromedioHistorico;
   promedioReporteAgencia = null;
   // Solo hace falta traer el historial si al menos uno de los dos avisos está activado
   if (!ajustesGeneralesCache.aviso_bajo_activo && !ajustesGeneralesCache.aviso_alto_activo) {
@@ -1245,10 +1261,14 @@ async function cargarPromedioHistorico(agenciaId) {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
     );
     const rows = (await res.json() || []).filter(r => r.monto_reporte_loteria > 0);
+    // Si mientras esperábamos esta respuesta el usuario ya cambió de subagencia (o de
+    // fecha), este promedio ya no corresponde a lo que está en pantalla — se descarta
+    // para no comparar el monto de una subagencia contra el promedio de otra.
+    if (miToken !== tokenPromedioHistorico) return;
     if (rows.length >= ajustesGeneralesCache.minimo_dias_historial) {
       promedioReporteAgencia = rows.reduce((sum, r) => sum + r.monto_reporte_loteria, 0) / rows.length;
     }
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error(e); return; }
   verificarMontoInusual();
 }
 
@@ -1909,6 +1929,11 @@ async function guardarReporteDesdeFormulario() {
   if (!agenciaSeleccionada) return false;
   const calc = recalcularTicket();
   const fecha = document.getElementById('fecha-reporte').value;
+  const agenciaIdGuardado = agenciaSeleccionada.agencia_id; // se congela ACÁ — si el usuario
+                                                              // cambia de subagencia mientras esto
+                                                              // espera la respuesta de la base, el
+                                                              // guardado sigue apuntando a la que
+                                                              // realmente se estaba guardando
 
   const premios = [];
   document.querySelectorAll('.premio-input').forEach(i => {
@@ -1939,7 +1964,7 @@ async function guardarReporteDesdeFormulario() {
 
   const payload = {
     fecha,
-    agencia_id: agenciaSeleccionada.agencia_id,
+    agencia_id: agenciaIdGuardado,
     monto_reporte_loteria: parseMonto(document.getElementById('inp-reporte').value),
     premios,
     a_favor: calc.favor,
@@ -1968,10 +1993,16 @@ async function guardarReporteDesdeFormulario() {
     );
     if (res.ok) {
       const data = await res.json();
-      reporteExistenteId = data[0]?.id || reporteExistenteId;
-      delete borradores[`${fecha}_${agenciaSeleccionada.agencia_id}`];
-      sinGuardarCambios.delete(agenciaSeleccionada.agencia_id);
-      renderAvisoCombinado();
+      // Si para cuando esto vuelve el usuario ya está parado en otra subagencia,
+      // "reporteExistenteId" es una variable global sin separar por subagencia — no
+      // la tocamos si ya no corresponde a lo que se guardó acá, para no confundir
+      // el id de ESTE guardado con el de la subagencia que se esté viendo ahora.
+      if (agenciaSeleccionada && agenciaSeleccionada.agencia_id === agenciaIdGuardado) {
+        reporteExistenteId = data[0]?.id || reporteExistenteId;
+        sinGuardarCambios.delete(agenciaIdGuardado);
+        renderAvisoCombinado();
+      }
+      delete borradores[`${fecha}_${agenciaIdGuardado}`];
       actualizarAvisoFaltantes();
       return true;
     } else {
