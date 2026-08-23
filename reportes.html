@@ -922,15 +922,29 @@ function getFormSnapshot() {
   };
 }
 
-let cargandoFormulario = false; // true mientras se está esperando la respuesta real de la base
+let cargandoFormulario = false; // true mientras se está esperando la respuesta real de la base —
+                                  // se usa SOLO para descartar respuestas de red que lleguen tarde
+                                  // (ver tokenCargaFormulario). NO se usa para decidir si un evento
+                                  // "input" es tipeo real del usuario — eso lo hace bloqueoInputBreve,
+                                  // más abajo, a propósito, porque antes estaban mezclados y eso
+                                  // borraba tipeo real si el usuario escribía rápido y cambiaba de
+                                  // subagencia antes de que la consulta a la base volviera (error
+                                  // detectado el 24/08/2026 — subagencias 07, 10 y 11 se veían vacías
+                                  // al volver a entrar, aunque sí se había tipeado algo).
+let bloqueoInputBreve = false;   // true solo por un instante brevísimo, justo al vaciar los campos
+                                  // (para ignorar algún evento "input" espurio que dispare el propio
+                                  // navegador al reconstruir el formulario) — se apaga solo, enseguida,
+                                  // mucho antes de que el usuario pueda llegar a escribir nada.
 let tokenCargaFormulario = 0;   // identifica cada carga puntual, para descartar respuestas que lleguen tarde
 
 function guardarBorradorActual() {
-  // Si todavía estamos esperando la respuesta real de la base para el contexto actual,
-  // NO guardamos una foto — el formulario recién fue vaciado por limpiarFormulario() y
-  // todavía no tiene el dato real cargado. Guardar acá pisaría para siempre (en esta
-  // sesión) el reporte real con un borrador vacío, aunque exista guardado en la base.
-  if (contextoActual && !cargandoFormulario) {
+  // Antes acá se chequeaba "!cargandoFormulario" (que dura TODA la espera de red al
+  // entrar a una subagencia, no solo el instante de vaciar los campos) — eso hacía
+  // que, si el usuario tipeaba rápido y cambiaba de subagencia antes de que esa
+  // consulta a la base volviera, el tipeo real se descartara en silencio, como si
+  // nunca hubiera pasado. Ahora se usa bloqueoInputBreve, que dura solo el instante
+  // sincrónico de vaciar los campos, no la espera de red completa.
+  if (contextoActual && !bloqueoInputBreve) {
     borradores[`${contextoActual.fecha}_${contextoActual.agencia_id}`] = getFormSnapshot();
   }
 }
@@ -957,15 +971,21 @@ async function cargarFormularioParaContexto() {
   const fecha = document.getElementById('fecha-reporte').value;
   const key = `${fecha}_${agenciaSeleccionada.agencia_id}`;
   const miToken = ++tokenCargaFormulario;
-  // Cubre desde ACÁ (antes de vaciar/reconstruir los campos), no solo la espera a la
-  // base — así ningún evento "input" que dispare la reconstrucción de los campos
-  // (por ejemplo, autocompletado del navegador en un campo recién creado) puede
-  // marcar la subagencia como "modificada" sin que el usuario haya tocado nada.
+  // cargandoFormulario cubre TODA la espera a la base — se usa únicamente para
+  // descartar respuestas de red que lleguen tarde (ver el chequeo de miToken más
+  // abajo). NO se usa para bloquear el tipeo del usuario mientras tanto.
   cargandoFormulario = true;
   try {
+    // bloqueoInputBreve dura solo el instante sincrónico de vaciar los campos — se
+    // apaga en el siguiente tick, mucho antes de que el usuario pueda llegar a
+    // escribir nada, incluso tipeando lo más rápido posible. Así, si el usuario
+    // tipea mientras se espera la respuesta de la base (que puede tardar bastante
+    // más que un tick), ese tipeo se registra como corresponde.
+    bloqueoInputBreve = true;
     limpiarFormulario();
     contextoActual = { fecha, agencia_id: agenciaSeleccionada.agencia_id };
     renderAvisoCombinado();
+    setTimeout(() => { bloqueoInputBreve = false; }, 0);
 
     // SIEMPRE se consulta la base primero — nunca se salta este paso solo porque
     // ya haya un borrador local guardado en esta sesión. Motivo: si otra persona
@@ -1161,11 +1181,13 @@ document.addEventListener('input', (e) => {
 // El evento 'input' solo se dispara con tipeo/pegado real del usuario, nunca cuando el propio
 // sistema carga valores por código — por eso es seguro usarlo para marcar "cambios sin guardar"
 // sin que se marque solo por cargar o corregir un reporte ya guardado. El chequeo de
-// !cargandoFormulario es una segunda red de seguridad para la ventana en la que se
-// vacían y reconstruyen los campos al cambiar de subagencia (por ejemplo, si el
-// navegador autocompleta un campo recién creado, eso también dispara 'input').
+// !bloqueoInputBreve es una segunda red de seguridad para el instante brevísimo en el que se
+// vacían y reconstruyen los campos al cambiar de subagencia (por ejemplo, si el navegador
+// autocompleta un campo recién creado, eso también dispara 'input') — dura solo ese instante
+// sincrónico, NO toda la espera de red al entrar a una subagencia, para no confundir "recién
+// vaciado" con "el usuario todavía no tipeó nada" cuando en realidad sí tipeó, rápido.
 document.addEventListener('input', (e) => {
-  if (!cargandoFormulario && agenciaSeleccionada && (e.target.classList.contains('amount') || e.target.classList.contains('concept'))
+  if (!bloqueoInputBreve && agenciaSeleccionada && (e.target.classList.contains('amount') || e.target.classList.contains('concept'))
       && e.target.closest('#form-reporte')) {
     marcarCambioSinGuardar(agenciaSeleccionada.agencia_id);
   }
