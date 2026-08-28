@@ -202,7 +202,7 @@
             class="form-input" style="width:120px;font-family:'JetBrains Mono',monospace;font-size:18px;text-align:center;letter-spacing:2px;"
             oninput="this.value=this.value.replace(/\D/g,'')">
         </div>
-        <input type="date" class="form-input" id="fecha-sel" style="width:auto;" onchange="verificarBloqueoFechaEspecial()">
+        <input type="date" class="form-input" id="fecha-sel" style="width:auto;" onchange="onCambioFecha()">
         <button class="btn btn-ghost" onclick="cargarExistentes()" id="btn-cargar-existentes" style="font-size:13px;">🔄 Cargar existentes</button>
       </div>
     </div>
@@ -915,24 +915,45 @@ function cantidadProvincia(key) {
 // =====================
 let bloqueoActual = { bloqueado:false, descripcion:'' };
 
+// Antes, cambiar la fecha solo revisaba si esa fecha estaba bloqueada — no tocaba ni
+// la grilla de posiciones ni el número de sorteo, que se quedaban mostrando lo de la
+// fecha anterior hasta que alguien tocara manualmente "Cargar existentes". Eso hacía
+// que, por ejemplo, el número de sorteo del día anterior siguiera a la vista como si
+// correspondiera al día nuevo. Ahora, cambiar de fecha se comporta igual que cambiar
+// de pestaña de sorteo: se vacía todo y se recarga lo que corresponda a la fecha nueva.
+async function onCambioFecha() {
+  valoresAlCargar = {}; // se repuebla cuando cargarExistentes() termine, para la fecha nueva
+  document.getElementById('num-sorteo').value = '00000'; // hasta confirmar si hay uno guardado
+  vaciarGrillaSilencioso();
+  await verificarBloqueoFechaEspecial();
+  cargarExistentes();
+}
+
+let tokenBloqueoFecha = 0; // descarta respuestas tardías si se cambia de fecha o de pestaña rápido
+
 async function verificarBloqueoFechaEspecial() {
   const fecha = document.getElementById('fecha-sel').value;
+  const sorteoDeEstaLlamada = sorteoActual; // se congela ACÁ, no se vuelve a leer después del await
+  const miToken = ++tokenBloqueoFecha;
   if (!fecha) { bloqueoActual = { bloqueado:false, descripcion:'' }; aplicarBloqueoUI(); return; }
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=eq.${fecha}&sorteo=eq.${sorteoActual}&select=activo,descripcion`,
+      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&select=activo,descripcion`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
+    if (miToken !== tokenBloqueoFecha) return; // llegó tarde — ya no corresponde a lo que se ve ahora
     const fila = rows && rows[0];
     bloqueoActual = (fila && fila.activo === false)
       ? { bloqueado:true, descripcion: fila.descripcion || 'Fecha especial' }
       : { bloqueado:false, descripcion:'' };
   } catch(e) {
     console.error(e);
+    if (miToken !== tokenBloqueoFecha) return;
     // Ante un error de red, no bloqueamos — mejor no frenar la carga real por una falla momentánea
     bloqueoActual = { bloqueado:false, descripcion:'' };
   }
+  if (miToken !== tokenBloqueoFecha) return;
   aplicarBloqueoUI();
 }
 
@@ -1871,9 +1892,11 @@ function onKeydownNum(e, el) {
   else if (e.key === 'ArrowUp') { e.preventDefault(); moverFoco(el, 'up'); }
 }
 
-function limpiarTodo() {
-
-  if (!confirm('¿Borrar todos los números tipeados en este formulario (las 5 provincias)? Esta acción no se puede deshacer.')) return;
+// Vacía la grilla de posiciones sin preguntar nada — la usa tanto "Limpiar todas las
+// provincias" (con su confirm() propio) como el cambio de fecha (silencioso, porque no
+// es una acción destructiva: los datos de la fecha anterior siguen intactos en la base,
+// solo se limpia la pantalla para no confundirlos con los de la fecha nueva).
+function vaciarGrillaSilencioso() {
   PROVINCIAS.forEach(p => {
     for (let i=1;i<=cantidadProvincia(p.key);i++) {
       const el = document.getElementById(`n_${p.key}_${i}`);
@@ -1881,6 +1904,11 @@ function limpiarTodo() {
     }
   });
   actualizarTodosLosFaltantes();
+}
+
+function limpiarTodo() {
+  if (!confirm('¿Borrar todos los números tipeados en este formulario (las 5 provincias)? Esta acción no se puede deshacer.')) return;
+  vaciarGrillaSilencioso();
 }
 
 function limpiarProvincia(provKey) {
@@ -1915,6 +1943,7 @@ async function guardarTodo() {
                                                // que estaba activo cuando se tocó el botón
   if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
   if (!numSorteo || numSorteo.length !== 5) { showToast('Ingresá el número de sorteo (5 cifras)','err'); return; }
+  if (numSorteo === '00000') { showToast('⚠️ No se puede cargar un sorteo con el número 00000 — ingresá el número real','err'); return; }
 
   // No permitir el mismo número de sorteo en otra fecha, para el mismo tipo de sorteo y agencia
   // (el mismo día sí puede repetirse — eso es solo editar/confirmar el número que ya estaba)
@@ -2071,24 +2100,31 @@ async function cargarExistentes() {
     // Se resetea acá (no antes del fetch) para que, si la consulta falla, no se pierda
     // la referencia previa por accidente.
     valoresAlCargar = {};
-    if (!rows || rows.length === 0) { actualizarIndicadoresPublicado(); return; }
-    rows.forEach(r => {
-      const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
-      if (el) { el.value = r.numero; el.classList.add('filled'); }
-      valoresAlCargar[`${fecha}_${sorteoDeEstaLlamada}_${r.provincia}_${r.posicion}`] = true;
-    });
-    actualizarTodosLosFaltantes();
+    // Antes, si no había resultados de posición todavía, la función cortaba acá con un
+    // "return" — y eso significaba que el número de sorteo NUNCA se llegaba a consultar
+    // ni a mostrar en ese caso (por ejemplo, si se guardó el número de sorteo pero se
+    // borraron después todas las posiciones para corregir un error). Ahora se sigue de
+    // largo siempre, para que el número de sorteo se revise pase lo que pase con la
+    // grilla de posiciones.
+    if (rows && rows.length > 0) {
+      rows.forEach(r => {
+        const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
+        if (el) { el.value = r.numero; el.classList.add('filled'); }
+        valoresAlCargar[`${fecha}_${sorteoDeEstaLlamada}_${r.provincia}_${r.posicion}`] = true;
+      });
+      actualizarTodosLosFaltantes();
+    }
     actualizarIndicadoresPublicado();
-    // Cargar número de sorteo si existe
+
+    // Cargar número de sorteo si existe — si no existe, se deja en "00000" para dejar
+    // en claro que ese sorteo todavía no tiene un número real cargado.
     const resSorteo = await fetchConRenovacion(
       `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${usuarioActual.agencia_id}`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const sorteoInfo = await resSorteo.json();
     if (miToken !== cargarExistentesToken || sorteoActual !== sorteoDeEstaLlamada) return; // volver a chequear, por si cambió durante esta segunda espera
-    if (sorteoInfo && sorteoInfo.length > 0) {
-      document.getElementById('num-sorteo').value = sorteoInfo[0].numero_sorteo;
-    }
+    document.getElementById('num-sorteo').value = (sorteoInfo && sorteoInfo.length > 0) ? sorteoInfo[0].numero_sorteo : '00000';
     showToast(`📋 Datos existentes cargados`,'ok');
   } catch(e) { console.error(e); }
 }
