@@ -1993,16 +1993,13 @@ async function guardarTodo() {
     if (vacias.length > 0) vaciasPorProvincia[p.key] = vacias;
   });
 
-  const hayAlgoParaBorrar = Object.keys(vaciasPorProvincia).length > 0;
-  if (rows.length === 0 && !hayAlgoParaBorrar) {
-    // Acá sí no hay absolutamente nada para hacer: ni números nuevos para guardar, ni
-    // posiciones para borrar. Si hubiera algo para borrar (por ejemplo, se vació todo
-    // el formulario a propósito para corregir un sorteo mal cargado), eso SÍ tiene que
-    // dejar publicar igual — bloquear ahí impedía corregir un error ya publicado.
-    showToast('No hay números para guardar','err');
-    setBotonesGuardarEstado('💾 Guardar y publicar en pantalla', false);
-    return;
-  }
+  // Antes acá se bloqueaba si no había ni números nuevos para insertar ni posiciones para
+  // borrar ("No hay números para guardar"). Pero esto también bloqueaba un caso válido:
+  // corregir SOLO el número de sorteo (por ejemplo, se tipeó mal y se quiere arreglar) en un
+  // momento en que todavía no es horario de cargar ese sorteo y por lo tanto no hay ningún
+  // número de posición para escribir. Como más arriba ya se validó que numSorteo es un
+  // número real de 5 cifras (no "00000"), eso solo ya es motivo válido para guardar — al
+  // menos el número de sorteo en sí, aunque no haya nada más para hacer en la grilla.
 
   try {
     // Si no hay números nuevos para guardar (por ejemplo, se vació todo el formulario a
@@ -2054,12 +2051,18 @@ async function guardarTodo() {
       if (rows.length > 0) {
         showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
         registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
-      } else {
+      } else if (Object.keys(vaciasPorProvincia).length > 0) {
         // Acá se entra cuando se vació todo el formulario a propósito (por ejemplo, para
         // corregir un sorteo mal cargado) — no hay "números publicados", lo que se hizo es
         // borrar lo que estaba mal, y el mensaje tiene que reflejar eso, no decir "0 números".
         showToast('✅ Números borrados — la pantalla quedó en "----"','ok');
         registrarActividad('Borrado de números', `${nombreSorteo} del ${fecha} — se vació el formulario`);
+      } else {
+        // No había nada para insertar ni para borrar en la grilla de posiciones — lo único
+        // que se guardó fue el número de sorteo en sí (por ejemplo, corregirlo antes de que
+        // sea horario de cargar los números todavía).
+        showToast(`✅ Número de sorteo modificado: ${numSorteo}`,'ok');
+        registrarActividad('Número de sorteo modificado', `${nombreSorteo} del ${fecha} — N° ${numSorteo}`);
       }
       actualizarEstadoDia();
       actualizarIndicadoresPublicado();
