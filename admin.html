@@ -1960,24 +1960,35 @@ async function guardarTodo() {
     if (vacias.length > 0) vaciasPorProvincia[p.key] = vacias;
   });
 
-  if (rows.length === 0) {
+  const hayAlgoParaBorrar = Object.keys(vaciasPorProvincia).length > 0;
+  if (rows.length === 0 && !hayAlgoParaBorrar) {
+    // Acá sí no hay absolutamente nada para hacer: ni números nuevos para guardar, ni
+    // posiciones para borrar. Si hubiera algo para borrar (por ejemplo, se vació todo
+    // el formulario a propósito para corregir un sorteo mal cargado), eso SÍ tiene que
+    // dejar publicar igual — bloquear ahí impedía corregir un error ya publicado.
     showToast('No hay números para guardar','err');
     setBotonesGuardarEstado('💾 Guardar y publicar en pantalla', false);
     return;
   }
 
   try {
-    // Upsert — actualiza si ya existe, inserta si no
-    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/resultados?on_conflict=fecha,sorteo,provincia,posicion,agencia_id`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify(rows)
-    });
+    // Si no hay números nuevos para guardar (por ejemplo, se vació todo el formulario a
+    // propósito), directamente no se manda este POST — no tiene sentido pedirle a la base
+    // que guarde una lista vacía. Se pasa derecho al borrado de las posiciones vaciadas.
+    let res = { ok: true };
+    if (rows.length > 0) {
+      // Upsert — actualiza si ya existe, inserta si no
+      res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/resultados?on_conflict=fecha,sorteo,provincia,posicion,agencia_id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${usuarioActual.token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify(rows)
+      });
+    }
 
     if (res.ok || res.status === 201) {
       // Los números que se acaban de guardar ya son "certeza" para esta sesión.
@@ -1986,7 +1997,7 @@ async function guardarTodo() {
       // Borrar cualquier posición que haya quedado vacía en el formulario (y que sabíamos
       // con certeza que tenía dato), para que no quede un número viejo guardado en la base
       // si se cambió de casillero (ej: estaba en la posición 5 y se corrigió a la posición 4
-      // — la 5 tiene que quedar en "----").
+      // — la 5 tiene que quedar en "----"), o si se vació todo para corregir un error.
       for (const [provincia, posiciones] of Object.entries(vaciasPorProvincia)) {
         await fetchConRenovacion(
           `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEsteGuardado}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
@@ -2007,8 +2018,16 @@ async function guardarTodo() {
         body: JSON.stringify([{ fecha, sorteo: sorteoDeEsteGuardado, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
       });
       const nombreSorteo = sorteoDeEsteGuardado.charAt(0).toUpperCase() + sorteoDeEsteGuardado.slice(1);
-      showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
-      registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
+      if (rows.length > 0) {
+        showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
+        registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
+      } else {
+        // Acá se entra cuando se vació todo el formulario a propósito (por ejemplo, para
+        // corregir un sorteo mal cargado) — no hay "números publicados", lo que se hizo es
+        // borrar lo que estaba mal, y el mensaje tiene que reflejar eso, no decir "0 números".
+        showToast('✅ Números borrados — la pantalla quedó en "----"','ok');
+        registrarActividad('Borrado de números', `${nombreSorteo} del ${fecha} — se vació el formulario`);
+      }
       actualizarEstadoDia();
       actualizarIndicadoresPublicado();
     } else {
