@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual — Quiniela Saguir</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0c10; --surface:#111318; --surface2:#191c23;
+    --border:#22262f; --gold:#f0b429; --red:#e63946;
+    --green:#2ec4b6; --text:#e8eaf0; --muted:#6b7280; --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.6;}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
+  .topbar-nivel{margin-left:auto;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;}
+  .contenido{max-width:760px;margin:0 auto;padding:28px 20px 80px;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;color:var(--gold);margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--border);}
+  h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--gold);margin:34px 0 12px;}
+  h2:first-of-type{margin-top:0;}
+  p{margin-bottom:14px;color:var(--text);}
+  ul, ol{margin:0 0 16px 22px;}
+  li{margin-bottom:8px;}
+  strong{color:var(--gold);}
+  .faq-pregunta{font-weight:600;color:var(--gold);margin-top:18px;margin-bottom:4px;}
+  .estado{max-width:760px;margin:60px auto;padding:0 20px;text-align:center;color:var(--muted);font-size:14px;}
+  .loading{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 14px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-logo">QUINIELA<span style="color:var(--text);">SAGUIR</span> — MANUAL</div>
+    <div class="topbar-nivel" id="chip-nivel" style="display:none;"></div>
+  </div>
+
+  <div id="estado" class="estado">
+    <div class="loading"></div>
+    Cargando el manual...
+  </div>
+
+  <div id="contenido" class="contenido" style="display:none;"></div>
+
+<script>
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+const NOMBRES_NIVEL = { '3': 'Superadmin', '2': 'Admin', '1': 'Subagente' };
+
+// Convierte el texto simple guardado en la base (títulos con #, listas con - o 1.,
+// negrita con **texto**) a HTML — no es Markdown completo, solo lo mínimo que necesita
+// este manual, para que el Superadmin pueda editarlo escribiendo texto plano y prolijo.
+function textoAHtml(texto) {
+  const lineas = texto.replace(/\r\n/g, '\n').split('\n');
+  let html = '';
+  let listaAbierta = null; // 'ul' | 'ol' | null
+  let parrafoActual = [];
+
+  function negritas(s) {
+    return s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+  function cerrarLista() {
+    if (listaAbierta) { html += `</${listaAbierta}>`; listaAbierta = null; }
+  }
+  function cerrarParrafo() {
+    if (parrafoActual.length > 0) {
+      const texto = parrafoActual.join(' ').trim();
+      if (texto) html += `<p>${negritas(texto)}</p>`;
+      parrafoActual = [];
+    }
+  }
+
+  lineas.forEach(linea => {
+    const l = linea.trim();
+    if (l === '') { cerrarParrafo(); return; }
+    if (l.startsWith('# ')) {
+      cerrarParrafo(); cerrarLista();
+      html += `<h1>${negritas(l.slice(2))}</h1>`;
+    } else if (l.startsWith('## ')) {
+      cerrarParrafo(); cerrarLista();
+      html += `<h2>${negritas(l.slice(3))}</h2>`;
+    } else if (/^-\s+/.test(l)) {
+      cerrarParrafo();
+      if (listaAbierta !== 'ul') { cerrarLista(); html += '<ul>'; listaAbierta = 'ul'; }
+      html += `<li>${negritas(l.replace(/^-\s+/, ''))}</li>`;
+    } else if (/^\d+\.\s+/.test(l)) {
+      cerrarParrafo();
+      if (listaAbierta !== 'ol') { cerrarLista(); html += '<ol>'; listaAbierta = 'ol'; }
+      html += `<li>${negritas(l.replace(/^\d+\.\s+/, ''))}</li>`;
+    } else if (/^\*\*(.+?)\*\*$/.test(l)) {
+      // Una línea que es ENTERAMENTE una frase en negrita (típicamente la pregunta de
+      // un ítem de FAQ) se trata como su propio párrafo destacado — sin esperar una
+      // línea en blanco antes de la respuesta, porque en el contenido real la pregunta
+      // y la respuesta van en líneas seguidas, sin blanco entre medio.
+      cerrarParrafo(); cerrarLista();
+      html += `<p class="faq-pregunta">${negritas(l)}</p>`;
+    } else {
+      cerrarLista();
+      parrafoActual.push(l);
+    }
+  });
+  cerrarParrafo();
+  cerrarLista();
+  return html;
+}
+
+function nivelDesdeParametro() {
+  const params = new URLSearchParams(window.location.search);
+  const p = (params.get('nivel') || '').trim();
+  if (p === '3' || p === '2' || p === '1') return p;
+  // Compatibilidad por si en algún momento se pasa el rol en vez del número
+  const rol = (params.get('rol') || '').trim().toLowerCase();
+  if (rol === 'superadmin') return '3';
+  if (rol === 'admin') return '2';
+  if (rol === 'subagente') return '1';
+  return null;
+}
+
+async function cargarManual() {
+  const nivel = nivelDesdeParametro();
+  const estado = document.getElementById('estado');
+  const contenido = document.getElementById('contenido');
+
+  if (!nivel) {
+    estado.innerHTML = '⚠️ No se especificó qué nivel de manual mostrar.<br>Abrí esta pantalla desde el botón "📖 Manual" de admin.html.';
+    return;
+  }
+
+  const chip = document.getElementById('chip-nivel');
+  chip.textContent = `Nivel ${nivel} — ${NOMBRES_NIVEL[nivel]}`;
+  chip.style.display = 'inline-block';
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/manual_contenido?nivel=eq.${nivel}&select=contenido`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const rows = await res.json();
+    if (!rows || rows.length === 0 || !rows[0].contenido) {
+      estado.innerHTML = 'Todavía no hay contenido cargado para este manual.';
+      return;
+    }
+    contenido.innerHTML = textoAHtml(rows[0].contenido);
+    estado.style.display = 'none';
+    contenido.style.display = 'block';
+  } catch(e) {
+    console.error(e);
+    estado.innerHTML = '⚠️ No se pudo cargar el manual. Revisá tu conexión e intentá de nuevo.';
+  }
+}
+
+cargarManual();
+</script>
+</body>
+</html>
