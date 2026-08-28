@@ -1295,16 +1295,20 @@ async function moverCartel(id, direccion) {
   const posVecino = vecino.posicion;
 
   try {
-    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${actual.id}`, {
-      method: 'PATCH',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ posicion: posVecino })
-    });
-    await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${vecino.id}`, {
-      method: 'PATCH',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ posicion: posActual })
-    });
+    // Las dos actualizaciones tocan filas distintas (el cartel actual y su vecino) — no
+    // dependen una de la otra, así que corren en paralelo en vez de una detrás de la otra.
+    await Promise.all([
+      fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${actual.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ posicion: posVecino })
+      }),
+      fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${vecino.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ posicion: posActual })
+      })
+    ]);
     cargarCarteles();
   } catch(e) { showToast('Error al reordenar','err'); }
 }
@@ -2798,20 +2802,22 @@ async function configurarLinkTablero(agenciaId) {
 async function cargarCodigosAcceso() {
   const lista = document.getElementById('lista-codigos-acceso');
   try {
-    // Agencias distintas: 670-00 siempre, más cada subagencia registrada
-    const resAgencias = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&select=agencia_id`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-    );
+    // Agencias distintas (usuarios_roles) y códigos ya generados (configuracion_visual) son
+    // consultas independientes entre sí — corren en paralelo en vez de una detrás de la otra.
+    const [resAgencias, resTokens] = await Promise.all([
+      fetchConRenovacion(
+        `${SUPABASE_URL}/rest/v1/usuarios_roles?rol=eq.subagente&select=agencia_id`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+      ),
+      fetchConRenovacion(
+        `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&select=agencia_id,valor`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      )
+    ]);
     const filasAgencias = await resAgencias.json();
     const agencias = new Set(['670-00']);
     (filasAgencias || []).forEach(r => agencias.add(r.agencia_id));
 
-    // Códigos ya generados (siempre con SUPABASE_KEY, igual que el resto de configuracion_visual)
-    const resTokens = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&select=agencia_id,valor`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
     const filasTokens = await resTokens.json();
     const tokensPorAgencia = {};
     (filasTokens || []).forEach(r => { tokensPorAgencia[r.agencia_id] = r.valor; });
@@ -2972,11 +2978,15 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('modo-carga-sel'); if (el) el.value = 'clasico'; }
   { const el = document.getElementById('tamano-numeros-sel'); if (el) { el.value = '26'; document.getElementById('tamano-numeros-valor').textContent = '26px'; } }
   try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
+    const [resConfig] = await Promise.all([
+      fetchConRenovacion(
+        `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      ),
+      cargarCantidadesSorteo() // independiente del resto — antes se esperaba a que
+                                 // terminara todo lo de arriba para recién arrancarla
+    ]);
+    const rows = await resConfig.json();
     if (rows && rows.length > 0) {
       rows.forEach(r => {
         if (r.clave === 'tv') {
@@ -3015,8 +3025,6 @@ async function cargarConfigVisual() {
       });
     }
   } catch(e) { console.error(e); }
-  // La cantidad por provincia vive aparte, por sorteo
-  await cargarCantidadesSorteo();
 }
 
 function leerCantidadesDeLosInputs() {
