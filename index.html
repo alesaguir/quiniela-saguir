@@ -614,12 +614,20 @@ async function cargarDatosReales(fechaStr, sorteoKey) {
     return provMap;
   } catch(e) {
     console.error('Error Supabase:', e);
-    const vacio = {};
-    provKeys.forEach(p => { vacio[p] = Array(20).fill('----'); });
-    ultimaCargaTimestamps = {};
-    return vacio;
+    // Antes acá se devolvía todo en "----", que TAPABA los números reales ya cargados
+    // con guiones durante ese ciclo de 30 segundos — un corte de red momentáneo (algo
+    // normal que pasa de tanto en tanto) hacía que los números "desaparecieran" un
+    // rato y volvieran a aparecer solos en el ciclo siguiente. Ahora se devuelve null,
+    // una señal de "no se pudo consultar esta vez" — quien llama a esta función debe
+    // mantener los últimos datos reales conocidos en vez de reemplazarlos por guiones.
+    return null;
   }
 }
+
+// Guarda, por slot (previa/primera/etc.), la última "cabeza" que sí se pudo traer bien —
+// se usa como resguardo si una consulta puntual falla, en vez de tapar con guiones un
+// dato real que ya se conocía.
+let ultimasCabezasConocidas = {};
 
 async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -631,12 +639,14 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   for (const slot of slotsAMostrar) {
     const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
     let entrada = { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
+    let consultaOk = false;
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${slot}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
       );
       const rows = await res.json();
+      consultaOk = true;
       if (rows && rows.length > 0) {
         const traido = {};
         rows.forEach(r => { traido[r.provincia] = r.numero; });
@@ -649,6 +659,14 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
         };
       }
     } catch(e) { console.error('Error cabeza', slot, e); }
+
+    // Si la consulta falló (corte de red momentáneo), se usa la última que sí funcionó
+    // para este mismo slot y fecha, en vez de mostrar todo en guiones por un rato.
+    if (consultaOk) {
+      ultimasCabezasConocidas[`${fecha}_${slot}`] = entrada;
+    } else if (ultimasCabezasConocidas[`${fecha}_${slot}`]) {
+      entrada = ultimasCabezasConocidas[`${fecha}_${slot}`];
+    }
 
     const partes = fecha.split('-');
     const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
@@ -690,7 +708,6 @@ function fechaLocalStrTV(d) {
 // PROGRAMACIÓN activa hoy (fecha_desde <= hoy <= fecha_hasta, o sin fecha_hasta = para siempre);
 // si no hay ninguna, usa la configuración base de ese sorteo (clave numeros_<sorteo>).
 async function cargarCantidadTV(sorteoKey) {
-  cantidadTV = {};
   const hoy = fechaLocalStrTV(new Date());
   try {
     const resProg = await fetch(
@@ -702,7 +719,13 @@ async function cargarCantidadTV(sorteoKey) {
       cantidadTV = prog[0].numeros_por_provincia;
       return;
     }
-  } catch(e) { console.error('Error programaciones TV:', e); }
+  } catch(e) {
+    console.error('Error programaciones TV:', e);
+    // No se pudo confirmar nada esta vez (corte de red momentáneo) — se deja cantidadTV
+    // como estaba en vez de resetearla, para no hacer aparecer/desaparecer filas de la
+    // grilla por una falla transitoria.
+    return;
+  }
 
   try {
     const resBase = await fetch(
@@ -710,10 +733,14 @@ async function cargarCantidadTV(sorteoKey) {
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const base = await resBase.json();
-    if (base && base[0] && base[0].numeros_por_provincia) {
-      cantidadTV = base[0].numeros_por_provincia;
-    }
-  } catch(e) { console.error('Error config base TV:', e); }
+    // Acá sí se resetea a {} cuando corresponde — pero solo porque las DOS consultas
+    // respondieron con éxito y ninguna encontró nada: es una confirmación real de que
+    // no hay configuración guardada (usar el default de 20), no una suposición por error.
+    cantidadTV = (base && base[0] && base[0].numeros_por_provincia) ? base[0].numeros_por_provincia : {};
+  } catch(e) {
+    console.error('Error config base TV:', e);
+    // Ídem arriba: falló la consulta, no se sabe nada nuevo — se deja cantidadTV como estaba.
+  }
 }
 
 // =====================
@@ -912,7 +939,8 @@ async function init() {
 
   await calcularYCargarSlotEfectivo();
 
-  datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+  const datosNuevos = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+  if (datosNuevos !== null) datos[slotEfectivo.key] = datosNuevos; // si falló la consulta (null), se deja lo último bueno que había
   await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
   await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
   await aplicarConfigVisual();
@@ -932,7 +960,8 @@ async function init() {
   async function cicloActualizacion() {
     try {
       await calcularYCargarSlotEfectivo();
-      datos[slotEfectivo.key] = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+      const datosNuevos = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
+      if (datosNuevos !== null) datos[slotEfectivo.key] = datosNuevos; // si falló la consulta (null), se deja lo último bueno que había
       await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
       await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
       await aplicarConfigVisual();
