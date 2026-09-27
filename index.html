@@ -263,7 +263,6 @@
 // =====================
 // DATOS — vacíos por defecto (se llenan desde Supabase)
 // =====================
-const datos = {};
 const sorteoKeys = ['previa','primera','matutina','vespertina','nocturna'];
 const provKeys   = ['chaquena','ciudad','provincia','corrientes','cordoba'];
 
@@ -282,10 +281,18 @@ function cantidadProvinciaTV(key) {
   return cantidadTV[key] || 20; // 20 = default si nunca se configuró para esta agencia
 }
 
-sorteoKeys.forEach(s => {
-  datos[s] = {};
-  provKeys.forEach(p => { datos[s][p] = Array(20).fill('----'); });
-});
+// Números del sorteo en pantalla, guardados por FECHA + SORTEO (ej. '2026-08-28_previa'),
+// no solo por sorteo: así, si una consulta falla justo al cambiar de sorteo o de día, nunca
+// se muestran los números de otro día bajo la fecha de hoy.
+const cacheNumeros = {};        // { 'fecha_sorteo': { nums:{prov:[...]}, ts:{prov:[...]} } }
+const cacheNumeroSorteo = {};   // { 'fecha_sorteo': '15320' }
+const cacheCantidadTV = {};     // { sorteo: { chaquena:20, ... } }
+
+function numerosVacios() {
+  const v = {};
+  provKeys.forEach(p => { v[p] = Array(20).fill('----'); });
+  return v;
+}
 
 // cabezasParaMostrar: lista de hasta 4 sorteos anteriores (ya resueltos, saltando feriados),
 // en orden cronológico (el más viejo primero, el más reciente último)
@@ -298,6 +305,28 @@ let slotEfectivo = { fecha: null, key: null, label: null, live: false };
 let mapaSorteosActivos = {};
 
 const LABELS_SORTEO = { previa:'PREVIA', primera:'PRIMERA', matutina:'MATUTINA', vespertina:'VESPERTINA', nocturna:'NOCTURNA' };
+
+// =====================
+// CONSULTA A SUPABASE — distingue "no hay datos" de "no se pudo consultar"
+// =====================
+// Devuelve un array (vacío si de verdad no hay nada cargado) o null si NO se pudo saber:
+// por un corte de red, o porque la base respondió con un error (saturada, caída por unos
+// segundos, límite de consultas). Antes, un error de la base se tomaba como "no hay
+// números" y la pantalla mostraba guiones durante un ciclo entero — eso hacía aparecer y
+// desaparecer los números justo en los momentos de más uso del día.
+async function consultarSupabase(ruta) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${ruta}`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!res.ok) { console.error('Supabase respondió con error', res.status, ruta); return null; }
+    const cuerpo = await res.json();
+    return Array.isArray(cuerpo) ? cuerpo : null;
+  } catch(e) {
+    console.error('Error de red consultando', ruta, e);
+    return null;
+  }
+}
 
 // =====================
 // RESOLUCIÓN DE FERIADOS — camina hacia atrás sorteo por sorteo hasta encontrar uno activo
@@ -316,22 +345,21 @@ function sorteoAnterior(fecha, sorteoKey) {
 // Trae de Supabase la configuración de "fecha especial" de los últimos ~30 días
 // (ventana de sobra para poder caminar hacia atrás varios feriados seguidos)
 async function cargarMapaSorteosActivos(hastaFecha) {
-  mapaSorteosActivos = {};
   const partes = hastaFecha.split('-');
   const desde = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
   desde.setDate(desde.getDate() - 30);
   const desdeStr = fechaLocalStr(desde);
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${desdeStr}&fecha_especial=lte.${hastaFecha}&select=fecha_especial,sorteo,activo`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-    (rows || []).forEach(r => {
-      if (!mapaSorteosActivos[r.fecha_especial]) mapaSorteosActivos[r.fecha_especial] = {};
-      mapaSorteosActivos[r.fecha_especial][r.sorteo] = r.activo;
-    });
-  } catch(e) { console.error('Error cargando fechas especiales:', e); }
+  const rows = await consultarSupabase(`configuracion_sorteos?fecha_especial=gte.${desdeStr}&fecha_especial=lte.${hastaFecha}&select=fecha_especial,sorteo,activo`);
+  // Si no se pudo consultar, se sigue usando el mapa anterior. Antes se vaciaba primero y,
+  // en un día feriado, la pantalla saltaba por un ciclo al sorteo del día como si fuera un
+  // día normal (con todo en guiones) y volvía en el ciclo siguiente.
+  if (rows === null) return;
+  const nuevo = {};
+  rows.forEach(r => {
+    if (!nuevo[r.fecha_especial]) nuevo[r.fecha_especial] = {};
+    nuevo[r.fecha_especial][r.sorteo] = r.activo;
+  });
+  mapaSorteosActivos = nuevo;
 }
 
 // ¿Ese sorteo, en esa fecha, está activo? Domingo es SIEMPRE inactivo (regla estructural,
@@ -390,38 +418,27 @@ function fechaMasRecienteParaSlot(slotKey, fechaEfectiva, keyEfectivo) {
 // 60 = default si el superadmin nunca configuró nada para esta agencia.
 let duracionSorteandoMin = { previa:60, primera:60, matutina:60, vespertina:60, nocturna:60 };
 
-async function cargarDuracionSorteando() {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=in.(sorteando_previa,sorteando_primera,sorteando_matutina,sorteando_vespertina,sorteando_nocturna)&select=clave,valor`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await res.json();
-    (filas || []).forEach(r => {
+// La duración de SORTEANDO, los minutos en verde y los estilos de la pantalla salen de la
+// MISMA tabla — antes eran tres consultas separadas en cada ciclo; ahora es una sola
+// (ver actualizarPantalla) y de esas filas se saca todo.
+function aplicarFilasConfig(rows) {
+  rows.forEach(r => {
+    if (!r.clave) return;
+    if (r.clave.startsWith('sorteando_')) {
       const sorteo = r.clave.replace('sorteando_', '');
       const minutos = parseInt(r.valor, 10);
-      if (!isNaN(minutos) && duracionSorteandoMin.hasOwnProperty(sorteo)) {
-        duracionSorteandoMin[sorteo] = minutos;
-      }
-    });
-  } catch(e) { console.error('Error cargando duración de SORTEANDO:', e); }
+      if (!isNaN(minutos) && duracionSorteandoMin.hasOwnProperty(sorteo)) duracionSorteandoMin[sorteo] = minutos;
+    } else if (r.clave === 'verde_minutos') {
+      const minutos = parseInt(r.valor, 10);
+      if (!isNaN(minutos)) duracionVerdeMin = minutos;
+    }
+  });
+  aplicarConfigVisualDesdeFilas(rows);
 }
 
 // Minutos que un número recién cargado (o corregido) se muestra en verde.
 // Un solo valor para los 5 sorteos. 5 = default si nunca se configuró.
 let duracionVerdeMin = 5;
-
-async function cargarDuracionVerde() {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.verde_minutos&select=valor`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await res.json();
-    const minutos = filas && filas[0] ? parseInt(filas[0].valor, 10) : NaN;
-    if (!isNaN(minutos)) duracionVerdeMin = minutos;
-  } catch(e) { console.error('Error cargando duración de verde:', e); }
-}
 
 // ¿Este número puntual (provincia + posición) se cargó/corrigió hace menos
 // de "duracionVerdeMin" minutos? Si no hay timestamp, no se resalta.
@@ -432,8 +449,7 @@ function esNumeroRecienCargado(provKey, idx) {
   return minutosTranscurridos < duracionVerdeMin;
 }
 
-function getSorteoActual() {
-  const now = new Date();
+function getSorteoActual(now = new Date()) {
   const totalMin = now.getHours() * 60 + now.getMinutes();
   const d = duracionSorteandoMin;
 
@@ -456,7 +472,12 @@ function getSorteoActual() {
 // =====================
 function render() {
   const sorteo = slotEfectivo; // ya resuelto (considerando feriados) en el ciclo de carga
-  const d = datos[sorteo.key];
+  const claveSlot = `${sorteo.fecha}_${sorteo.key}`;
+  const entrada = cacheNumeros[claveSlot];
+  const d = entrada ? entrada.nums : numerosVacios();
+  ultimaCargaTimestamps = entrada ? entrada.ts : {};
+  const nroSorteo = cacheNumeroSorteo[claveSlot];
+  document.getElementById('badge-nsorteo').textContent = nroSorteo ? `SORTEO N° ${nroSorteo}` : '';
 
   // Badge nombre
   document.getElementById('badge-name').textContent = sorteo.label;
@@ -545,25 +566,25 @@ let codigoAccesoValido = false;
 const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
 
+// Devuelve 'ok', 'invalido' (el código de verdad no existe) o 'error' (no se pudo consultar
+// todavía — por ejemplo, la TV se prendió antes que el router después de un corte de luz).
+// Antes, un 'error' se trataba igual que 'invalido' y la pantalla quedaba clavada en
+// "Código de acceso no válido" hasta que alguien la recargara a mano.
 async function resolverAgenciaDesdeCodigoAcceso() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('t');
   const agenciaParam = params.get('agencia');
 
   if (token) {
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/configuracion_visual?clave=eq.url_token&valor=eq.${encodeURIComponent(token)}&select=agencia_id`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      );
-      const filas = await res.json();
-      if (filas && filas[0] && filas[0].agencia_id) {
-        URL_AGENCIA_ID = filas[0].agencia_id;
-        URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
-        codigoAccesoValido = true;
-      }
-    } catch(e) { console.error('Error resolviendo código de acceso:', e); }
-    return;
+    const filas = await consultarSupabase(`configuracion_visual?clave=eq.url_token&valor=eq.${encodeURIComponent(token)}&select=agencia_id`);
+    if (filas === null) return 'error';
+    if (filas[0] && filas[0].agencia_id) {
+      URL_AGENCIA_ID = filas[0].agencia_id;
+      URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+      codigoAccesoValido = true;
+      return 'ok';
+    }
+    return 'invalido';
   }
 
   if (agenciaParam) {
@@ -571,11 +592,12 @@ async function resolverAgenciaDesdeCodigoAcceso() {
     URL_AGENCIA_ID = agenciaParam;
     URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
     codigoAccesoValido = true;
-    return;
+    return 'ok';
   }
 
   // Ni ?t= ni ?agencia= presentes: sin código de acceso válido
   codigoAccesoValido = false;
+  return 'invalido';
 }
 
 function mostrarCodigoInvalido() {
@@ -590,38 +612,22 @@ function mostrarCodigoInvalido() {
 let ultimaCargaTimestamps = {}; // ultimaCargaTimestamps[provincia][idx] = milisegundos desde epoch, o null
 
 async function cargarDatosReales(fechaStr, sorteoKey) {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc&select=provincia,posicion,numero,actualizado_en`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-
-    // Armar mapa siempre — con ---- si no hay dato
-    const provMap = {};
-    const tsMap = {};
-    provKeys.forEach(p => { provMap[p] = Array(20).fill('----'); tsMap[p] = Array(20).fill(null); });
-
-    if (rows && rows.length > 0) {
-      rows.forEach(r => {
-        if (provMap[r.provincia] && r.posicion >= 1 && r.posicion <= 20) {
-          provMap[r.provincia][r.posicion - 1] = r.numero;
-          tsMap[r.provincia][r.posicion - 1] = r.actualizado_en ? new Date(r.actualizado_en).getTime() : null;
-        }
-      });
+  const rows = await consultarSupabase(`resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc&select=provincia,posicion,numero,actualizado_en`);
+  // Si no se pudo consultar, queda lo último bueno de ESTA misma fecha+sorteo (si había).
+  if (rows === null) return;
+  const nums = numerosVacios();
+  const ts = {};
+  provKeys.forEach(p => { ts[p] = Array(20).fill(null); });
+  rows.forEach(r => {
+    if (nums[r.provincia] && r.posicion >= 1 && r.posicion <= 20) {
+      nums[r.provincia][r.posicion - 1] = r.numero;
+      ts[r.provincia][r.posicion - 1] = r.actualizado_en ? new Date(r.actualizado_en).getTime() : null;
     }
-    ultimaCargaTimestamps = tsMap;
-    return provMap;
-  } catch(e) {
-    console.error('Error Supabase:', e);
-    // Antes acá se devolvía todo en "----", que TAPABA los números reales ya cargados
-    // con guiones durante ese ciclo de 30 segundos — un corte de red momentáneo (algo
-    // normal que pasa de tanto en tanto) hacía que los números "desaparecieran" un
-    // rato y volvieran a aparecer solos en el ciclo siguiente. Ahora se devuelve null,
-    // una señal de "no se pudo consultar esta vez" — quien llama a esta función debe
-    // mantener los últimos datos reales conocidos en vez de reemplazarlos por guiones.
-    return null;
-  }
+  });
+  const clave = `${fechaStr}_${sorteoKey}`;
+  // Se descarta lo de otras fechas/sorteos, para no acumular memoria si la TV queda prendida semanas
+  Object.keys(cacheNumeros).forEach(k => { if (k !== clave) delete cacheNumeros[k]; });
+  cacheNumeros[clave] = { nums, ts };
 }
 
 // Guarda, por slot (previa/primera/etc.), la última "cabeza" que sí se pudo traer bien —
@@ -634,113 +640,71 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   // Posiciones FIJAS: siempre Previa, Primera, Matutina, Vespertina, Nocturna en ese orden,
   // salvo el que está en pantalla ahora mismo (ese se saca de la lista, no se repite)
   const slotsAMostrar = sorteoKeys.filter(s => s !== sorteoEfectivo);
+  const clavesVigentes = new Set();
 
-  const datosPorSlot = [];
-  for (const slot of slotsAMostrar) {
+  // Las 4 consultas corren al mismo tiempo (antes iban una detrás de la otra).
+  // Promise.all respeta el orden de la lista, así que el orden en pantalla no cambia.
+  const datosPorSlot = await Promise.all(slotsAMostrar.map(async slot => {
     const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
-    let entrada = { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
-    let consultaOk = false;
-    try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${slot}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      );
-      const rows = await res.json();
-      consultaOk = true;
-      if (rows && rows.length > 0) {
-        const traido = {};
-        rows.forEach(r => { traido[r.provincia] = r.numero; });
-        entrada = {
-          chaquena:   traido.chaquena   || '----',
-          ciudad:     traido.ciudad     || '----',
-          provincia:  traido.provincia  || '----',
-          corrientes: traido.corrientes || '----',
-          cordoba:    traido.cordoba    || '----',
-        };
-      }
-    } catch(e) { console.error('Error cabeza', slot, e); }
-
-    // Si la consulta falló (corte de red momentáneo), se usa la última que sí funcionó
-    // para este mismo slot y fecha, en vez de mostrar todo en guiones por un rato.
-    if (consultaOk) {
-      ultimasCabezasConocidas[`${fecha}_${slot}`] = entrada;
-    } else if (ultimasCabezasConocidas[`${fecha}_${slot}`]) {
-      entrada = ultimasCabezasConocidas[`${fecha}_${slot}`];
+    const claveCache = `${fecha}_${slot}`;
+    clavesVigentes.add(claveCache);
+    const rows = await consultarSupabase(`resultados?fecha=eq.${fecha}&sorteo=eq.${slot}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1&select=provincia,numero`);
+    let entrada;
+    if (rows !== null) {
+      const traido = {};
+      rows.forEach(r => { traido[r.provincia] = r.numero; });
+      entrada = {
+        chaquena:   traido.chaquena   || '----',
+        ciudad:     traido.ciudad     || '----',
+        provincia:  traido.provincia  || '----',
+        corrientes: traido.corrientes || '----',
+        cordoba:    traido.cordoba    || '----',
+      };
+      ultimasCabezasConocidas[claveCache] = entrada;
+    } else {
+      // No se pudo consultar: se usa la última que sí funcionó para esta misma fecha+sorteo
+      entrada = ultimasCabezasConocidas[claveCache]
+        || { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
     }
-
     const partes = fecha.split('-');
     const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-    const nombreDia = diasNombres[d.getDay()];
     const labelSorteo = LABELS_SORTEO[slot];
     const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
-    datosPorSlot.push({ sorteo: `${labelCapitalizado} ${nombreDia}`, ...entrada });
-  }
+    return { sorteo: `${labelCapitalizado} ${diasNombres[d.getDay()]}`, ...entrada };
+  }));
 
-  // Ya vienen en el orden fijo correcto (Previa→Primera→Matutina→Vespertina→Nocturna, sin el actual)
+  Object.keys(ultimasCabezasConocidas).forEach(k => { if (!clavesVigentes.has(k)) delete ultimasCabezasConocidas[k]; });
   cabezasParaMostrar = datosPorSlot;
 }
 
 // =====================
 async function cargarNumeroSorteo(fechaStr, sorteoKey) {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-    const el = document.getElementById('badge-nsorteo');
-    if (rows && rows.length > 0 && rows[0].numero_sorteo) {
-      el.textContent = `SORTEO N° ${rows[0].numero_sorteo}`;
-    } else {
-      el.textContent = '';
-    }
-  } catch(e) { console.error('Error nro sorteo:', e); }
+  const rows = await consultarSupabase(`sorteos_info?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&select=numero_sorteo`);
+  if (rows === null) return; // no se pudo consultar: queda el último conocido de esta fecha+sorteo
+  const clave = `${fechaStr}_${sorteoKey}`;
+  Object.keys(cacheNumeroSorteo).forEach(k => { if (k !== clave) delete cacheNumeroSorteo[k]; });
+  cacheNumeroSorteo[clave] = (rows[0] && rows[0].numero_sorteo) ? rows[0].numero_sorteo : '';
 }
 
 // =====================
 // CONFIGURACIÓN VISUAL DINÁMICA
 // =====================
-function fechaLocalStrTV(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 
 // Resuelve la cantidad por provincia para el sorteo actual: primero busca si hay una
 // PROGRAMACIÓN activa hoy (fecha_desde <= hoy <= fecha_hasta, o sin fecha_hasta = para siempre);
 // si no hay ninguna, usa la configuración base de ese sorteo (clave numeros_<sorteo>).
-async function cargarCantidadTV(sorteoKey) {
-  const hoy = fechaLocalStrTV(new Date());
-  try {
-    const resProg = await fetch(
-      `${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&sorteo=eq.${sorteoKey}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const prog = await resProg.json();
-    if (prog && prog[0] && prog[0].numeros_por_provincia) {
-      cantidadTV = prog[0].numeros_por_provincia;
-      return;
-    }
-  } catch(e) {
-    console.error('Error programaciones TV:', e);
-    // No se pudo confirmar nada esta vez (corte de red momentáneo) — se deja cantidadTV
-    // como estaba en vez de resetearla, para no hacer aparecer/desaparecer filas de la
-    // grilla por una falla transitoria.
+// Cantidad de números por provincia para un sorteo: primero una PROGRAMACIÓN activa hoy; si
+// no hay, la configuración base (clave numeros_<sorteo>), que ya viene en las filas de
+// configuración traídas al inicio del ciclo — antes eran dos consultas más, una tras otra.
+// Si algo no se pudo consultar, queda la última cantidad confirmada para ese sorteo.
+function resolverCantidadTV(sorteoKey, prog, filasConfig) {
+  if (prog && prog[0] && prog[0].numeros_por_provincia) {
+    cacheCantidadTV[sorteoKey] = prog[0].numeros_por_provincia;
     return;
   }
-
-  try {
-    const resBase = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.numeros_${sorteoKey}&select=numeros_por_provincia`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const base = await resBase.json();
-    // Acá sí se resetea a {} cuando corresponde — pero solo porque las DOS consultas
-    // respondieron con éxito y ninguna encontró nada: es una confirmación real de que
-    // no hay configuración guardada (usar el default de 20), no una suposición por error.
-    cantidadTV = (base && base[0] && base[0].numeros_por_provincia) ? base[0].numeros_por_provincia : {};
-  } catch(e) {
-    console.error('Error config base TV:', e);
-    // Ídem arriba: falló la consulta, no se sabe nada nuevo — se deja cantidadTV como estaba.
-  }
+  if (prog === null || filasConfig === null) return;
+  const fila = filasConfig.find(r => r.clave === `numeros_${sorteoKey}`);
+  cacheCantidadTV[sorteoKey] = (fila && fila.numeros_por_provincia) ? fila.numeros_por_provincia : {};
 }
 
 // =====================
@@ -753,25 +717,18 @@ let bloqueCartelesEnCurso = false;
 function esperarMs(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 async function cargarConfigCarteles() {
-  try {
-    const resFrec = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await resFrec.json();
-    cartelesConfig.frecuenciaMin = (filas && filas[0] && parseInt(filas[0].valor, 10)) || 60;
-  } catch(e) { console.error('Error frecuencia carteles:', e); }
-
-  try {
-    const resCarteles = await fetch(
-      `${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const filas = await resCarteles.json();
-    // Un cartel sin texto no entra en la rotación
+  const [filasFrec, filasCarteles] = await Promise.all([
+    consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`),
+    consultarSupabase(`carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`)
+  ]);
+  // Si alguna consulta falla, se mantiene lo último que se sabía de esa parte.
+  if (filasFrec !== null) {
+    cartelesConfig.frecuenciaMin = (filasFrec[0] && parseInt(filasFrec[0].valor, 10)) || 60;
+  }
+  if (filasCarteles !== null) {
     // Un cartel sin ninguna línea con texto no entra en la rotación
-    cartelesConfig.lista = (filas || []).filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
-  } catch(e) { console.error('Error cargando carteles:', e); cartelesConfig.lista = []; }
+    cartelesConfig.lista = filasCarteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
+  }
 }
 
 function escaparHtml(str) {
@@ -837,14 +794,8 @@ async function intentarMostrarBloqueCarteles() {
   bloqueCartelesEnCurso = false;
 }
 
-async function aplicarConfigVisual() {
+function aplicarConfigVisualDesdeFilas(rows) {
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-
     // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
     nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
 
@@ -892,11 +843,10 @@ function fechaLocalStr(d) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function getFechaConsulta() {
-  const now = new Date();
+function getFechaConsulta(now = new Date()) {
   const diaSemana = now.getDay(); // 0=domingo
   const tm = now.getHours()*60 + now.getMinutes();
-  const fecha = new Date();
+  const fecha = new Date(now.getTime());
 
   // Domingo: mostrar nocturna del sábado
   if (diaSemana === 0) {
@@ -915,16 +865,12 @@ function getFechaConsulta() {
 
 // INIT
 // =====================
-async function calcularYCargarSlotEfectivo() {
-  await cargarDuracionSorteando(); // hay que tenerlo ANTES de llamar a getSorteoActual()
-  await cargarDuracionVerde();
-  const natural = getSorteoActual();
-  const fechaNatural = getFechaConsulta();
-
-  await cargarMapaSorteosActivos(fechaLocalStr(new Date()));
+function calcularSlotEfectivo() {
+  const ahora = new Date(); // un solo "ahora" para sorteo y fecha
+  const natural = getSorteoActual(ahora);
+  const fechaNatural = getFechaConsulta(ahora);
   const resuelto = resolverSlotEfectivo(fechaNatural, natural.key);
   const huboFeriado = (resuelto.fecha !== fechaNatural || resuelto.sorteoKey !== natural.key);
-
   slotEfectivo = {
     fecha: resuelto.fecha,
     key: resuelto.sorteoKey,
@@ -933,40 +879,49 @@ async function calcularYCargarSlotEfectivo() {
   };
 }
 
-async function init() {
-  await resolverAgenciaDesdeCodigoAcceso(); // tiene que ser lo PRIMERO de todo
-  if (!codigoAccesoValido) { mostrarCodigoInvalido(); return; }
+// Un ciclo completo de actualización, en DOS etapas en paralelo en vez de ~13 consultas
+// una detrás de la otra: (1) configuración + feriados, que hacen falta para saber qué
+// sorteo toca mostrar; (2) todo lo de ese sorteo, al mismo tiempo. El ciclo dura una
+// fracción de lo que duraba, y la pantalla se redibuja una sola vez, al final.
+async function actualizarPantalla() {
+  const hoy = fechaLocalStr(new Date());
+  const [filasConfig] = await Promise.all([
+    consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`),
+    cargarMapaSorteosActivos(hoy)
+  ]);
+  if (filasConfig !== null) aplicarFilasConfig(filasConfig);
 
-  await calcularYCargarSlotEfectivo();
-
-  const datosNuevos = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
-  if (datosNuevos !== null) datos[slotEfectivo.key] = datosNuevos; // si falló la consulta (null), se deja lo último bueno que había
-  await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
-  await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
-  await aplicarConfigVisual();
-  await cargarCantidadTV(slotEfectivo.key);
+  calcularSlotEfectivo();
+  const { fecha, key } = slotEfectivo;
+  const resultados = await Promise.all([
+    cargarDatosReales(fecha, key),
+    cargarCabezasReales(fecha, key),
+    cargarNumeroSorteo(fecha, key),
+    consultarSupabase(`programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&sorteo=eq.${key}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`)
+  ]);
+  resolverCantidadTV(key, resultados[3], filasConfig);
+  cantidadTV = cacheCantidadTV[key] || {};
   render();
+}
 
-  await cargarConfigCarteles();
+async function init() {
+  // El código de acceso se valida PRIMERO. Si todavía no se pudo consultar (sin internet
+  // al prender la TV), se reintenta cada 15 segundos en vez de declararlo inválido.
+  let estadoCodigo = await resolverAgenciaDesdeCodigoAcceso();
+  while (estadoCodigo === 'error') {
+    await esperarMs(15000);
+    estadoCodigo = await resolverAgenciaDesdeCodigoAcceso();
+  }
+  if (estadoCodigo !== 'ok') { mostrarCodigoInvalido(); return; }
+
+  await Promise.all([actualizarPantalla(), cargarConfigCarteles()]);
   programarProximaRotacionCarteles();
 
-  // Actualizar cada 30 segundos — con setInterval, si un ciclo tarda más de
-  // 30s (una demora de red, algo normal que pasa de tanto en tanto), el
-  // siguiente ciclo arranca IGUAL sin esperar a que termine el anterior.
-  // Ahí quedan dos actualizaciones corriendo en simultáneo, pisándose los
-  // datos entre sí — eso es lo que hacía aparecer y desaparecer números sin
-  // que nadie tocara nada. Con este esquema, el siguiente ciclo se programa
-  // recién cuando el anterior terminó del todo, así nunca se superponen.
+  // Cada ciclo se programa recién cuando el anterior terminó del todo (setTimeout, no
+  // setInterval) — así nunca hay dos actualizaciones pisándose entre sí.
   async function cicloActualizacion() {
     try {
-      await calcularYCargarSlotEfectivo();
-      const datosNuevos = await cargarDatosReales(slotEfectivo.fecha, slotEfectivo.key);
-      if (datosNuevos !== null) datos[slotEfectivo.key] = datosNuevos; // si falló la consulta (null), se deja lo último bueno que había
-      await cargarCabezasReales(slotEfectivo.fecha, slotEfectivo.key);
-      await cargarNumeroSorteo(slotEfectivo.fecha, slotEfectivo.key);
-      await aplicarConfigVisual();
-      await cargarCantidadTV(slotEfectivo.key);
-      render();
+      await actualizarPantalla();
       await intentarMostrarBloqueCarteles();
     } catch(e) {
       console.error('Error en el ciclo de actualización:', e);
