@@ -693,6 +693,20 @@ async function fetchConRenovacion(url, opciones) {
   return res;
 }
 
+// Lectura que distingue "no hay datos" de "no se pudo consultar": devuelve un array
+// (vacío si de verdad no hay nada) o null si falló — por corte de red, o porque la base
+// respondió con un error (saturada, caída por unos segundos). Antes, un error de la base
+// se tomaba como "no hay nada guardado": una subagencia con reporte cargado aparecía
+// VACÍA, y si se le cargaba un premio encima, al guardar se pisaba el reporte real.
+async function consultarJson(url) {
+  try {
+    const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } });
+    if (!res.ok) { console.error('Supabase respondió con error', res.status, url); return null; }
+    const cuerpo = await res.json();
+    return Array.isArray(cuerpo) ? cuerpo : null;
+  } catch(e) { console.error('Error de red', url, e); return null; }
+}
+
 async function logout() {
   detenerRenovacionSesion();
   if (usuarioActual && usuarioActual.token) {
@@ -737,7 +751,9 @@ async function cargarSubagenciasCompartidas() {
         `${SUPABASE_URL}/rest/v1/subagencias?order=agencia_id.asc`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
       );
-      subagenciasTodasCache = await res.json() || [];
+      const cuerpo = res.ok ? await res.json() : null;
+      if (!Array.isArray(cuerpo)) throw new Error('No se pudo traer la lista de subagencias');
+      subagenciasTodasCache = cuerpo;
     })().finally(() => { subagenciasCompartidasPromise = null; });
   }
   return subagenciasCompartidasPromise;
@@ -874,20 +890,12 @@ async function actualizarAvisoFaltantes() {
   if (!aviso || subagenciasCache.length === 0) { if (aviso) aviso.textContent = ''; return; }
   const fecha = document.getElementById('fecha-reporte').value;
   if (!fecha) { aviso.textContent = ''; return; }
-
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&select=agencia_id`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-    );
-    const rows = await res.json();
-    const yaReportaron = new Set((rows || []).map(r => r.agencia_id));
-    faltantesCache = subagenciasCache.filter(a => !yaReportaron.has(a.agencia_id));
-    renderAvisoCombinado();
-  } catch(e) {
-    console.error(e);
-    aviso.textContent = '';
-  }
+  const rows = await consultarJson(`${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&select=agencia_id`);
+  if (rows === null) return; // no se pudo consultar: queda el último aviso conocido (no se inventa nada)
+  if (document.getElementById('fecha-reporte').value !== fecha) return; // se cambió de fecha mientras tanto
+  const yaReportaron = new Set(rows.map(r => r.agencia_id));
+  faltantesCache = subagenciasCache.filter(a => !yaReportaron.has(a.agencia_id));
+  renderAvisoCombinado();
 }
 
 function filtrarSubagencias() {
@@ -972,27 +980,32 @@ async function seleccionarAgencia(agenciaId) {
   const fecha = document.getElementById('fecha-reporte').value;
   const miToken = ++tokenCargaFormulario;
 
-  // Antes había un botón aparte ("Guardar todos") para esto — ahora, tocar cualquier
-  // subagencia guarda automáticamente todo lo que esté pendiente (la que tenías
-  // abierta más cualquier borrador de otras subagencias de esta sesión), así nunca
-  // queda nada "pendiente de guardar" dando vueltas por mucho tiempo.
-  //
-  // Guardar lo pendiente de la subagencia VIEJA y traer los datos de la subagencia
-  // NUEVA son operaciones sobre filas distintas de la base — no hace falta esperar
-  // una para que arranque la otra. Antes iban en fila (primero guardar, después
-  // recién arrancaba a traer los datos nuevos), duplicando la espera en cada cambio
-  // de pestaña. Ahora corren las tres consultas al mismo tiempo.
+  // Tocar cualquier subagencia guarda automáticamente todo lo que esté pendiente (la que
+  // estaba abierta más cualquier borrador de otras subagencias de esta sesión).
   const aviso = document.getElementById('aviso-guardando-cambio');
   aviso.style.display = 'block';
   document.querySelectorAll('.agency-tab').forEach(b => b.disabled = true);
 
   let resultadoGuardado, datosNuevos, promedio;
   try {
-    [resultadoGuardado, datosNuevos, promedio] = await Promise.all([
-      guardarTodosSilencioso(),
-      fetchDatosParaContexto(fecha, agenciaId),
-      fetchPromedioHistorico(fecha, agenciaId)
-    ]);
+    // Si la subagencia de DESTINO tiene un borrador pendiente (pasa, por ejemplo, si se
+    // cambió de fecha a mitad de carga y se volvió), primero se guarda y recién después se
+    // consulta: si corrieran al mismo tiempo, la consulta podía llegar antes que el
+    // guardado, ver "vacío" y mostrar la subagencia en blanco aunque los datos sí se
+    // guardaron. En el caso normal (sin borrador en el destino) todo corre en paralelo.
+    if (borradores[`${fecha}_${agenciaId}`]) {
+      resultadoGuardado = await guardarTodosSilencioso();
+      [datosNuevos, promedio] = await Promise.all([
+        fetchDatosParaContexto(fecha, agenciaId),
+        fetchPromedioHistorico(fecha, agenciaId)
+      ]);
+    } else {
+      [resultadoGuardado, datosNuevos, promedio] = await Promise.all([
+        guardarTodosSilencioso(),
+        fetchDatosParaContexto(fecha, agenciaId),
+        fetchPromedioHistorico(fecha, agenciaId)
+      ]);
+    }
   } catch(e) {
     console.error(e);
     resultadoGuardado = { guardados: 0, errores: 1, huboAlgo: true };
@@ -1003,19 +1016,21 @@ async function seleccionarAgencia(agenciaId) {
   aviso.style.display = 'none';
   document.querySelectorAll('.agency-tab').forEach(b => b.disabled = false);
 
-  // Si mientras se esperaba todo esto el usuario ya disparó OTRO cambio de contexto
-  // (otra subagencia, u otra fecha), este resultado quedó viejo — se descarta entero,
-  // sin aplicar nada a la pantalla, para no pisar el contexto nuevo con datos de acá.
+  // Si mientras tanto se disparó OTRO cambio (otra subagencia u otra fecha), esto quedó viejo.
   if (miToken !== tokenCargaFormulario) return;
 
   if (resultadoGuardado.errores > 0) {
-    // Se frena el cambio de subagencia hasta que el guardado se resuelva — nada de lo
-    // ya tipeado se pierde (sigue en el borrador de esta sesión), pero no se avanza a
-    // otra pantalla con algo pendiente sin guardar y sin que el usuario se entere.
-    // Los datos de la subagencia nueva que ya se llegaron a traer (en paralelo) se
-    // descartan sin usar — no cuesta nada haberlos pedido igual, porque corrieron al
-    // mismo tiempo que el guardado, no lo demoraron.
+    // Se frena el cambio hasta que el guardado se resuelva — lo tipeado sigue a salvo en
+    // el borrador de esta sesión.
     showToast(`⚠️ No se pudo guardar (${resultadoGuardado.errores} con error) — revisá tu conexión y volvé a tocar la subagencia`, 'err');
+    return;
+  }
+  if (!datosNuevos.ok) {
+    // No se pudo saber qué tiene guardado la subagencia de destino. Mostrarla vacía sería
+    // peligroso (cargarle un premio encima pisaría su reporte real al guardar), así que
+    // se queda en la subagencia actual — lo pendiente ya quedó guardado igual.
+    const destino = subagenciasCache.find(a => a.agencia_id === agenciaId);
+    showToast(`⚠️ No se pudieron traer los datos de ${destino ? destino.agencia_id : 'esa subagencia'} — volvé a tocarla en unos segundos`, 'err');
     return;
   }
 
@@ -1030,42 +1045,36 @@ async function seleccionarAgencia(agenciaId) {
 }
 
 async function onCambioFecha() {
-  guardarBorradorActual(); // instantáneo, sin red — sigue igual que antes
+  guardarBorradorActual(); // instantáneo, sin red
   actualizarAvisoFaltantes();
   if (!agenciaSeleccionada) return;
 
-  const fecha = document.getElementById('fecha-reporte').value;
+  const inputFecha = document.getElementById('fecha-reporte');
+  const fecha = inputFecha.value;
+  const fechaAnterior = contextoActual ? contextoActual.fecha : null;
   const agenciaId = agenciaSeleccionada.agencia_id;
   const miToken = ++tokenCargaFormulario;
 
-  // Igual que en seleccionarAgencia: los datos de la fecha nueva y el promedio
-  // histórico corren en paralelo, no en fila.
   const [datosNuevos, promedio] = await Promise.all([
     fetchDatosParaContexto(fecha, agenciaId),
     fetchPromedioHistorico(fecha, agenciaId)
   ]);
   if (miToken !== tokenCargaFormulario) return;
 
+  if (!datosNuevos.ok) {
+    // No se pudo saber qué hay guardado en la fecha nueva. Se vuelve a la fecha anterior
+    // para que la pantalla y el campo de fecha sigan coincidiendo: si quedara la fecha
+    // nueva arriba con los datos de la anterior abajo, un guardado podía mandar esos
+    // datos a la fecha equivocada.
+    if (fechaAnterior) inputFecha.value = fechaAnterior;
+    actualizarAvisoFaltantes();
+    showToast('⚠️ No se pudieron traer los datos de esa fecha — volvé a elegirla en unos segundos', 'err');
+    return;
+  }
+
   aplicarDatosAlFormulario(fecha, agenciaId, datosNuevos);
   promedioReporteAgencia = promedio;
   verificarMontoInusual();
-}
-
-// Envoltorio de compatibilidad para los lugares que solo necesitan "cargar lo de la
-// subagencia actual, ya" sin la orquestación especial de seleccionarAgencia (que
-// además guarda lo pendiente en paralelo). Internamente usa las mismas funciones
-// separadas de fetch/aplicar.
-async function cargarFormularioParaContexto() {
-  if (!agenciaSeleccionada) return;
-  const fecha = document.getElementById('fecha-reporte').value;
-  const agenciaId = agenciaSeleccionada.agencia_id;
-  const miToken = ++tokenCargaFormulario;
-  const resultado = await fetchDatosParaContexto(fecha, agenciaId);
-  // Si mientras esperábamos esta respuesta el usuario ya cambió de subagencia o de
-  // fecha, esta respuesta llegó tarde y ya no corresponde a lo que está en pantalla
-  // ahora — la descartamos para no pisar el contexto nuevo con datos viejos.
-  if (miToken !== tokenCargaFormulario) return;
-  aplicarDatosAlFormulario(fecha, agenciaId, resultado);
 }
 
 // Trae los datos de una subagencia/fecha SIN tocar la pantalla ni ninguna variable
@@ -1074,13 +1083,10 @@ async function cargarFormularioParaContexto() {
 // después, con aplicarDatosAlFormulario(), una vez que se sabe que todo lo demás
 // (como el guardado previo) salió bien.
 async function fetchDatosParaContexto(fecha, agenciaId) {
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaId}`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-    );
-    return { ok: true, rows: (await res.json()) || [] };
-  } catch(e) { console.error(e); return { ok: false, rows: [] }; }
+  const rows = await consultarJson(`${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&agencia_id=eq.${agenciaId}`);
+  // ok:false = NO se sabe qué hay guardado. Quien llama NUNCA debe mostrar el formulario
+  // vacío en ese caso (ver seleccionarAgencia y onCambioFecha).
+  return rows === null ? { ok: false, rows: [] } : { ok: true, rows };
 }
 
 // Aplica a la pantalla lo que trajo fetchDatosParaContexto() (o lo descarta a favor
@@ -1124,18 +1130,14 @@ function aplicarDatosAlFormulario(fecha, agenciaId, resultado) {
 // para que las dos consultas de la subagencia nueva corran en paralelo.
 async function fetchPromedioHistorico(fecha, agenciaId) {
   if (!ajustesGeneralesCache.aviso_bajo_activo && !ajustesGeneralesCache.aviso_alto_activo) return null;
-  try {
-    const dias = ajustesGeneralesCache.dias_historial_promedio;
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/reportes_diarios?agencia_id=eq.${agenciaId}&fecha=lt.${fecha}&order=fecha.desc&limit=${dias}&select=monto_reporte_loteria`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-    );
-    const rows = ((await res.json()) || []).filter(r => r.monto_reporte_loteria > 0);
-    if (rows.length >= ajustesGeneralesCache.minimo_dias_historial) {
-      return rows.reduce((sum, r) => sum + r.monto_reporte_loteria, 0) / rows.length;
-    }
-    return null;
-  } catch(e) { console.error(e); return null; }
+  const dias = ajustesGeneralesCache.dias_historial_promedio;
+  const rows = await consultarJson(`${SUPABASE_URL}/rest/v1/reportes_diarios?agencia_id=eq.${agenciaId}&fecha=lt.${fecha}&order=fecha.desc&limit=${dias}&select=monto_reporte_loteria`);
+  if (rows === null) return null;
+  const conMonto = rows.filter(r => r.monto_reporte_loteria > 0);
+  if (conMonto.length >= ajustesGeneralesCache.minimo_dias_historial) {
+    return conMonto.reduce((sum, r) => sum + r.monto_reporte_loteria, 0) / conMonto.length;
+  }
+  return null;
 }
 
 function limpiarFormulario() {
@@ -2457,12 +2459,12 @@ async function descargarPdfCombinado() {
     }
 
     btn.textContent = '⏳ Generando...';
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&order=agencia_id.asc`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-    );
-    const rows = await res.json();
-    if (!rows || rows.length === 0) {
+    const rows = await consultarJson(`${SUPABASE_URL}/rest/v1/reportes_diarios?fecha=eq.${fecha}&order=agencia_id.asc`);
+    if (rows === null) {
+      showToast('⚠️ No se pudieron traer los reportes — no se generó el PDF, probá de nuevo', 'err');
+      return;
+    }
+    if (rows.length === 0) {
       showToast('No hay reportes guardados para esa fecha', 'err');
       return;
     }
