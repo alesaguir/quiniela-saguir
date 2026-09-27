@@ -1164,7 +1164,7 @@ function htmlCartelCard(c, idx, total) {
           ${colapsado ? `<span style="font-size:13px;color:var(--text,#fff);margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${primerTexto}</span>` : ''}
         </div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex-shrink:0;">
-          <input type="checkbox" id="cartel_activo_${c.id}" ${c.activo?'checked':''} style="width:16px;height:16px;accent-color:var(--gold);">
+          <input type="checkbox" id="cartel_activo_${c.id}" ${c.activo?'checked':''} onchange="toggleActivoCartel(${c.id}, this)" style="width:16px;height:16px;accent-color:var(--gold);">
           Activo
         </label>
       </div>
@@ -1173,11 +1173,29 @@ function htmlCartelCard(c, idx, total) {
 }
 
 function toggleColapsoCartel(id) {
+  const idx = cartelesActuales.findIndex(c => c.id === id);
+  if (idx === -1) return;
+
+  // Antes de reconstruir la tarjeta (al plegar o desplegar), se sincroniza lo que haya
+  // en pantalla ahora mismo hacia cartelesActuales. Sin esto, cualquier cambio sin
+  // guardar (texto tipeado, el checkbox "Activo") se perdía en silencio apenas se
+  // plegaba o desplegaba la tarjeta, porque la reconstrucción de abajo arma el HTML
+  // a partir de cartelesActuales — los últimos datos traídos del servidor, no lo que
+  // hay tipeado en pantalla en este momento.
+  const activoEl = document.getElementById(`cartel_activo_${id}`);
+  if (activoEl) cartelesActuales[idx].activo = activoEl.checked;
+  if (!cartelesColapsados.has(id)) { // está expandida ahora mismo (se va a plegar) — sincronizar también el resto
+    const duracionEl = document.getElementById(`cartel_duracion_${id}`);
+    const colorEl = document.getElementById(`cartel_color_fondo_${id}`);
+    if (duracionEl) cartelesActuales[idx].duracion_segundos = parseInt(duracionEl.value, 10) || 5;
+    if (colorEl) cartelesActuales[idx].color_fondo = colorEl.value;
+    if (document.getElementById(`cartel_lineas_${id}`)) cartelesActuales[idx].lineas = leerLineasDesdeDOM(id);
+  }
+
   if (cartelesColapsados.has(id)) cartelesColapsados.delete(id);
   else cartelesColapsados.add(id);
-  const idx = cartelesActuales.findIndex(c => c.id === id);
   const card = document.getElementById(`cartel_card_${id}`);
-  if (card && idx !== -1) {
+  if (card) {
     card.outerHTML = htmlCartelCard(cartelesActuales[idx], idx, cartelesActuales.length);
     if (!cartelesColapsados.has(id)) actualizarPreviewCartel(id);
   }
@@ -1267,6 +1285,31 @@ function actualizarPreviewCartel(id) {
     const decoracion = l.subrayado ? 'underline' : 'none';
     return `<div style="font-size:${tam}px;color:${l.color||'#ffffff'};font-family:'${l.fuente||'Bebas Neue'}',sans-serif;font-weight:${peso};font-style:${estilo};text-decoration:${decoracion};">${(l.texto||'').replace(/</g,'&lt;')}</div>`;
   }).join('');
+}
+
+// Guarda el checkbox "Activo" al instante, apenas se toca — igual que el resto de los
+// toggles de este sistema (permisos de usuarios, etc.) — sin depender de que la tarjeta
+// esté desplegada ni de tocar "Guardar" aparte.
+async function toggleActivoCartel(id, checkboxEl) {
+  const nuevoValor = checkboxEl.checked;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ activo: nuevoValor })
+    });
+    if (res.ok || res.status === 204) {
+      const cartel = cartelesActuales.find(c => c.id === id);
+      if (cartel) cartel.activo = nuevoValor; // mantiene sincronizada la copia en memoria
+      showToast(nuevoValor ? '✅ Cartel activado' : '✅ Cartel desactivado', 'ok');
+    } else {
+      checkboxEl.checked = !nuevoValor; // revertir visualmente si no se pudo guardar
+      showToast('Error al cambiar el estado del cartel', 'err');
+    }
+  } catch(e) {
+    checkboxEl.checked = !nuevoValor;
+    showToast('Error de conexión', 'err');
+  }
 }
 
 async function crearCartel() {
