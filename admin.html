@@ -916,33 +916,22 @@ function hoyStr() {
 // si no hay ninguna, usa la configuración base de ese sorteo.
 async function resolverCantidadPorProvincia(agenciaId, sorteo, token) {
   const hoy = hoyStr();
-  try {
-    const resProg = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${encodeURIComponent(agenciaId)}&sorteo=eq.${sorteo}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
-    );
-    const prog = await resProg.json();
-    if (prog && prog[0] && prog[0].numeros_por_provincia) {
-      return prog[0].numeros_por_provincia;
-    }
-  } catch(e) { console.error(e); }
-
-  try {
-    const resBase = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agenciaId)}&clave=eq.numeros_${sorteo}&select=numeros_por_provincia`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
-    );
-    const base = await resBase.json();
-    if (base && base[0] && base[0].numeros_por_provincia) {
-      return base[0].numeros_por_provincia;
-    }
-  } catch(e) { console.error(e); }
-
-  return {};
+  const ag = encodeURIComponent(agenciaId);
+  // Las dos consultas corren al mismo tiempo (antes, una detrás de la otra).
+  const [prog, base] = await Promise.all([
+    consultarJson(`${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${ag}&sorteo=eq.${sorteo}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`, token),
+    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}&clave=eq.numeros_${sorteo}&select=numeros_por_provincia`, token)
+  ]);
+  if (prog && prog[0] && prog[0].numeros_por_provincia) return prog[0].numeros_por_provincia;
+  // Devuelve null si no se pudo saber (para que quien llama conserve la cantidad que ya
+  // tenía, en vez de pasar a 20 filas por provincia por una falla momentánea).
+  if (prog === null || base === null) return null;
+  return (base[0] && base[0].numeros_por_provincia) ? base[0].numeros_por_provincia : {};
 }
 
 async function cargarNumerosPorProvincia() {
-  numerosPorProvincia = await resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteoActual, usuarioActual.token);
+  const cantidades = await resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteoActual, usuarioActual.token);
+  if (cantidades !== null) numerosPorProvincia = cantidades;
 }
 
 function cantidadProvincia(key) {
@@ -1591,6 +1580,18 @@ async function fetchConRenovacion(url, opciones) {
   return res;
 }
 
+// Lectura que distingue "no hay datos" de "no se pudo consultar": devuelve un array (vacío si
+// de verdad no hay nada) o null si falló — por corte de red o porque la base respondió con un
+// error. Antes un error se tomaba como "no hay nada cargado" (grilla vacía, sorteo en 00000).
+async function consultarJson(url, token = SUPABASE_KEY) {
+  try {
+    const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) { console.error('Supabase respondió con error', res.status, url); return null; }
+    const cuerpo = await res.json();
+    return Array.isArray(cuerpo) ? cuerpo : null;
+  } catch(e) { console.error('Error de red', url, e); return null; }
+}
+
 // Abre el manual de usuario en una ventana/pestaña nueva — admin.html sigue intacto en
 // la pestaña original. El nivel se calcula solo a partir del rol de quien esté logueado
 // ahora mismo, sin que la persona tenga que elegir nada.
@@ -1652,29 +1653,38 @@ async function initApp() {
   await Promise.all([
     cargarNumerosPorProvincia(),
     cargarNombresProvincia(),
-    cargarConfigCarga()
+    cargarConfigCarga(),
+    verificarBloqueoFechaEspecial() // antes se esperaba aparte, después de las otras tres
   ]);
-  buildForm();
+  aplicarBloqueoUI(); // un solo armado del formulario, con toda la configuración ya cargada
   actualizarTitulos();
   actualizarEstadoDia();
-  await verificarBloqueoFechaEspecial();
   cargarExistentes();
   cargarFrecuenciaCarteles();
   cargarCarteles();
 }
 
+let tokenSetTab = 0;
 async function setTab(sorteo, el) {
+  const miToken = ++tokenSetTab;
   sorteoActual = sorteo;
   valoresAlCargar = {}; // se vacía ya mismo — cargarExistentes() lo repuebla cuando termine
   provinciaActivaPestana = PROVINCIAS[0].key; // arranca siempre desde la primera provincia
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  // Limpiar número de sorteo al cambiar de tab
   document.getElementById('num-sorteo').value = '';
-  await cargarNumerosPorProvincia(); // la cantidad puede variar de un sorteo a otro
-  buildForm();
+  // La cantidad por provincia y el chequeo de "sorteo sin actividad" son independientes:
+  // corren al mismo tiempo (antes, uno detrás del otro, y el formulario se armaba dos veces).
+  const [cantidades] = await Promise.all([
+    resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteo, usuarioActual.token),
+    verificarBloqueoFechaEspecial()
+  ]);
+  // Si mientras tanto se tocó otra pestaña, esto quedó viejo: no se aplica, para no armar
+  // el formulario con la cantidad de filas de otro sorteo.
+  if (miToken !== tokenSetTab) return;
+  if (cantidades !== null) numerosPorProvincia = cantidades;
+  aplicarBloqueoUI(); // arma el formulario (o el aviso de "sin actividad") con la cantidad correcta
   actualizarTitulos();
-  await verificarBloqueoFechaEspecial();
   cargarExistentes();
 }
 
@@ -2119,27 +2129,41 @@ async function guardarTodo() {
       // con certeza que tenía dato), para que no quede un número viejo guardado en la base
       // si se cambió de casillero (ej: estaba en la posición 5 y se corrigió a la posición 4
       // — la 5 tiene que quedar en "----"), o si se vació todo para corregir un error.
-      for (const [provincia, posiciones] of Object.entries(vaciasPorProvincia)) {
-        await fetchConRenovacion(
-          `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEsteGuardado}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
-          { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
-        ).catch(e => console.error('Error borrando posiciones vacías:', provincia, e));
+      // Los borrados de posiciones vaciadas y el número de sorteo tocan filas distintas: se
+      // mandan todos al mismo tiempo (antes, uno por uno). Y ahora se verifica que cada uno
+      // haya salido bien — antes, si un borrado fallaba, no se avisaba: vos creías que
+      // estaba borrado y en la TV seguía el número viejo.
+      const hdrs = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` };
+      const tareasBorrado = Object.entries(vaciasPorProvincia).map(async ([provincia, posiciones]) => {
+        try {
+          const r = await fetchConRenovacion(
+            `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEsteGuardado}&agencia_id=eq.${usuarioActual.agencia_id}&provincia=eq.${provincia}&posicion=in.(${posiciones.join(',')})`,
+            { method: 'DELETE', headers: hdrs }
+          );
+          if (!r.ok) return { provincia, posiciones, ok: false };
+        } catch(e) { console.error('Error borrando posiciones vacías:', provincia, e); return { provincia, posiciones, ok: false }; }
+        // Solo si se borró de verdad se deja de recordar; si falló, queda anotada y el
+        // próximo "Guardar y publicar" la vuelve a intentar.
         posiciones.forEach(pos => { delete valoresAlCargar[`${fecha}_${sorteoDeEsteGuardado}_${provincia}_${pos}`]; });
-      }
-
-      // Guardar número de sorteo
-      await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/sorteos_info?on_conflict=fecha,sorteo,agencia_id`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${usuarioActual.token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify([{ fecha, sorteo: sorteoDeEsteGuardado, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
+        return { provincia, posiciones, ok: true };
       });
+      const tareaNumeroSorteo = fetchConRenovacion(`${SUPABASE_URL}/rest/v1/sorteos_info?on_conflict=fecha,sorteo,agencia_id`, {
+        method: 'POST',
+        headers: { ...hdrs, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify([{ fecha, sorteo: sorteoDeEsteGuardado, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
+      }).then(r => r.ok).catch(() => false);
+      const [okNumeroSorteo, ...resultadosBorrado] = await Promise.all([tareaNumeroSorteo, ...tareasBorrado]);
+      const posicionesSinBorrar = resultadosBorrado.filter(r => !r.ok).reduce((n, r) => n + r.posiciones.length, 0);
+      const guardadoIncompleto = posicionesSinBorrar > 0 || !okNumeroSorteo;
+
       const nombreSorteo = sorteoDeEsteGuardado.charAt(0).toUpperCase() + sorteoDeEsteGuardado.slice(1);
-      if (rows.length > 0) {
+      if (guardadoIncompleto) {
+        const faltas = [];
+        if (posicionesSinBorrar > 0) faltas.push(`${posicionesSinBorrar} posición(es) no se pudieron borrar`);
+        if (!okNumeroSorteo) faltas.push('no se pudo guardar el número de sorteo');
+        showToast(`⚠️ Guardado incompleto: ${faltas.join(' y ')} — tocá "Guardar y publicar" de nuevo`, 'err');
+        registrarActividad('Guardado incompleto', `${nombreSorteo} del ${fecha} — ${faltas.join(' y ')}`);
+      } else if (rows.length > 0) {
         showToast(`✅ ${rows.length} números publicados en pantalla`,'ok');
         registrarActividad('Carga de números', `${nombreSorteo} del ${fecha} — ${rows.length} números`);
       } else if (Object.keys(vaciasPorProvincia).length > 0) {
@@ -2180,51 +2204,38 @@ async function cargarExistentes() {
   const fecha = document.getElementById('fecha-sel').value;
   const sorteoDeEstaLlamada = sorteoActual; // se congela ACÁ, no se vuelve a leer después del await
   if (!fecha) return;
-
   const miToken = ++cargarExistentesToken;
+  const ag = usuarioActual.agencia_id;
 
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${usuarioActual.agencia_id}&order=posicion.asc`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
+  // Posiciones y número de sorteo se piden al mismo tiempo (antes, uno detrás del otro).
+  const [rows, sorteoInfo] = await Promise.all([
+    consultarJson(`${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${ag}&order=posicion.asc`),
+    consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${ag}`)
+  ]);
 
-    // Si mientras se esperaba la respuesta el usuario ya cambió de pestaña (o de fecha),
-    // esta respuesta quedó vieja — se descarta entera, sin tocar el formulario ni
-    // valoresAlCargar, para no pisar con datos de otro sorteo lo que ya se cargó bien.
-    if (miToken !== cargarExistentesToken || sorteoActual !== sorteoDeEstaLlamada) return;
+  // Si mientras tanto se cambió de pestaña o de fecha, esta respuesta quedó vieja.
+  if (miToken !== cargarExistentesToken || sorteoActual !== sorteoDeEstaLlamada) return;
 
-    // Se resetea acá (no antes del fetch) para que, si la consulta falla, no se pierda
-    // la referencia previa por accidente.
-    valoresAlCargar = {};
-    // Antes, si no había resultados de posición todavía, la función cortaba acá con un
-    // "return" — y eso significaba que el número de sorteo NUNCA se llegaba a consultar
-    // ni a mostrar en ese caso (por ejemplo, si se guardó el número de sorteo pero se
-    // borraron después todas las posiciones para corregir un error). Ahora se sigue de
-    // largo siempre, para que el número de sorteo se revise pase lo que pase con la
-    // grilla de posiciones.
-    if (rows && rows.length > 0) {
-      rows.forEach(r => {
-        const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
-        if (el) { el.value = r.numero; el.classList.add('filled'); }
-        valoresAlCargar[`${fecha}_${sorteoDeEstaLlamada}_${r.provincia}_${r.posicion}`] = true;
-      });
-      actualizarTodosLosFaltantes();
-    }
-    actualizarIndicadoresPublicado();
+  if (rows === null || sorteoInfo === null) {
+    // No se pudo saber qué hay publicado. Antes esto mostraba la grilla vacía y el sorteo en
+    // "00000" como si no hubiera nada — y alguien podía ponerse a cargar todo de nuevo.
+    // Ahora se avisa y no se toca nada (valoresAlCargar queda vacío: un guardado en este
+    // estado nunca borra posiciones que no se ven).
+    showToast('⚠️ No se pudieron traer los datos publicados — tocá "🔄 Cargar existentes" en unos segundos', 'err');
+    return;
+  }
 
-    // Cargar número de sorteo si existe — si no existe, se deja en "00000" para dejar
-    // en claro que ese sorteo todavía no tiene un número real cargado.
-    const resSorteo = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteoDeEstaLlamada}&agencia_id=eq.${usuarioActual.agencia_id}`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const sorteoInfo = await resSorteo.json();
-    if (miToken !== cargarExistentesToken || sorteoActual !== sorteoDeEstaLlamada) return; // volver a chequear, por si cambió durante esta segunda espera
-    document.getElementById('num-sorteo').value = (sorteoInfo && sorteoInfo.length > 0) ? sorteoInfo[0].numero_sorteo : '00000';
-    showToast(`📋 Datos existentes cargados`,'ok');
-  } catch(e) { console.error(e); }
+  valoresAlCargar = {};
+  rows.forEach(r => {
+    const el = document.getElementById(`n_${r.provincia}_${r.posicion}`);
+    if (el) { el.value = r.numero; el.classList.add('filled'); }
+    valoresAlCargar[`${fecha}_${sorteoDeEstaLlamada}_${r.provincia}_${r.posicion}`] = true;
+  });
+  actualizarTodosLosFaltantes();
+  actualizarIndicadoresPublicado();
+  // Si no hay número de sorteo guardado, "00000" deja claro que todavía no se cargó uno real.
+  document.getElementById('num-sorteo').value = (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) ? sorteoInfo[0].numero_sorteo : '00000';
+  if (rows.length > 0 || sorteoInfo.length > 0) showToast('📋 Datos existentes cargados','ok');
 }
 
 // =====================
