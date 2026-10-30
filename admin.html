@@ -201,7 +201,8 @@
           <label class="form-label" style="font-size:10px;">N° de Sorteo</label>
           <input type="text" id="num-sorteo" maxlength="5" placeholder="00000" inputmode="numeric" pattern="[0-9]*"
             class="form-input" style="width:120px;font-family:'JetBrains Mono',monospace;font-size:18px;text-align:center;letter-spacing:2px;"
-            oninput="this.value=this.value.replace(/\D/g,'')">
+            oninput="this.value=this.value.replace(/\D/g,'')" onblur="completarCeroNumeroSorteo(this)">
+          <div style="font-size:10px;color:var(--muted);max-width:120px;line-height:1.3;">Tal como figura en el extracto</div>
         </div>
         <input type="date" class="form-input" id="fecha-sel" style="width:auto;" onchange="onCambioFecha()">
         <button class="btn btn-ghost" onclick="cargarExistentes()" id="btn-cargar-existentes" style="font-size:13px;">🔄 Cargar existentes</button>
@@ -1583,6 +1584,30 @@ async function fetchConRenovacion(url, opciones) {
 // Lectura que distingue "no hay datos" de "no se pudo consultar": devuelve un array (vacío si
 // de verdad no hay nada) o null si falló — por corte de red o porque la base respondió con un
 // error. Antes un error se tomaba como "no hay nada cargado" (grilla vacía, sorteo en 00000).
+// =====================
+// NÚMERO DE SORTEO
+// =====================
+// En el extracto oficial el número de sorteo puede figurar sin el 0 de adelante (9876),
+// pero el sistema lo maneja siempre con 5 cifras (09876). Si se escriben exactamente 4
+// cifras, se completa el 0 solo. Con 3 o menos no se completa: casi seguro es un error de
+// tipeo, y se le pide a la persona que revise el extracto.
+function normalizarNumeroSorteo(valor) {
+  const v = (valor || '').replace(/\D/g, '');
+  return v.length === 4 ? '0' + v : v;
+}
+
+// Se llama al salir del campo, así la persona VE el número final antes de publicar.
+function completarCeroNumeroSorteo(el) {
+  const antes = el.value;
+  el.value = normalizarNumeroSorteo(antes);
+  if (el.value !== antes) showToast(`Se agregó un 0 adelante: N° ${el.value}`, 'ok');
+}
+
+// Número de sorteo que ya quedó guardado, por fecha + sorteo ('2026-10-30_vespertina').
+// Si se vuelve a publicar con el MISMO número (la carga gradual de una simulación en
+// vivo), no se repiten los controles: ya se hicieron en la primera publicación.
+const numeroSorteoGuardado = {};
+
 async function consultarJson(url, token = SUPABASE_KEY) {
   try {
     const res = await fetchConRenovacion(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } });
@@ -2038,31 +2063,69 @@ function setBotonesGuardarEstado(contenidoHTML, disabled) {
   });
 }
 
+// Si se toca "Guardar y publicar" dos veces seguidas, el segundo toque se ignora mientras
+// el primero no termine — antes podían correr dos guardados a la vez.
+let guardadoEnCurso = false;
 async function guardarTodo() {
+  if (guardadoEnCurso) return;
+  guardadoEnCurso = true;
+  try { await guardarTodoInterno(); }
+  finally { guardadoEnCurso = false; }
+}
+
+async function guardarTodoInterno() {
   if (bloqueoActual.bloqueado) { showToast('Este sorteo está marcado como sin actividad — no se puede guardar','err'); return; }
   const fecha = document.getElementById('fecha-sel').value;
-  const numSorteo = document.getElementById('num-sorteo').value;
+  const campoNumSorteo = document.getElementById('num-sorteo');
+  campoNumSorteo.value = normalizarNumeroSorteo(campoNumSorteo.value); // por si se tocó el botón sin salir del campo
+  const numSorteo = campoNumSorteo.value;
   const sorteoDeEsteGuardado = sorteoActual; // se congela ACÁ — si el usuario cambia de
                                                // pestaña mientras esto espera respuestas de
                                                // red, este guardado sigue apuntando al sorteo
                                                // que estaba activo cuando se tocó el botón
   if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
-  if (!numSorteo || numSorteo.length !== 5) { showToast('Ingresá el número de sorteo (5 cifras)','err'); return; }
+  if (!numSorteo) { showToast('Ingresá el número de sorteo, tal como figura en el extracto','err'); return; }
+  if (numSorteo.length !== 5) { showToast('El número de sorteo tiene que tener 5 cifras. Revisá el extracto: si figura con menos de 4, completá con ceros adelante.','err'); return; }
   if (numSorteo === '00000') { showToast('⚠️ No se puede cargar un sorteo con el número 00000 — ingresá el número real','err'); return; }
 
-  // No permitir el mismo número de sorteo en otra fecha, para el mismo tipo de sorteo y agencia
-  // (el mismo día sí puede repetirse — eso es solo editar/confirmar el número que ya estaba)
-  try {
-    const resDup = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${usuarioActual.agencia_id}&sorteo=eq.${sorteoDeEsteGuardado}&numero_sorteo=eq.${numSorteo}&fecha=neq.${fecha}&select=fecha`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const dup = await resDup.json();
+  // Controles del número de sorteo — solo si cambió respecto de lo ya publicado para esta
+  // fecha y sorteo. En la carga gradual de una simulación en vivo, solo la primera
+  // publicación los hace; las siguientes no suman ninguna consulta.
+  const claveNumero = `${fecha}_${sorteoDeEsteGuardado}`;
+  if (numeroSorteoGuardado[claveNumero] !== numSorteo) {
+    const ag = usuarioActual.agencia_id;
+    // Las dos consultas corren al mismo tiempo, así la publicación no demora más.
+    const [dup, anterior] = await Promise.all([
+      // ¿Este número ya se usó en OTRA fecha para este mismo sorteo? (el mismo día sí puede repetirse)
+      consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${ag}&sorteo=eq.${sorteoDeEsteGuardado}&numero_sorteo=eq.${numSorteo}&fecha=neq.${fecha}&select=fecha`),
+      // El último número cargado de este mismo sorteo en una fecha ANTERIOR
+      consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?agencia_id=eq.${ag}&sorteo=eq.${sorteoDeEsteGuardado}&fecha=lt.${fecha}&order=fecha.desc&limit=1&select=fecha,numero_sorteo`)
+    ]);
+    // Si alguna consulta falla, ese control se saltea: no se frena una publicación en vivo
+    // por una falla momentánea de la base.
     if (dup && dup.length > 0) {
       showToast(`⚠️ El sorteo N° ${numSorteo} ya se usó el ${dup[0].fecha} en este mismo tipo de sorteo`,'err');
       return;
     }
-  } catch(e) { console.error('Error validando número de sorteo duplicado:', e); }
+    if (anterior && anterior[0] && anterior[0].numero_sorteo) {
+      const previo = parseInt(anterior[0].numero_sorteo, 10);
+      const nuevo = parseInt(numSorteo, 10);
+      // Los números se cargan todos los días, así que el correcto es SIEMPRE el siguiente
+      // al último cargado de este mismo sorteo. Cualquier otra diferencia pide confirmación
+      // (cifra de menos o de más, cifras invertidas, número de otro día).
+      if (!isNaN(previo) && nuevo !== previo + 1) {
+        const [a, m, d] = anterior[0].fecha.split('-');
+        const nombreSorteo = sorteoDeEsteGuardado.charAt(0).toUpperCase() + sorteoDeEsteGuardado.slice(1);
+        const esperado = String(previo + 1).padStart(5, '0');
+        const ok = confirm(`El número de sorteo debería ser el ${esperado}: la última ${nombreSorteo} cargada (${d}/${m}/${a}) fue el N° ${anterior[0].numero_sorteo}.\nEstás cargando el N° ${numSorteo}.\n\n¿Es correcto?`);
+        if (!ok) {
+          showToast('Revisá el número de sorteo en el extracto y volvé a publicar','err');
+          campoNumSorteo.focus();
+          return;
+        }
+      }
+    }
+  }
 
   setBotonesGuardarEstado('<div class="loading"></div> Guardando...', true);
 
@@ -2153,6 +2216,7 @@ async function guardarTodo() {
         body: JSON.stringify([{ fecha, sorteo: sorteoDeEsteGuardado, numero_sorteo: numSorteo, agencia_id: usuarioActual.agencia_id }])
       }).then(r => r.ok).catch(() => false);
       const [okNumeroSorteo, ...resultadosBorrado] = await Promise.all([tareaNumeroSorteo, ...tareasBorrado]);
+      if (okNumeroSorteo) numeroSorteoGuardado[`${fecha}_${sorteoDeEsteGuardado}`] = numSorteo;
       const posicionesSinBorrar = resultadosBorrado.filter(r => !r.ok).reduce((n, r) => n + r.posiciones.length, 0);
       const guardadoIncompleto = posicionesSinBorrar > 0 || !okNumeroSorteo;
 
@@ -2235,6 +2299,7 @@ async function cargarExistentes() {
   actualizarIndicadoresPublicado();
   // Si no hay número de sorteo guardado, "00000" deja claro que todavía no se cargó uno real.
   document.getElementById('num-sorteo').value = (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) ? sorteoInfo[0].numero_sorteo : '00000';
+  if (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) numeroSorteoGuardado[`${fecha}_${sorteoDeEstaLlamada}`] = sorteoInfo[0].numero_sorteo;
   if (rows.length > 0 || sorteoInfo.length > 0) showToast('📋 Datos existentes cargados','ok');
 }
 
