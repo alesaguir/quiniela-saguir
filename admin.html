@@ -206,6 +206,7 @@
         </div>
         <input type="date" class="form-input" id="fecha-sel" style="width:auto;" onchange="onCambioFecha()">
         <button class="btn btn-ghost" onclick="cargarExistentes()" id="btn-cargar-existentes" style="font-size:13px;">🔄 Cargar existentes</button>
+        <button class="btn btn-ghost" onclick="copiarTablero()" id="btn-copiar-tablero" style="font-size:13px;" title="Imagen de la pantalla de la TV para mandar por WhatsApp">🖼 Copiar tablero</button>
       </div>
     </div>
 
@@ -841,6 +842,20 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- VENTANA DE LA IMAGEN DEL TABLERO — igual a la de reportes.html -->
+<div id="tablero-modal" style="display:none;position:fixed;inset:0;background:rgba(10,12,15,.85);z-index:9998;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:92vw;max-height:92vh;overflow-y:auto;text-align:center;">
+    <img id="tablero-modal-img" alt="Imagen del tablero" style="max-width:100%;border-radius:8px;display:block;margin:0 auto 12px;">
+    <div id="tablero-modal-nota" style="display:none;font-size:12.5px;color:var(--gold);margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" id="tablero-modal-copy" style="width:auto;">📋 Copiar</button>
+      <a id="tablero-modal-download" class="btn btn-ghost" download="tablero.png" style="text-decoration:none;">⬇ Descargar</a>
+      <button class="btn btn-ghost" id="tablero-modal-share" style="display:none;">📲 Compartir</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('tablero-modal').style.display='none'">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL SQL INSTRUCCIONES -->
 <div id="modal-sql" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center;padding:20px;">
@@ -1615,6 +1630,503 @@ async function consultarJson(url, token = SUPABASE_KEY) {
     const cuerpo = await res.json();
     return Array.isArray(cuerpo) ? cuerpo : null;
   } catch(e) { console.error('Error de red', url, e); return null; }
+}
+
+// =====================
+// COPIAR TABLERO — imagen de la pantalla de la TV (index.html)
+// =====================
+// Arma una imagen igual a la pantalla de la TV, con los números PUBLICADOS del sorteo y la
+// fecha seleccionados acá. No es una foto de la TV: se arma una copia de la pantalla fuera
+// de la vista, con el mismo diseño, colores y letras que index.html; el navegador la acomoda
+// y después se dibuja en una imagen de 1920×1080. Sin el verde de "recién cargado".
+// La lógica de feriados, últimas cabezas y SORTEANDO/FINALIZADO es una COPIA de la de
+// index.html: si un día cambia allá, hay que cambiarla también acá.
+
+const TAB_SORTEOS = ['previa','primera','matutina','vespertina','nocturna'];
+const TAB_PROVS   = ['chaquena','ciudad','provincia','corrientes','cordoba'];
+const TAB_LABELS  = { previa:'PREVIA', primera:'PRIMERA', matutina:'MATUTINA', vespertina:'VESPERTINA', nocturna:'NOCTURNA' };
+const TAB_DIAS    = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const TAB_MESES   = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function tabFechaStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function tabParse(f) { const p = f.split('-'); return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])); }
+function tabDiaAnterior(f) { const d = tabParse(f); d.setDate(d.getDate() - 1); return tabFechaStr(d); }
+function tabSumarDias(f, n) { const d = tabParse(f); d.setDate(d.getDate() + n); return tabFechaStr(d); }
+function tabEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+
+// --- Copia de la lógica de index.html (feriados, sorteo en curso, últimas cabezas) ---
+function tabActivoEn(mapa, fecha, key) {
+  if (tabParse(fecha).getDay() === 0) return false; // domingo: nunca hay sorteo
+  if (mapa[fecha] && mapa[fecha][key] !== undefined) return mapa[fecha][key];
+  return true;
+}
+function tabSorteoAnterior(fecha, key) {
+  const idx = TAB_SORTEOS.indexOf(key);
+  if (idx > 0) return { fecha, sorteoKey: TAB_SORTEOS[idx - 1] };
+  return { fecha: tabDiaAnterior(fecha), sorteoKey: 'nocturna' };
+}
+function tabResolverSlot(mapa, fecha, key) {
+  let actual = { fecha, sorteoKey: key };
+  let vueltas = 0;
+  while (!tabActivoEn(mapa, actual.fecha, actual.sorteoKey) && vueltas < 200) {
+    actual = tabSorteoAnterior(actual.fecha, actual.sorteoKey);
+    vueltas++;
+  }
+  return actual;
+}
+function tabFechaMasRecienteParaSlot(mapa, slotKey, fechaEf, keyEf) {
+  const anteriorEnElDia = TAB_SORTEOS.indexOf(slotKey) < TAB_SORTEOS.indexOf(keyEf);
+  let fecha = anteriorEnElDia ? fechaEf : tabDiaAnterior(fechaEf);
+  let vueltas = 0;
+  while (!tabActivoEn(mapa, fecha, slotKey) && vueltas < 60) { fecha = tabDiaAnterior(fecha); vueltas++; }
+  return fecha;
+}
+function tabSorteoNatural(now, d) {
+  const t = now.getHours() * 60 + now.getMinutes();
+  if (now.getDay() === 0) return { key:'nocturna', live:false };
+  if (now.getDay() === 1 && t < 10*60+15) return { key:'nocturna', live:false };
+  if (t < 10*60+15) return { key:'nocturna',   live:false };
+  if (t < 12*60)    return { key:'previa',     live: t < 10*60+15 + d.previa };
+  if (t < 15*60)    return { key:'primera',    live: t < 12*60 + d.primera };
+  if (t < 18*60)    return { key:'matutina',   live: t < 15*60 + d.matutina };
+  if (t < 21*60)    return { key:'vespertina', live: t < 18*60 + d.vespertina };
+  return                   { key:'nocturna',   live: t < 21*60 + d.nocturna };
+}
+function tabFechaNatural(now) {
+  const t = now.getHours() * 60 + now.getMinutes();
+  const f = new Date(now.getTime());
+  if (now.getDay() === 0 || t < 10*60+15) f.setDate(f.getDate() - 1);
+  return tabFechaStr(f);
+}
+
+// Trae todo lo que muestra la TV para esa fecha y sorteo. Devuelve null si alguna consulta
+// falla: así nunca se arma una imagen con datos incompletos para mandarle a un cliente.
+async function cargarDatosTablero(fecha, sorteo) {
+  const ag = encodeURIComponent(usuarioActual.agencia_id);
+  const hoy = hoyStr();
+  const desde = tabSumarDias(fecha < hoy ? fecha : hoy, -35);
+  const hasta = fecha > hoy ? fecha : hoy;
+  const [resultados, info, config, feriados, cantidades] = await Promise.all([
+    consultarJson(`${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteo}&agencia_id=eq.${ag}&order=posicion.asc&select=provincia,posicion,numero`),
+    consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteo}&agencia_id=eq.${ag}&select=numero_sorteo`),
+    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}`),
+    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${desde}&fecha_especial=lte.${hasta}&select=fecha_especial,sorteo,activo`),
+    resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteo, usuarioActual.token)
+  ]);
+  if (resultados === null || info === null || config === null || feriados === null || cantidades === null) return null;
+
+  const mapa = {};
+  feriados.forEach(r => {
+    if (!mapa[r.fecha_especial]) mapa[r.fecha_especial] = {};
+    mapa[r.fecha_especial][r.sorteo] = r.activo;
+  });
+
+  // Configuración de la pantalla — igual que aplicarConfigVisualDesdeFilas de index.html
+  const nombres = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
+  const dur = { previa:60, primera:60, matutina:60, vespertina:60, nocturna:60 };
+  const cfg = {};
+  config.forEach(r => {
+    if (!r.clave) return;
+    if (r.clave.startsWith('sorteando_')) {
+      const s = r.clave.replace('sorteando_', '');
+      const m = parseInt(r.valor, 10);
+      if (!isNaN(m) && dur.hasOwnProperty(s)) dur[s] = m;
+    }
+    if (r.clave === 'tv') {
+      // no se usa en la pantalla
+    } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
+      Object.entries(r.numeros_por_provincia).forEach(([k, v]) => { if (v && v.trim() !== '') nombres[k] = v; });
+    } else if (!r.clave.startsWith('numeros_')) {
+      cfg[r.clave] = r.valor + 'px';
+    }
+  });
+
+  const numeros = {};
+  TAB_PROVS.forEach(p => { numeros[p] = Array(20).fill('----'); });
+  resultados.forEach(r => {
+    if (numeros[r.provincia] && r.posicion >= 1 && r.posicion <= 20) numeros[r.provincia][r.posicion - 1] = r.numero;
+  });
+
+  // Últimas cabezas: los otros 4 sorteos, como los calcula la TV (saltando feriados y domingos)
+  const slots = TAB_SORTEOS.filter(s => s !== sorteo);
+  const cabezas = await Promise.all(slots.map(async slot => {
+    const f = tabFechaMasRecienteParaSlot(mapa, slot, fecha, sorteo);
+    const rows = await consultarJson(`${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${f}&sorteo=eq.${slot}&agencia_id=eq.${ag}&posicion=eq.1&select=provincia,numero`);
+    if (rows === null) return null;
+    const traido = {};
+    rows.forEach(r => { traido[r.provincia] = r.numero; });
+    const label = TAB_LABELS[slot];
+    const entrada = { titulo: `${label.charAt(0) + label.slice(1).toLowerCase()} ${TAB_DIAS[tabParse(f).getDay()]}` };
+    TAB_PROVS.forEach(p => { entrada[p] = traido[p] || '----'; });
+    return entrada;
+  }));
+  if (cabezas.some(c => c === null)) return null;
+
+  // SORTEANDO solo si este sorteo es el que la TV tiene en curso ahora mismo, dentro de su
+  // horario de SORTEANDO; si no, FINALIZADO (igual que la TV).
+  const ahora = new Date();
+  const natural = tabSorteoNatural(ahora, dur);
+  const fechaNat = tabFechaNatural(ahora);
+  const enCurso = tabResolverSlot(mapa, fechaNat, natural.key);
+  const huboFeriado = enCurso.fecha !== fechaNat || enCurso.sorteoKey !== natural.key;
+  const live = !huboFeriado && natural.live && enCurso.fecha === fecha && enCurso.sorteoKey === sorteo;
+
+  return {
+    fecha, sorteo, numeros, cabezas, nombres, cfg, live,
+    conConfig: config.length > 0,
+    nroSorteo: (info[0] && info[0].numero_sorteo) ? info[0].numero_sorteo : '',
+    cantidades
+  };
+}
+
+// Mismas reglas de estilo que index.html (con prefijo "tvc-" para no mezclarse con admin)
+const TVC_CSS = `
+.tvc, .tvc * { margin:0; padding:0; box-sizing:border-box; }
+.tvc { position:fixed; left:-100000px; top:0; width:1920px; height:1080px; background:#1a0a00; color:#fff;
+  font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; font-style:normal; line-height:normal;
+  letter-spacing:normal; text-transform:none; text-align:left; white-space:normal; display:flex; flex-direction:column;
+  overflow:hidden; -webkit-text-size-adjust:100%; text-size-adjust:100%; pointer-events:none; z-index:-1; }
+.tvc-header { background:linear-gradient(90deg,#8B0000,#cc0000,#8B0000); padding:2px 12px; display:grid; grid-template-columns:190px 1fr 100px; align-items:center; gap:10px; border-bottom:3px solid #ffd700; flex-shrink:0; }
+.tvc-marca-box { text-align:left; }
+.tvc-marca-principal { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1; }
+.tvc-marca-frase { font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase; }
+.tvc-badge { display:grid; grid-template-columns:auto auto auto auto; align-items:center; justify-content:center; gap:24px; height:44px; padding:0 20px; background:rgba(0,0,0,.30); border:1px solid rgba(255,215,0,.40); border-radius:6px; }
+.tvc-badge.finalizado { background:linear-gradient(90deg,rgba(140,55,0,.95),rgba(210,105,0,.95),rgba(140,55,0,.95)); }
+.tvc-badge.sorteando { background:linear-gradient(90deg,rgba(0,80,0,.95),rgba(0,140,0,.90),rgba(0,80,0,.95)); }
+.tvc-badge-name { font-family:'DM Sans',sans-serif; font-size:26px; font-weight:900; letter-spacing:1px; color:#ffd700; line-height:1; white-space:nowrap; text-transform:uppercase; }
+.tvc-fecha { font-size:20px; color:#fff; white-space:nowrap; }
+.tvc-nsorteo { font-family:'Oswald',sans-serif; font-size:22px; font-weight:700; color:#fff; letter-spacing:2px; white-space:nowrap; }
+.tvc-live { font-size:20px; color:#44ff88; font-weight:900; letter-spacing:1px; white-space:nowrap; }
+.tvc-done { font-size:20px; color:#ffd700; font-weight:900; letter-spacing:1px; white-space:nowrap; }
+.tvc-header-right { display:flex; flex-direction:column; justify-content:center; align-items:flex-end; }
+.tvc-main { flex:1; display:flex; overflow:hidden; }
+.tvc-cabezas { width:240px; background:#0d0500; border-right:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-cabezas-header { background:#ffd700; color:#000; text-align:center; padding:6px 4px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; flex-shrink:0; }
+.tvc-cab-section { border-bottom:1px solid rgba(255,215,0,0.25); flex-shrink:0; }
+.tvc-cab-title { background:rgba(255,215,0,0.1); padding:2px 10px; font-size:12px; color:#ffd700; letter-spacing:2px; text-transform:uppercase; font-weight:700; }
+.tvc-cab-row { display:flex; align-items:center; justify-content:space-between; padding:0 10px; min-height:25px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.tvc-cab-prov { font-size:16px; color:rgba(255,255,255,0.65); text-transform:uppercase; letter-spacing:1px; }
+.tvc-cab-num { font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; color:#fff; }
+.tvc-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-prov-header { display:grid; grid-template-columns:70px repeat(5,1fr); background:#8B0000; border-bottom:1px solid #ffd700; flex-shrink:0; }
+.tvc-prov-cell { padding:5px 4px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; color:#ffd700; border-right:1px solid rgba(255,255,255,0.15); }
+.tvc-prov-cell:last-child { border-right:none; }
+.tvc-prov-cell.label { color:rgba(255,255,255,0.4); font-size:11px; display:flex; align-items:center; justify-content:center; }
+.tvc-nums-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-nums-grid { flex:1; display:grid; grid-template-columns:70px repeat(5,1fr); }
+.tvc-pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
+.tvc-pos-label { flex:1; display:flex; align-items:center; justify-content:center; font-size:12px; color:rgba(255,255,255,0.45); border-bottom:1px solid rgba(255,255,255,0.04); letter-spacing:1px; }
+.tvc-pos-label:last-child { border-bottom:none; }
+.tvc-num-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,0.07); }
+.tvc-num-col:last-child { border-right:none; }
+.tvc-num-cell { flex:1; display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; font-size:34px; font-weight:700; color:#fff; border-bottom:1px solid rgba(255,255,255,0.04); letter-spacing:1px; }
+.tvc-num-cell:last-child { border-bottom:none; }
+.tvc-num-cell.primero { color:#ffd700; font-size:34px; font-weight:700; }
+.tvc-num-cell.empty { color:rgba(255,255,255,0.2); font-size:14px; letter-spacing:2px; }
+.tvc-num-cell.filler { visibility:hidden; border-bottom:none; }
+.tvc-footer { background:#0d0500; border-top:1px solid rgba(255,215,0,0.25); padding:4px 16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.tvc-aviso { font-size:11px; color:#ffd700; letter-spacing:1px; font-weight:600; text-align:center; }
+`;
+
+// Arma el HTML de la pantalla — misma estructura que render() de index.html
+function htmlTablero(d) {
+  const f = tabParse(d.fecha);
+  const fechaTxt = `${TAB_DIAS[f.getDay()]}, ${f.getDate()} de ${TAB_MESES[f.getMonth()]}`;
+  const filasDe = p => d.cantidades[p] || 20;
+  const maxFilas = Math.max(...TAB_PROVS.map(filasDe));
+
+  let grid = '<div class="tvc-pos-col">';
+  for (let i = 1; i <= maxFilas; i++) grid += `<div class="tvc-pos-label">${String(i).padStart(2,'0')}°</div>`;
+  grid += '</div>';
+  TAB_PROVS.forEach(p => {
+    grid += '<div class="tvc-num-col">';
+    for (let idx = 0; idx < maxFilas; idx++) {
+      if (idx >= filasDe(p)) { grid += '<div class="tvc-num-cell filler"></div>'; continue; }
+      const num = d.numeros[p][idx] || '----';
+      const vacio = num === '----' || num === '——';
+      let cls = 'tvc-num-cell';
+      if (vacio) cls += ' empty';
+      else if (idx === 0) cls += ' primero'; // sin el verde de "recién cargado"
+      grid += `<div class="${cls}">${tabEsc(num)}</div>`;
+    }
+    grid += '</div>';
+  });
+
+  const cabezas = d.cabezas.map(s =>
+    `<div class="tvc-cab-section"><div class="tvc-cab-title">${tabEsc(s.titulo)}</div>` +
+    TAB_PROVS.map(k => `<div class="tvc-cab-row"><div class="tvc-cab-prov">${tabEsc(d.nombres[k])}</div><div class="tvc-cab-num">${tabEsc(s[k])}</div></div>`).join('') +
+    '</div>'
+  ).join('');
+
+  const encabezadoProv = TAB_PROVS.map(k => `<div class="tvc-prov-cell">${tabEsc((d.nombres[k] || k).toUpperCase())}</div>`).join('');
+
+  return `
+<div class="tvc-header">
+  <div class="tvc-marca-box"><div class="tvc-marca-principal">QUINIELA SAGUIR</div><div class="tvc-marca-frase">Para Saguir Ganando</div></div>
+  <div class="tvc-badge ${d.live ? 'sorteando' : 'finalizado'}"><div class="tvc-badge-name">${TAB_LABELS[d.sorteo]}</div><div class="tvc-fecha">${fechaTxt}</div><div class="tvc-nsorteo">${d.nroSorteo ? 'SORTEO N° ' + tabEsc(d.nroSorteo) : ''}</div><div class="${d.live ? 'tvc-live' : 'tvc-done'}">${d.live ? 'SORTEANDO' : '✓ FINALIZADO'}</div></div>
+  <div class="tvc-header-right"></div>
+</div>
+<div class="tvc-main">
+  <div class="tvc-cabezas"><div class="tvc-cabezas-header">ÚLTIMAS CABEZAS</div><div>${cabezas}</div></div>
+  <div class="tvc-tabla">
+    <div class="tvc-prov-header"><div class="tvc-prov-cell label">N°</div>${encabezadoProv}</div>
+    <div class="tvc-nums-wrap"><div class="tvc-nums-grid">${grid}</div></div>
+  </div>
+</div>
+<div class="tvc-footer"><div class="tvc-aviso">Los resultados son de carácter informativo. No son un Extracto Oficial.</div></div>`;
+}
+
+// Tamaños configurados desde Visual — igual que el estilo dinámico de index.html (si la
+// agencia no tiene ninguna configuración guardada, la TV usa los tamaños de base).
+function cssDinamicoTablero(d) {
+  if (!d.conConfig) return '';
+  const c = d.cfg;
+  return `
+.tvc .tvc-num-cell { font-size: ${c.normal || '22px'} !important; }
+.tvc .tvc-num-cell.primero { font-size: ${c.primero || '34px'} !important; }
+.tvc .tvc-cab-num { font-size: ${c.cabeza || '18px'} !important; }
+.tvc .tvc-cab-prov { font-size: ${c.prov || '14px'} !important; }
+.tvc .tvc-cabezas { width: ${c['ancho-cabezas'] || '240px'} !important; }`;
+}
+
+// Las letras de la TV (algunas no las usa admin). Se cargan una sola vez, la primera vez que
+// se arma un tablero. Si no cargan en 5 segundos, se sigue igual con las letras de reemplazo.
+let fuentesTableroPromise = null;
+function cargarFuentesTablero() {
+  if (!fuentesTableroPromise) {
+    fuentesTableroPromise = (async () => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&display=swap';
+      await new Promise(res => { link.onload = res; link.onerror = res; setTimeout(res, 5000); document.head.appendChild(link); });
+      try {
+        await Promise.race([
+          Promise.all(['20px "Bebas Neue"', '400 20px "DM Sans"', '600 11px "DM Sans"', '700 12px "DM Sans"', '900 26px "DM Sans"', '700 22px "Oswald"']
+            .map(f => document.fonts.load(f))),
+          new Promise(res => setTimeout(res, 5000))
+        ]);
+      } catch(e) { console.error('Fuentes del tablero:', e); }
+    })();
+  }
+  return fuentesTableroPromise;
+}
+
+// Dibuja en una imagen lo que el navegador acomodó: fondos, bordes y textos, cada uno en la
+// posición exacta que tiene en la copia de la pantalla.
+function pintarTablero(cont) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1920; canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+  const base = cont.getBoundingClientRect();
+  const conEspaciado = 'letterSpacing' in ctx;
+
+  const caminoRedondeado = (x, y, w, h, r) => {
+    ctx.beginPath();
+    if (r > 0 && ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+    if (r > 0) {
+      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); return;
+    }
+    ctx.rect(x, y, w, h);
+  };
+
+  [cont, ...cont.querySelectorAll('*')].forEach(el => {
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden') return;
+    const r = el.getBoundingClientRect();
+    // Se ajusta a píxeles enteros, como hace el navegador con fondos y bordes
+    const x = Math.round(r.left - base.left), y = Math.round(r.top - base.top);
+    const w = Math.round(r.right - base.left) - x, h = Math.round(r.bottom - base.top) - y;
+    if (w <= 0 || h <= 0) return;
+    const radio = parseFloat(cs.borderTopLeftRadius) || 0;
+
+    // Fondo: color y, encima, el degradé (si tiene)
+    const bg = cs.backgroundColor;
+    if (bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)') { ctx.fillStyle = bg; caminoRedondeado(x, y, w, h, radio); ctx.fill(); }
+    if (cs.backgroundImage && cs.backgroundImage.startsWith('linear-gradient')) {
+      const colores = cs.backgroundImage.match(/rgba?\([^)]*\)/g) || [];
+      if (colores.length) {
+        const g = ctx.createLinearGradient(x, 0, x + w, 0); // los degradés de la TV son todos de izquierda a derecha
+        colores.forEach((c, i) => g.addColorStop(colores.length === 1 ? 0 : i / (colores.length - 1), c));
+        ctx.fillStyle = g; caminoRedondeado(x, y, w, h, radio); ctx.fill();
+      }
+    }
+
+    // Bordes
+    if (radio > 0) {
+      const bw = parseFloat(cs.borderTopWidth) || 0;
+      if (bw > 0 && cs.borderTopStyle !== 'none') {
+        ctx.strokeStyle = cs.borderTopColor; ctx.lineWidth = bw;
+        caminoRedondeado(x + bw / 2, y + bw / 2, w - bw, h - bw, Math.max(0, radio - bw / 2)); ctx.stroke();
+      }
+    } else {
+      const lado = (nombre) => {
+        const ancho = parseFloat(cs[`border${nombre}Width`]) || 0;
+        return (ancho > 0 && cs[`border${nombre}Style`] !== 'none') ? { ancho: Math.round(ancho) || 1, color: cs[`border${nombre}Color`] } : null;
+      };
+      const t = lado('Top'), b = lado('Bottom'), l = lado('Left'), d = lado('Right');
+      if (t) { ctx.fillStyle = t.color; ctx.fillRect(x, y, w, t.ancho); }
+      if (b) { ctx.fillStyle = b.color; ctx.fillRect(x, y + h - b.ancho, w, b.ancho); }
+      if (l) { ctx.fillStyle = l.color; ctx.fillRect(x, y, l.ancho, h); }
+      if (d) { ctx.fillStyle = d.color; ctx.fillRect(x + w - d.ancho, y, d.ancho, h); }
+    }
+
+    // Textos que tiene este elemento — palabra por palabra, cada una en la posición exacta
+    // que le dio el navegador (así, si un texto se parte en dos renglones, también sale igual)
+    el.childNodes.forEach(nodo => {
+      if (nodo.nodeType !== 3 || !nodo.textContent.trim()) return;
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      ctx.fillStyle = cs.color;
+      const espaciado = cs.letterSpacing === 'normal' ? 0 : (parseFloat(cs.letterSpacing) || 0);
+      const rango = document.createRange();
+      const palabras = /\S+/g;
+      let p;
+      while ((p = palabras.exec(nodo.textContent)) !== null) {
+        rango.setStart(nodo, p.index);
+        rango.setEnd(nodo, p.index + p[0].length);
+        const rr = rango.getBoundingClientRect();
+        if (!rr || rr.width === 0) continue;
+        const palabra = cs.textTransform === 'uppercase' ? p[0].toUpperCase() : p[0];
+        const tx = rr.left - base.left;
+        const m = ctx.measureText(palabra);
+        let ty;
+        if (m.fontBoundingBoxAscent !== undefined && m.fontBoundingBoxDescent !== undefined) {
+          ctx.textBaseline = 'alphabetic';
+          ty = rr.top - base.top + (rr.height - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 + m.fontBoundingBoxAscent;
+        } else {
+          ctx.textBaseline = 'middle';
+          ty = rr.top - base.top + rr.height / 2;
+        }
+        if (espaciado && conEspaciado) {
+          ctx.letterSpacing = `${espaciado}px`;
+          ctx.fillText(palabra, tx, ty);
+          ctx.letterSpacing = '0px';
+        } else if (espaciado) {
+          let cx = tx;
+          for (const ch of palabra) { ctx.fillText(ch, cx, ty); cx += ctx.measureText(ch).width + espaciado; }
+        } else {
+          ctx.fillText(palabra, tx, ty);
+        }
+      }
+    });
+  });
+  return canvas;
+}
+
+function dibujarTablero(d) {
+  let estilo = document.getElementById('tvc-estilo');
+  if (!estilo) {
+    estilo = document.createElement('style');
+    estilo.id = 'tvc-estilo';
+    estilo.textContent = TVC_CSS;
+    document.head.appendChild(estilo);
+  }
+  let estiloDinamico = document.getElementById('tvc-estilo-dinamico');
+  if (!estiloDinamico) {
+    estiloDinamico = document.createElement('style');
+    estiloDinamico.id = 'tvc-estilo-dinamico';
+    document.head.appendChild(estiloDinamico);
+  }
+  estiloDinamico.textContent = cssDinamicoTablero(d);
+
+  const cont = document.createElement('div');
+  cont.className = 'tvc';
+  cont.setAttribute('aria-hidden', 'true');
+  cont.innerHTML = htmlTablero(d);
+  document.body.appendChild(cont);
+  try { return pintarTablero(cont); }
+  finally { cont.remove(); }
+}
+
+// ¿Hay algo escrito en el formulario que no coincide con lo publicado? (solo informativo)
+function hayCambiosSinPublicar(fecha, sorteo, d) {
+  if (sorteoActual !== sorteo || document.getElementById('fecha-sel').value !== fecha) return false;
+  for (const p of PROVINCIAS) {
+    for (let i = 1; i <= cantidadProvincia(p.key); i++) {
+      const el = document.getElementById(`n_${p.key}_${i}`);
+      if (!el) continue;
+      const enPantalla = el.value.length === 4 ? el.value : '';
+      const pub = d.numeros[p.key] ? d.numeros[p.key][i - 1] : '----';
+      const publicado = (pub && pub !== '----') ? pub : '';
+      if (enPantalla !== publicado) return true;
+    }
+  }
+  const campo = normalizarNumeroSorteo(document.getElementById('num-sorteo').value);
+  return !!campo && campo !== d.nroSorteo;
+}
+
+let urlImagenTablero = null;
+function mostrarTableroModal(canvas, nombreArchivo, nota) {
+  const notaEl = document.getElementById('tablero-modal-nota');
+  notaEl.textContent = nota || '';
+  notaEl.style.display = nota ? 'block' : 'none';
+
+  canvas.toBlob(blob => {
+    if (!blob) { showToast('Error al armar la imagen del tablero','err'); return; }
+    if (urlImagenTablero) URL.revokeObjectURL(urlImagenTablero);
+    urlImagenTablero = URL.createObjectURL(blob);
+    document.getElementById('tablero-modal-img').src = urlImagenTablero;
+    const descargar = document.getElementById('tablero-modal-download');
+    descargar.href = urlImagenTablero;
+    descargar.download = nombreArchivo;
+
+    document.getElementById('tablero-modal-copy').onclick = async () => {
+      try {
+        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+        showToast('✅ Imagen copiada — pegala en WhatsApp Web con Ctrl+V', 'ok');
+      } catch(e) {
+        console.error(e);
+        showToast('No se pudo copiar. Probá con "Descargar" o "Compartir".', 'err');
+      }
+    };
+
+    // "Compartir" aparece solo donde el equipo lo permite (por ejemplo, el celular Android)
+    const shareBtn = document.getElementById('tablero-modal-share');
+    const archivo = new File([blob], nombreArchivo, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      shareBtn.style.display = 'inline-flex';
+      shareBtn.onclick = () => navigator.share({ files: [archivo], title: nombreArchivo }).catch(() => {});
+    } else {
+      shareBtn.style.display = 'none';
+    }
+
+    document.getElementById('tablero-modal').style.display = 'flex';
+  }, 'image/png');
+}
+
+let generandoTablero = false;
+async function copiarTablero() {
+  if (generandoTablero) return;
+  if (bloqueoActual && bloqueoActual.bloqueado) { showToast('Este sorteo está marcado como sin actividad — no hay tablero para copiar','err'); return; }
+  const fecha = document.getElementById('fecha-sel').value;
+  const sorteo = sorteoActual;
+  if (!fecha) { showToast('Seleccioná una fecha','err'); return; }
+
+  const btn = document.getElementById('btn-copiar-tablero');
+  const textoBtn = btn.innerHTML;
+  generandoTablero = true;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Armando imagen...';
+  try {
+    const [datos] = await Promise.all([cargarDatosTablero(fecha, sorteo), cargarFuentesTablero()]);
+    if (!datos) { showToast('⚠️ No se pudieron traer los datos publicados — probá de nuevo en unos segundos','err'); return; }
+    const canvas = dibujarTablero(datos);
+    const nota = hayCambiosSinPublicar(fecha, sorteo, datos)
+      ? '⚠️ Hay números o un N° de sorteo sin publicar: la imagen muestra lo publicado, igual que la TV.'
+      : '';
+    const [a, m, dd] = fecha.split('-');
+    const nombre = `Tablero ${sorteo.charAt(0).toUpperCase() + sorteo.slice(1)} ${dd}-${m}-${a}.png`;
+    mostrarTableroModal(canvas, nombre, nota);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al armar la imagen del tablero','err');
+  } finally {
+    generandoTablero = false;
+    btn.disabled = false;
+    btn.innerHTML = textoBtn;
+  }
 }
 
 // Abre el manual de usuario en una ventana/pestaña nueva — admin.html sigue intacto en
