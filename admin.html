@@ -199,7 +199,7 @@
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <div style="display:flex;flex-direction:column;gap:5px;">
           <label class="form-label" style="font-size:10px;">N° de Sorteo</label>
-          <input type="text" id="num-sorteo" maxlength="5" placeholder="00000" inputmode="numeric" pattern="[0-9]*"
+          <input type="text" id="num-sorteo" maxlength="5" placeholder="-----" inputmode="numeric" pattern="[0-9]*"
             class="form-input" style="width:120px;font-family:'JetBrains Mono',monospace;font-size:18px;text-align:center;letter-spacing:2px;"
             oninput="this.value=this.value.replace(/\D/g,'')" onblur="completarCeroNumeroSorteo(this)">
           <div style="font-size:10px;color:var(--muted);max-width:120px;line-height:1.3;">Tal como figura en el extracto</div>
@@ -952,7 +952,7 @@ let bloqueoActual = { bloqueado:false, descripcion:'' };
 // de pestaña de sorteo: se vacía todo y se recarga lo que corresponda a la fecha nueva.
 async function onCambioFecha() {
   valoresAlCargar = {}; // se repuebla cuando cargarExistentes() termine, para la fecha nueva
-  document.getElementById('num-sorteo').value = '00000'; // hasta confirmar si hay uno guardado
+  document.getElementById('num-sorteo').value = ''; // vacío (se ve "-----") hasta confirmar si hay uno guardado
   vaciarGrillaSilencioso();
   await verificarBloqueoFechaEspecial();
   cargarExistentes();
@@ -2297,8 +2297,9 @@ async function cargarExistentes() {
   });
   actualizarTodosLosFaltantes();
   actualizarIndicadoresPublicado();
-  // Si no hay número de sorteo guardado, "00000" deja claro que todavía no se cargó uno real.
-  document.getElementById('num-sorteo').value = (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) ? sorteoInfo[0].numero_sorteo : '00000';
+  // Si no hay número de sorteo guardado, el campo queda vacío y se ve "-----" (igual que la
+  // grilla con "----"), para dejar claro que todavía no se cargó uno real.
+  document.getElementById('num-sorteo').value = (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) ? sorteoInfo[0].numero_sorteo : '';
   if (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) numeroSorteoGuardado[`${fecha}_${sorteoDeEstaLlamada}`] = sorteoInfo[0].numero_sorteo;
   if (rows.length > 0 || sorteoInfo.length > 0) showToast('📋 Datos existentes cargados','ok');
 }
