@@ -13,9 +13,13 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.6;}
-  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;flex-wrap:wrap;}
+  .topbar-derecha{margin-left:auto;display:flex;align-items:center;gap:10px;}
+  .btn{padding:12px 20px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;display:inline-flex;align-items:center;gap:6px;}
+  .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--gold);}
   .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--gold);}
-  .topbar-nivel{margin-left:auto;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;}
+  .topbar-nivel{font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 14px;}
   .contenido{max-width:760px;margin:0 auto;padding:28px 20px 80px;}
   h1{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;color:var(--gold);margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--border);}
   h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--gold);margin:34px 0 12px;}
@@ -33,7 +37,10 @@
 <body>
   <div class="topbar">
     <div class="topbar-logo">QUINIELA<span style="color:var(--text);">SAGUIR</span> — MANUAL</div>
-    <div class="topbar-nivel" id="chip-nivel" style="display:none;"></div>
+    <div class="topbar-derecha">
+      <div class="topbar-nivel" id="chip-nivel" style="display:none;"></div>
+      <button class="btn btn-ghost" onclick="volverAlAdmin()" style="padding:7px 14px;font-size:13px;">← Atrás</button>
+    </div>
   </div>
 
   <div id="estado" class="estado">
@@ -104,6 +111,19 @@ function textoAHtml(texto) {
   cerrarParrafo();
   cerrarLista();
   return html;
+}
+
+// El manual se abre en una pestaña aparte desde admin.html. "Atrás" cierra esta pestaña y
+// deja a la vista admin.html, tal como estaba (sin recargarlo ni perder lo que se estaba haciendo).
+function volverAlAdmin() {
+  const admin = window.opener;
+  if (admin && !admin.closed) {
+    try { admin.focus(); } catch(e) {}
+    window.close();
+  }
+  // Si el navegador no dejó cerrar la pestaña (por ejemplo, porque el manual se abrió sin pasar
+  // por admin.html, o admin.html ya estaba cerrado), se vuelve a admin.html en esta misma pestaña.
+  setTimeout(() => { if (!window.closed) window.location.href = 'admin.html'; }, 300);
 }
 
 function nivelDesdeParametro() {
