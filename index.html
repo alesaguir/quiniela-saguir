@@ -195,6 +195,43 @@
   .num-cell.live-num { color: #44ff88; }
   .num-cell.filler { visibility: hidden; border-bottom: none; }
 
+  /* PANEL DE LA DERECHA — texto fijo editable desde admin (ej. "Favorito de hoy").
+     Mismo estilo que la columna de "Últimas cabezas", del lado opuesto. */
+  .col-panel {
+    width: 340px;
+    background: #0d0500;
+    border-left: 2px solid #ffd700;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-titulo {
+    background: #ffd700; color: #000; text-align: center;
+    padding: 6px 8px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+  .panel-cuerpo {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 18px;
+    overflow: hidden;
+    text-align: center;
+  }
+  .panel-contenido { width: 100%; }
+  .panel-numero {
+    font-family: 'Oswald', sans-serif; font-weight: 700; color: #ffd700;
+    font-size: 120px; line-height: 1.1; letter-spacing: 2px;
+    white-space: nowrap; overflow-wrap: break-word;
+  }
+  .panel-separador { width: 40%; height: 2px; background: rgba(255,215,0,0.45); margin: 22px auto; }
+  .panel-descripcion {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; color: #fff;
+    font-size: 30px; line-height: 1.25;
+    white-space: pre-line; overflow-wrap: break-word;
+  }
+
   /* FOOTER */
   .footer {
     background: #0d0500; border-top: 1px solid rgba(255,215,0,0.25);
@@ -247,6 +284,9 @@
       <div class="numeros-grid" id="numeros-grid"></div>
     </div>
   </div>
+
+  <!-- Panel de la derecha: oculto hasta que haya algo para mostrar -->
+  <div class="col-panel" id="col-panel" style="display:none;"></div>
 </div>
 
 <!-- FOOTER -->
@@ -548,6 +588,116 @@ function render() {
     </div>`;
   });
   document.getElementById('cabezas-content').innerHTML = cabHtml;
+
+  renderPanel();
+}
+
+// =====================
+// PANEL DE LA DERECHA (ej. "Favorito de hoy · 1845 · Día de la Soberanía Nacional")
+// =====================
+// Cada agencia carga en admin.html una planilla de la semana (tabla tablero_panel_dias, un
+// renglón por fecha). La pantalla muestra el renglón de la fecha de HOY; si hoy no tiene nada
+// cargado, el panel no aparece. Nunca aparece un día sin sorteos (domingo o feriado sin
+// sorteos). El tilde "Mostrar en la pantalla" (tabla tablero_panel) lo oculta todos los días.
+// Si una consulta falla, se sigue mostrando lo último conocido DE ESE MISMO DÍA, igual que con
+// los números: a la medianoche nunca queda en pantalla el panel del día anterior.
+let panelMostrar = true;                        // el tilde (true si nunca se configuró)
+let panelDia = { fecha: null, fila: null };     // el renglón de hoy (fila null = hoy no tiene nada)
+let panelClaveMostrada = null; // lo que está dibujado ahora, para no redibujar si no cambió
+
+// Tamaños máximos y mínimos de la letra del panel. El número y la descripción se achican
+// solos si no entran (por ejemplo, si el panel se configura más angosto o el texto es largo).
+// OJO: admin.html tiene una copia de esto para "Copiar tablero" — si se cambia acá, cambiarlo allá.
+const PANEL_NUM_MAX = 120, PANEL_NUM_MIN = 36, PANEL_DESC_MAX = 30, PANEL_DESC_MIN = 16;
+
+function ajustarTextoPanel(cuerpo, contenido, numero, descripcion) {
+  if (numero) {
+    // El número va en un solo renglón, lo más grande que entre a lo ancho
+    numero.style.whiteSpace = 'nowrap';
+    let tam = PANEL_NUM_MAX;
+    numero.style.fontSize = tam + 'px';
+    while (tam > PANEL_NUM_MIN && numero.scrollWidth > numero.clientWidth) {
+      tam -= 2;
+      numero.style.fontSize = tam + 'px';
+    }
+    // Si ni siquiera al mínimo entra en un renglón, se deja partir en dos
+    if (numero.scrollWidth > numero.clientWidth) numero.style.whiteSpace = 'normal';
+  }
+  if (descripcion) {
+    const cs = getComputedStyle(cuerpo);
+    const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+    let tam = PANEL_DESC_MAX;
+    descripcion.style.fontSize = tam + 'px';
+    while (tam > PANEL_DESC_MIN && contenido.offsetHeight > alto) {
+      tam -= 1;
+      descripcion.style.fontSize = tam + 'px';
+    }
+  }
+}
+
+// ¿Ese día hay al menos un sorteo? (domingo nunca; un feriado, si los 5 sorteos están sin actividad)
+function hayAlgunSorteo(fecha) {
+  return sorteoKeys.some(k => activoEn(fecha, k));
+}
+
+function panelVisible() {
+  const d = panelDia.fila;
+  if (!panelMostrar || !panelDia.fecha || !d) return false;
+  if (!hayAlgunSorteo(panelDia.fecha)) return false;
+  return !!((d.titulo || '').trim() || (d.numero || '').trim() || (d.descripcion || '').trim());
+}
+
+function renderPanel() {
+  const col = document.getElementById('col-panel');
+  if (!col) return;
+  const d = panelDia.fila;
+  if (!panelVisible()) {
+    if (panelClaveMostrada !== '') { col.style.display = 'none'; col.innerHTML = ''; panelClaveMostrada = ''; }
+    return;
+  }
+  const titulo = (d.titulo || '').trim();
+  const numero = (d.numero || '').trim();
+  const descripcion = (d.descripcion || '').trim();
+  const clave = JSON.stringify([titulo, numero, descripcion]);
+  if (clave !== panelClaveMostrada) {
+    let html = titulo ? `<div class="panel-titulo">${escaparHtml(titulo)}</div>` : '';
+    html += '<div class="panel-cuerpo"><div class="panel-contenido">';
+    if (numero) html += `<div class="panel-numero">${escaparHtml(numero)}</div>`;
+    if (numero && descripcion) html += '<div class="panel-separador"></div>';
+    if (descripcion) html += `<div class="panel-descripcion">${escaparHtml(descripcion)}</div>`;
+    html += '</div></div>';
+    col.innerHTML = html;
+    col.style.display = 'flex';
+    panelClaveMostrada = clave;
+  }
+  ajustarPanelEnPantalla();
+}
+
+// Se vuelve a ajustar en cada ciclo (por si cambió el ancho del panel) y cuando terminan de
+// cargar las letras (con la letra de reemplazo, el número ocupa otro ancho).
+function ajustarPanelEnPantalla() {
+  const col = document.getElementById('col-panel');
+  if (!col || col.style.display === 'none') return;
+  const cuerpo = col.querySelector('.panel-cuerpo');
+  if (!cuerpo) return;
+  ajustarTextoPanel(cuerpo, col.querySelector('.panel-contenido'), col.querySelector('.panel-numero'), col.querySelector('.panel-descripcion'));
+}
+if (document.fonts) {
+  if (document.fonts.ready) document.fonts.ready.then(ajustarPanelEnPantalla).catch(() => {});
+  if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ajustarPanelEnPantalla);
+}
+window.addEventListener('resize', ajustarPanelEnPantalla);
+
+async function cargarPanel(hoy) {
+  const [filasMostrar, filasDia] = await Promise.all([
+    consultarSupabase(`tablero_panel?agencia_id=eq.${URL_AGENCIA_ENCODED}&select=mostrar`),
+    consultarSupabase(`tablero_panel_dias?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha=eq.${hoy}&select=titulo,numero,descripcion`)
+  ]);
+  // Si alguna consulta falla, queda lo último conocido de esa parte...
+  if (filasMostrar !== null) panelMostrar = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
+  if (filasDia !== null) panelDia = { fecha: hoy, fila: filasDia[0] || null };
+  // ...salvo que lo último conocido sea de OTRO día (justo cambió la fecha): ahí no se muestra nada
+  else if (panelDia.fecha !== hoy) panelDia = { fecha: hoy, fila: null };
 }
 
 // =====================
@@ -828,6 +978,7 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .cabeza-num { font-size: ${cfg.cabeza || '18px'} !important; }
       .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
+      .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
     `;
   } catch(e) { console.error('Error config visual:', e); }
 }
@@ -887,7 +1038,8 @@ async function actualizarPantalla() {
   const hoy = fechaLocalStr(new Date());
   const [filasConfig] = await Promise.all([
     consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`),
-    cargarMapaSorteosActivos(hoy)
+    cargarMapaSorteosActivos(hoy),
+    cargarPanel(hoy)
   ]);
   if (filasConfig !== null) aplicarFilasConfig(filasConfig);
 
