@@ -595,10 +595,14 @@ function render() {
 // =====================
 // PANEL DE LA DERECHA (ej. "Favorito de hoy · 1845 · Día de la Soberanía Nacional")
 // =====================
-// Un solo registro por agencia en la tabla tablero_panel; se edita desde admin.html.
-// panelDatos = lo último que se pudo leer de la base (null = esta agencia no tiene panel).
-// Si una consulta falla, se sigue mostrando lo último conocido, igual que con los números.
-let panelDatos = null;
+// Cada agencia carga en admin.html una planilla de la semana (tabla tablero_panel_dias, un
+// renglón por fecha). La pantalla muestra el renglón de la fecha de HOY; si hoy no tiene nada
+// cargado, el panel no aparece. Nunca aparece un día sin sorteos (domingo o feriado sin
+// sorteos). El tilde "Mostrar en la pantalla" (tabla tablero_panel) lo oculta todos los días.
+// Si una consulta falla, se sigue mostrando lo último conocido DE ESE MISMO DÍA, igual que con
+// los números: a la medianoche nunca queda en pantalla el panel del día anterior.
+let panelMostrar = true;                        // el tilde (true si nunca se configuró)
+let panelDia = { fecha: null, fila: null };     // el renglón de hoy (fila null = hoy no tiene nada)
 let panelClaveMostrada = null; // lo que está dibujado ahora, para no redibujar si no cambió
 
 // Tamaños máximos y mínimos de la letra del panel. El número y la descripción se achican
@@ -631,16 +635,23 @@ function ajustarTextoPanel(cuerpo, contenido, numero, descripcion) {
   }
 }
 
-function panelVisible(d) {
-  if (!d || d.mostrar === false) return false;
+// ¿Ese día hay al menos un sorteo? (domingo nunca; un feriado, si los 5 sorteos están sin actividad)
+function hayAlgunSorteo(fecha) {
+  return sorteoKeys.some(k => activoEn(fecha, k));
+}
+
+function panelVisible() {
+  const d = panelDia.fila;
+  if (!panelMostrar || !panelDia.fecha || !d) return false;
+  if (!hayAlgunSorteo(panelDia.fecha)) return false;
   return !!((d.titulo || '').trim() || (d.numero || '').trim() || (d.descripcion || '').trim());
 }
 
 function renderPanel() {
   const col = document.getElementById('col-panel');
   if (!col) return;
-  const d = panelDatos;
-  if (!panelVisible(d)) {
+  const d = panelDia.fila;
+  if (!panelVisible()) {
     if (panelClaveMostrada !== '') { col.style.display = 'none'; col.innerHTML = ''; panelClaveMostrada = ''; }
     return;
   }
@@ -677,10 +688,16 @@ if (document.fonts) {
 }
 window.addEventListener('resize', ajustarPanelEnPantalla);
 
-async function cargarPanel() {
-  const rows = await consultarSupabase(`tablero_panel?agencia_id=eq.${URL_AGENCIA_ENCODED}&select=titulo,numero,descripcion,mostrar`);
-  if (rows === null) return; // no se pudo consultar: queda lo último conocido
-  panelDatos = rows[0] || null;
+async function cargarPanel(hoy) {
+  const [filasMostrar, filasDia] = await Promise.all([
+    consultarSupabase(`tablero_panel?agencia_id=eq.${URL_AGENCIA_ENCODED}&select=mostrar`),
+    consultarSupabase(`tablero_panel_dias?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha=eq.${hoy}&select=titulo,numero,descripcion`)
+  ]);
+  // Si alguna consulta falla, queda lo último conocido de esa parte...
+  if (filasMostrar !== null) panelMostrar = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
+  if (filasDia !== null) panelDia = { fecha: hoy, fila: filasDia[0] || null };
+  // ...salvo que lo último conocido sea de OTRO día (justo cambió la fecha): ahí no se muestra nada
+  else if (panelDia.fecha !== hoy) panelDia = { fecha: hoy, fila: null };
 }
 
 // =====================
@@ -1022,7 +1039,7 @@ async function actualizarPantalla() {
   const [filasConfig] = await Promise.all([
     consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`),
     cargarMapaSorteosActivos(hoy),
-    cargarPanel()
+    cargarPanel(hoy)
   ]);
   if (filasConfig !== null) aplicarFilasConfig(filasConfig);
 
