@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<title>Resultados Quiniela — Agencia 670</title>
+<link rel="icon" type="image/png" href="/quiniela-saguir/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; cursor:none; }
+  body.mostrar-cursor, body.mostrar-cursor * { cursor: default !important; }
+  body {
+    background: #1a0a00;
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(90deg, #8B0000, #cc0000, #8B0000);
+    padding: 2px 12px;
+    display: grid;
+    grid-template-columns: 190px 1fr 100px;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 3px solid #ffd700;
+    flex-shrink: 0;
+  }
+
+  .marca-box { text-align:left; }
+  .marca-principal {
+    font-family:'Bebas Neue', sans-serif;
+    font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1;
+  }
+  .marca-frase, .marca-agencia, .marca-ciudad {
+    font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase;
+  }
+
+  .sorteo-badge {
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    height: 44px;
+    padding: 0 20px;
+    background: rgba(0,0,0,.30);
+    border: 1px solid rgba(255,215,0,.40);
+    border-radius: 6px;
+  }
+  .sorteo-badge.finalizado {
+    background: linear-gradient(90deg, rgba(140,55,0,.95), rgba(210,105,0,.95), rgba(140,55,0,.95));
+  }
+  .sorteo-badge.sorteando {
+    background: linear-gradient(90deg, rgba(0,80,0,.95), rgba(0,140,0,.90), rgba(0,80,0,.95));
+  }
+
+  /* NOMBRE SORTEO — más chico para dar espacio a números */
+  .sorteo-badge-name {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #ffd700;
+    line-height: 1;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .sorteo-fecha { font-size:20px; color:#fff; white-space:nowrap; }
+
+  .live-label {
+    font-size: 20px; color: #44ff88; font-weight: 900;
+    letter-spacing: 1px; white-space: nowrap;
+  }
+  .done-label {
+    font-size: 20px; color: #ffd700; font-weight: 900;
+    letter-spacing: 1px; white-space: nowrap;
+  }
+
+  /* FECHA — sin hora */
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  .fecha-txt {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: #ffd700;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  /* MAIN */
+  .main { flex:1; display:flex; overflow:hidden; }
+
+  /* CABEZAS */
+  .col-cabezas {
+    width: 240px;
+    background: #0d0500;
+    border-right: 2px solid #ffd700;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .cabezas-header {
+    background: #ffd700; color:#000; text-align:center;
+    padding:6px 4px;
+    font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px;
+    flex-shrink:0;
+  }
+  .cabezas-section { border-bottom:1px solid rgba(255,215,0,0.25); flex-shrink:0; }
+  .cabezas-section-title {
+    background: rgba(255,215,0,0.1);
+    padding: 2px 10px;
+    font-size: 12px; color: #ffd700;
+    letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
+  }
+  .cabeza-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px; min-height: 25px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .cabeza-prov {
+    font-size: 16px; color: rgba(255,255,255,0.65);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .cabeza-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px; font-weight: 700; color: #fff;
+  }
+
+  /* TABLA */
+  .col-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  .provincias-header {
+    display: grid;
+    grid-template-columns: 70px repeat(5,1fr);
+    background: #8B0000;
+    border-bottom: 1px solid #ffd700;
+    flex-shrink: 0;
+  }
+  .prov-cell {
+    padding: 5px 4px; text-align: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px;
+    color: #ffd700; border-right: 1px solid rgba(255,255,255,0.15);
+  }
+  .prov-cell:last-child { border-right: none; }
+  .prov-cell.label {
+    color: rgba(255,255,255,0.4); font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* NÚMEROS */
+  .numeros-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .numeros-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 70px repeat(5,1fr);
+  }
+  .pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
+  .pos-label {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: rgba(255,255,255,0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.04); letter-spacing: 1px;
+  }
+  .pos-label:last-child { border-bottom: none; }
+
+  .num-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,0.07); }
+  .num-col:last-child { border-right: none; }
+
+  /* Oswald Bold — 0 oval claramente distinto del 8 redondeado */
+  .num-cell {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(24px, 2.3vw, 34px);
+    font-weight: 700; color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    letter-spacing: 1px;
+  }
+  .num-cell:last-child { border-bottom: none; }
+  .num-cell.primero {
+    color: #ffd700;
+    font-size: clamp(24px, 2.3vw, 34px);
+    font-weight: 700;
+  }
+  .num-cell.empty { color: rgba(255,255,255,0.2); font-size: 14px; letter-spacing: 2px; }
+  .num-cell.live-num { color: #44ff88; }
+  .num-cell.filler { visibility: hidden; border-bottom: none; }
+
+  /* PANEL DE LA DERECHA — texto fijo editable desde admin (ej. "Favorito de hoy").
+     Mismo estilo que la columna de "Últimas cabezas", del lado opuesto. */
+  .col-panel {
+    width: 340px;
+    background: #0d0500;
+    border-left: 2px solid #ffd700;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-titulo {
+    background: #ffd700; color: #000; text-align: center;
+    padding: 6px 8px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+  .panel-cuerpo {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 18px;
+    overflow: hidden;
+    text-align: center;
+  }
+  .panel-contenido { width: 100%; }
+  .panel-numero {
+    font-family: 'Oswald', sans-serif; font-weight: 700; color: #ffd700;
+    font-size: 120px; line-height: 1.1; letter-spacing: 2px;
+    white-space: nowrap; overflow-wrap: break-word;
+  }
+  .panel-separador { width: 40%; height: 2px; background: rgba(255,215,0,0.45); margin: 22px auto; }
+  .panel-descripcion {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; color: #fff;
+    font-size: 30px; line-height: 1.25;
+    white-space: pre-line; overflow-wrap: break-word;
+  }
+
+  /* FOOTER */
+  .footer {
+    background: #0d0500; border-top: 1px solid rgba(255,215,0,0.25);
+    padding: 4px 16px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .aviso-legal {
+    font-size: 11px; color: #ffd700; letter-spacing: 1px;
+    font-weight: 600; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="marca-box">
+    <div class="marca-principal">QUINIELA SAGUIR</div>
+    <div class="marca-frase">Para Saguir Ganando</div>
+  </div>
+
+  <div class="sorteo-badge" id="sorteo-badge">
+    <div class="sorteo-badge-name" id="badge-name">PRIMERA</div>
+    <div id="badge-fecha" class="sorteo-fecha"></div>
+    <div id="badge-nsorteo" style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:2px;white-space:nowrap;"></div>
+    <div id="badge-label" class="done-label">SORTEANDO</div>
+  </div>
+
+  <div class="header-right">
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="col-cabezas">
+    <div class="cabezas-header">ÚLTIMAS CABEZAS</div>
+    <div id="cabezas-content"></div>
+  </div>
+
+  <div class="col-tabla">
+    <div class="provincias-header">
+      <div class="prov-cell label">N°</div>
+      <div class="prov-cell" id="header-chaquena">CHAQUEÑA</div>
+      <div class="prov-cell" id="header-ciudad">CIUDAD</div>
+      <div class="prov-cell" id="header-provincia">PROVINCIA</div>
+      <div class="prov-cell" id="header-corrientes">CORRIENTES</div>
+      <div class="prov-cell" id="header-cordoba">CÓRDOBA</div>
+    </div>
+    <div class="numeros-wrap">
+      <div class="numeros-grid" id="numeros-grid"></div>
+    </div>
+  </div>
+
+  <!-- Panel de la derecha: oculto hasta que haya algo para mostrar -->
+  <div class="col-panel" id="col-panel" style="display:none;"></div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="aviso-legal">
+    Los resultados son de carácter informativo. No son un Extracto Oficial.
+  </div>
+</div>
+
+<!-- OVERLAY DE CARTELES — tapa toda la pantalla mientras se muestra un cartel -->
+<div id="carteles-overlay" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:60px;text-align:center;word-break:break-word;line-height:1.3;"></div>
+
+<script>
+// =====================
+// DATOS — vacíos por defecto (se llenan desde Supabase)
+// =====================
+const sorteoKeys = ['previa','primera','matutina','vespertina','nocturna'];
+const provKeys   = ['chaquena','ciudad','provincia','corrientes','cordoba'];
+
+// Nombres de provincia mostrados en pantalla — se pueden personalizar por agencia desde el superadmin
+let nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
+
+function aplicarNombresProvinciaAlHeader() {
+  provKeys.forEach(k => {
+    const cel = document.getElementById(`header-${k}`);
+    if (cel) cel.textContent = (nombresProvinciaTV[k] || k).toUpperCase();
+  });
+}
+let cantidadTV = {}; // ej: { chaquena:20, corrientes:10, ... } — se completa desde configuracion_visual
+
+function cantidadProvinciaTV(key) {
+  return cantidadTV[key] || 20; // 20 = default si nunca se configuró para esta agencia
+}
+
+// Números del sorteo en pantalla, guardados por FECHA + SORTEO (ej. '2026-08-28_previa'),
+// no solo por sorteo: así, si una consulta falla justo al cambiar de sorteo o de día, nunca
+// se muestran los números de otro día bajo la fecha de hoy.
+const cacheNumeros = {};        // { 'fecha_sorteo': { nums:{prov:[...]}, ts:{prov:[...]} } }
+const cacheNumeroSorteo = {};   // { 'fecha_sorteo': '15320' }
+const cacheCantidadTV = {};     // { sorteo: { chaquena:20, ... } }
+
+function numerosVacios() {
+  const v = {};
+  provKeys.forEach(p => { v[p] = Array(20).fill('----'); });
+  return v;
+}
+
+// cabezasParaMostrar: lista de hasta 4 sorteos anteriores (ya resueltos, saltando feriados),
+// en orden cronológico (el más viejo primero, el más reciente último)
+let cabezasParaMostrar = [];
+
+// Cuál es el sorteo/fecha que REALMENTE se está mostrando ahora (después de aplicar feriados)
+let slotEfectivo = { fecha: null, key: null, label: null, live: false };
+
+// mapaSorteosActivos['2026-07-09']['previa'] = false  → construido desde configuracion_sorteos
+let mapaSorteosActivos = {};
+
+const LABELS_SORTEO = { previa:'PREVIA', primera:'PRIMERA', matutina:'MATUTINA', vespertina:'VESPERTINA', nocturna:'NOCTURNA' };
+
+// =====================
+// CONSULTA A SUPABASE — distingue "no hay datos" de "no se pudo consultar"
+// =====================
+// Devuelve un array (vacío si de verdad no hay nada cargado) o null si NO se pudo saber:
+// por un corte de red, o porque la base respondió con un error (saturada, caída por unos
+// segundos, límite de consultas). Antes, un error de la base se tomaba como "no hay
+// números" y la pantalla mostraba guiones durante un ciclo entero — eso hacía aparecer y
+// desaparecer los números justo en los momentos de más uso del día.
+async function consultarSupabase(ruta) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${ruta}`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!res.ok) { console.error('Supabase respondió con error', res.status, ruta); return null; }
+    const cuerpo = await res.json();
+    return Array.isArray(cuerpo) ? cuerpo : null;
+  } catch(e) {
+    console.error('Error de red consultando', ruta, e);
+    return null;
+  }
+}
+
+// =====================
+// RESOLUCIÓN DE FERIADOS — camina hacia atrás sorteo por sorteo hasta encontrar uno activo
+// =====================
+
+// El sorteo inmediatamente anterior en la secuencia (cruza de un día al anterior en 'previa')
+function sorteoAnterior(fecha, sorteoKey) {
+  const idx = sorteoKeys.indexOf(sorteoKey);
+  if (idx > 0) return { fecha, sorteoKey: sorteoKeys[idx - 1] };
+  const partes = fecha.split('-');
+  const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  d.setDate(d.getDate() - 1);
+  return { fecha: fechaLocalStr(d), sorteoKey: 'nocturna' };
+}
+
+// Trae de Supabase la configuración de "fecha especial" de los últimos ~30 días
+// (ventana de sobra para poder caminar hacia atrás varios feriados seguidos)
+async function cargarMapaSorteosActivos(hastaFecha) {
+  const partes = hastaFecha.split('-');
+  const desde = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  desde.setDate(desde.getDate() - 30);
+  const desdeStr = fechaLocalStr(desde);
+  const rows = await consultarSupabase(`configuracion_sorteos?fecha_especial=gte.${desdeStr}&fecha_especial=lte.${hastaFecha}&select=fecha_especial,sorteo,activo`);
+  // Si no se pudo consultar, se sigue usando el mapa anterior. Antes se vaciaba primero y,
+  // en un día feriado, la pantalla saltaba por un ciclo al sorteo del día como si fuera un
+  // día normal (con todo en guiones) y volvía en el ciclo siguiente.
+  if (rows === null) return;
+  const nuevo = {};
+  rows.forEach(r => {
+    if (!nuevo[r.fecha_especial]) nuevo[r.fecha_especial] = {};
+    nuevo[r.fecha_especial][r.sorteo] = r.activo;
+  });
+  mapaSorteosActivos = nuevo;
+}
+
+// ¿Ese sorteo, en esa fecha, está activo? Domingo es SIEMPRE inactivo (regla estructural,
+// no depende de ninguna configuración). El resto depende de si hay una fila en configuracion_sorteos;
+// si no hay ninguna fila para esa fecha+sorteo, se considera un día normal (activo).
+function activoEn(fecha, sorteoKey) {
+  const partes = fecha.split('-');
+  const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  if (d.getDay() === 0) return false;
+  if (mapaSorteosActivos[fecha] && mapaSorteosActivos[fecha][sorteoKey] !== undefined) {
+    return mapaSorteosActivos[fecha][sorteoKey];
+  }
+  return true;
+}
+
+// A partir del slot "natural" (el que tocaría por horario), camina hacia atrás
+// hasta encontrar el último sorteo realmente activo.
+function resolverSlotEfectivo(fechaNatural, sorteoKeyNatural) {
+  let actual = { fecha: fechaNatural, sorteoKey: sorteoKeyNatural };
+  let vueltas = 0;
+  while (!activoEn(actual.fecha, actual.sorteoKey) && vueltas < 200) {
+    actual = sorteoAnterior(actual.fecha, actual.sorteoKey);
+    vueltas++;
+  }
+  return actual;
+}
+
+// Un día calendario antes (no confundir con sorteoAnterior, que además puede cambiar de sorteo)
+function diaAnterior(fechaStr) {
+  const partes = fechaStr.split('-');
+  const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+  d.setDate(d.getDate() - 1);
+  return fechaLocalStr(d);
+}
+
+// Para un SORTEO FIJO (ej. 'previa'), busca la última fecha en la que ya se completó,
+// respecto de la fecha/sorteo que se está mostrando como "sorteo actual". Si ese sorteo
+// ocurre más temprano en el día que el que está en pantalla, ya pasó HOY; si no, hay que
+// ir al día anterior. Si ese día está inactivo (feriado), sigue retrocediendo día por día.
+function fechaMasRecienteParaSlot(slotKey, fechaEfectiva, keyEfectivo) {
+  const esAnteriorEnElDia = sorteoKeys.indexOf(slotKey) < sorteoKeys.indexOf(keyEfectivo);
+  let fecha = esAnteriorEnElDia ? fechaEfectiva : diaAnterior(fechaEfectiva);
+  let vueltas = 0;
+  while (!activoEn(fecha, slotKey) && vueltas < 60) {
+    fecha = diaAnterior(fecha);
+    vueltas++;
+  }
+  return fecha;
+}
+
+// =====================
+// LÓGICA HORARIA
+// =====================
+// Duración configurable (en minutos) de la leyenda SORTEANDO, por tipo de sorteo.
+// Se carga desde configuracion_visual antes de calcular el slot de cada ciclo.
+// 60 = default si el superadmin nunca configuró nada para esta agencia.
+let duracionSorteandoMin = { previa:60, primera:60, matutina:60, vespertina:60, nocturna:60 };
+
+// La duración de SORTEANDO, los minutos en verde y los estilos de la pantalla salen de la
+// MISMA tabla — antes eran tres consultas separadas en cada ciclo; ahora es una sola
+// (ver actualizarPantalla) y de esas filas se saca todo.
+function aplicarFilasConfig(rows) {
+  rows.forEach(r => {
+    if (!r.clave) return;
+    if (r.clave.startsWith('sorteando_')) {
+      const sorteo = r.clave.replace('sorteando_', '');
+      const minutos = parseInt(r.valor, 10);
+      if (!isNaN(minutos) && duracionSorteandoMin.hasOwnProperty(sorteo)) duracionSorteandoMin[sorteo] = minutos;
+    } else if (r.clave === 'verde_minutos') {
+      const minutos = parseInt(r.valor, 10);
+      if (!isNaN(minutos)) duracionVerdeMin = minutos;
+    }
+  });
+  aplicarConfigVisualDesdeFilas(rows);
+}
+
+// Minutos que un número recién cargado (o corregido) se muestra en verde.
+// Un solo valor para los 5 sorteos. 5 = default si nunca se configuró.
+let duracionVerdeMin = 5;
+
+// ¿Este número puntual (provincia + posición) se cargó/corrigió hace menos
+// de "duracionVerdeMin" minutos? Si no hay timestamp, no se resalta.
+function esNumeroRecienCargado(provKey, idx) {
+  const ts = ultimaCargaTimestamps[provKey]?.[idx];
+  if (!ts) return false;
+  const minutosTranscurridos = (Date.now() - ts) / 60000;
+  return minutosTranscurridos < duracionVerdeMin;
+}
+
+function getSorteoActual(now = new Date()) {
+  const totalMin = now.getHours() * 60 + now.getMinutes();
+  const d = duracionSorteandoMin;
+
+  // Domingo: mostrar nocturna del sábado
+  if (now.getDay() === 0) return { key:'nocturna', label:'NOCTURNA', live:false };
+  // Lunes antes de 10:15: nocturna del sábado
+  if (now.getDay() === 1 && totalMin < 10*60+15) return { key:'nocturna', label:'NOCTURNA', live:false };
+
+  if (totalMin < 10*60+15) return { key:'nocturna',    label:'NOCTURNA',    live:false };
+  if (totalMin < 12*60)    return { key:'previa',      label:'PREVIA',      live: totalMin < 10*60+15 + d.previa };
+  if (totalMin < 15*60)    return { key:'primera',     label:'PRIMERA',     live: totalMin < 12*60 + d.primera };
+  if (totalMin < 18*60)    return { key:'matutina',    label:'MATUTINA',    live: totalMin < 15*60 + d.matutina };
+  if (totalMin < 21*60)    return { key:'vespertina',  label:'VESPERTINA',  live: totalMin < 18*60 + d.vespertina };
+  return                          { key:'nocturna',    label:'NOCTURNA',    live: totalMin < 21*60 + d.nocturna };
+}
+
+
+// =====================
+// RENDER
+// =====================
+function render() {
+  const sorteo = slotEfectivo; // ya resuelto (considerando feriados) en el ciclo de carga
+  const claveSlot = `${sorteo.fecha}_${sorteo.key}`;
+  const entrada = cacheNumeros[claveSlot];
+  const d = entrada ? entrada.nums : numerosVacios();
+  ultimaCargaTimestamps = entrada ? entrada.ts : {};
+  const nroSorteo = cacheNumeroSorteo[claveSlot];
+  document.getElementById('badge-nsorteo').textContent = nroSorteo ? `SORTEO N° ${nroSorteo}` : '';
+
+  // Badge nombre
+  document.getElementById('badge-name').textContent = sorteo.label;
+
+  // Fecha del sorteo — la del slot YA resuelto, para que coincida con los números que se ven
+  const partes = sorteo.fecha.split('-');
+  const fechaSorteo = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  const diasNombre  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const mesesNombre = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('badge-fecha').textContent =
+    `${diasNombre[fechaSorteo.getDay()]}, ${fechaSorteo.getDate()} de ${mesesNombre[fechaSorteo.getMonth()]}`;
+
+  const badge = document.getElementById('sorteo-badge');
+  const label = document.getElementById('badge-label');
+
+  if (sorteo.live) {
+    // Dentro de la ventana configurada — SORTEANDO
+    badge.className = 'sorteo-badge sorteando';
+    label.textContent = 'SORTEANDO';
+    label.className = 'live-label';
+  } else {
+    // Pasó la ventana configurada (o es domingo, o es un feriado resuelto a un día anterior) — FINALIZADO
+    badge.className = 'sorteo-badge finalizado';
+    label.textContent = '✓ FINALIZADO';
+    label.className = 'done-label';
+  }
+
+  // Números
+  const grid = document.getElementById('numeros-grid');
+  const maxFilas = Math.max(...provKeys.map(p => cantidadProvinciaTV(p)));
+
+  let html = '<div class="pos-col">';
+  for (let i=1; i<=maxFilas; i++) html += `<div class="pos-label">${String(i).padStart(2,'0')}°</div>`;
+  html += '</div>';
+
+  provKeys.forEach(p => {
+    const filas = cantidadProvinciaTV(p);
+    html += '<div class="num-col">';
+    for (let idx = 0; idx < maxFilas; idx++) {
+      if (idx >= filas) {
+        // Esta provincia tiene menos números configurados: fila invisible, solo para mantener alineadas las columnas
+        html += `<div class="num-cell filler"></div>`;
+        continue;
+      }
+      const num = d[p][idx];
+      const isEmpty = num === '----' || num === '——';
+      const isFirst = idx === 0 && !isEmpty;
+      let cls = 'num-cell';
+      if (isEmpty) cls += ' empty';
+      else if (isFirst) cls += ' primero';
+      else if (!isEmpty && esNumeroRecienCargado(p, idx)) cls += ' live-num';
+      html += `<div class="${cls}">${num}</div>`;
+    }
+    html += '</div>';
+  });
+  grid.innerHTML = html;
+
+  // Cabezas — ya vienen resueltas (cargarCabezasReales las dejó en cabezasParaMostrar)
+  let cabHtml = '';
+  cabezasParaMostrar.forEach(s => {
+    cabHtml += `<div class="cabezas-section">
+      <div class="cabezas-section-title">${s.sorteo}</div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.chaquena}</div><div class="cabeza-num">${s.chaquena}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.ciudad}</div><div class="cabeza-num">${s.ciudad}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.provincia}</div><div class="cabeza-num">${s.provincia}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.corrientes}</div><div class="cabeza-num">${s.corrientes}</div></div>
+      <div class="cabeza-row"><div class="cabeza-prov">${nombresProvinciaTV.cordoba}</div><div class="cabeza-num">${s.cordoba}</div></div>
+    </div>`;
+  });
+  document.getElementById('cabezas-content').innerHTML = cabHtml;
+
+  renderPanel();
+}
+
+// =====================
+// PANEL DE LA DERECHA (ej. "Favorito de hoy · 1845 · Día de la Soberanía Nacional")
+// =====================
+// Un solo registro por agencia en la tabla tablero_panel; se edita desde admin.html.
+// panelDatos = lo último que se pudo leer de la base (null = esta agencia no tiene panel).
+// Si una consulta falla, se sigue mostrando lo último conocido, igual que con los números.
+let panelDatos = null;
+let panelClaveMostrada = null; // lo que está dibujado ahora, para no redibujar si no cambió
+
+// Tamaños máximos y mínimos de la letra del panel. El número y la descripción se achican
+// solos si no entran (por ejemplo, si el panel se configura más angosto o el texto es largo).
+// OJO: admin.html tiene una copia de esto para "Copiar tablero" — si se cambia acá, cambiarlo allá.
+const PANEL_NUM_MAX = 120, PANEL_NUM_MIN = 36, PANEL_DESC_MAX = 30, PANEL_DESC_MIN = 16;
+
+function ajustarTextoPanel(cuerpo, contenido, numero, descripcion) {
+  if (numero) {
+    // El número va en un solo renglón, lo más grande que entre a lo ancho
+    numero.style.whiteSpace = 'nowrap';
+    let tam = PANEL_NUM_MAX;
+    numero.style.fontSize = tam + 'px';
+    while (tam > PANEL_NUM_MIN && numero.scrollWidth > numero.clientWidth) {
+      tam -= 2;
+      numero.style.fontSize = tam + 'px';
+    }
+    // Si ni siquiera al mínimo entra en un renglón, se deja partir en dos
+    if (numero.scrollWidth > numero.clientWidth) numero.style.whiteSpace = 'normal';
+  }
+  if (descripcion) {
+    const cs = getComputedStyle(cuerpo);
+    const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+    let tam = PANEL_DESC_MAX;
+    descripcion.style.fontSize = tam + 'px';
+    while (tam > PANEL_DESC_MIN && contenido.offsetHeight > alto) {
+      tam -= 1;
+      descripcion.style.fontSize = tam + 'px';
+    }
+  }
+}
+
+function panelVisible(d) {
+  if (!d || d.mostrar === false) return false;
+  return !!((d.titulo || '').trim() || (d.numero || '').trim() || (d.descripcion || '').trim());
+}
+
+function renderPanel() {
+  const col = document.getElementById('col-panel');
+  if (!col) return;
+  const d = panelDatos;
+  if (!panelVisible(d)) {
+    if (panelClaveMostrada !== '') { col.style.display = 'none'; col.innerHTML = ''; panelClaveMostrada = ''; }
+    return;
+  }
+  const titulo = (d.titulo || '').trim();
+  const numero = (d.numero || '').trim();
+  const descripcion = (d.descripcion || '').trim();
+  const clave = JSON.stringify([titulo, numero, descripcion]);
+  if (clave !== panelClaveMostrada) {
+    let html = titulo ? `<div class="panel-titulo">${escaparHtml(titulo)}</div>` : '';
+    html += '<div class="panel-cuerpo"><div class="panel-contenido">';
+    if (numero) html += `<div class="panel-numero">${escaparHtml(numero)}</div>`;
+    if (numero && descripcion) html += '<div class="panel-separador"></div>';
+    if (descripcion) html += `<div class="panel-descripcion">${escaparHtml(descripcion)}</div>`;
+    html += '</div></div>';
+    col.innerHTML = html;
+    col.style.display = 'flex';
+    panelClaveMostrada = clave;
+  }
+  ajustarPanelEnPantalla();
+}
+
+// Se vuelve a ajustar en cada ciclo (por si cambió el ancho del panel) y cuando terminan de
+// cargar las letras (con la letra de reemplazo, el número ocupa otro ancho).
+function ajustarPanelEnPantalla() {
+  const col = document.getElementById('col-panel');
+  if (!col || col.style.display === 'none') return;
+  const cuerpo = col.querySelector('.panel-cuerpo');
+  if (!cuerpo) return;
+  ajustarTextoPanel(cuerpo, col.querySelector('.panel-contenido'), col.querySelector('.panel-numero'), col.querySelector('.panel-descripcion'));
+}
+if (document.fonts) {
+  if (document.fonts.ready) document.fonts.ready.then(ajustarPanelEnPantalla).catch(() => {});
+  if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ajustarPanelEnPantalla);
+}
+window.addEventListener('resize', ajustarPanelEnPantalla);
+
+async function cargarPanel() {
+  const rows = await consultarSupabase(`tablero_panel?agencia_id=eq.${URL_AGENCIA_ENCODED}&select=titulo,numero,descripcion,mostrar`);
+  if (rows === null) return; // no se pudo consultar: queda lo último conocido
+  panelDatos = rows[0] || null;
+}
+
+// =====================
+// FECHA (sin hora)
+// =====================
+// =====================
+// SUPABASE
+// =====================
+// Agencia de esta pantalla — se resuelve por código de acceso (?t=AbCdEf), o por el
+// parámetro viejo (?agencia=670-XX) como respaldo durante la transición. Si no hay
+// ninguno de los dos, o el código no existe, la pantalla no muestra ninguna agencia.
+let URL_AGENCIA_ID = null;
+let URL_AGENCIA_ENCODED = null;
+let codigoAccesoValido = false;
+
+const SUPABASE_URL = 'https://tpqmmktgkvdtpxdmdfzl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IvCH3LrdfZmCSwbN0TGvCg_-FuOVyYM';
+
+// Devuelve 'ok', 'invalido' (el código de verdad no existe) o 'error' (no se pudo consultar
+// todavía — por ejemplo, la TV se prendió antes que el router después de un corte de luz).
+// Antes, un 'error' se trataba igual que 'invalido' y la pantalla quedaba clavada en
+// "Código de acceso no válido" hasta que alguien la recargara a mano.
+async function resolverAgenciaDesdeCodigoAcceso() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('t');
+  const agenciaParam = params.get('agencia');
+
+  if (token) {
+    const filas = await consultarSupabase(`configuracion_visual?clave=eq.url_token&valor=eq.${encodeURIComponent(token)}&select=agencia_id`);
+    if (filas === null) return 'error';
+    if (filas[0] && filas[0].agencia_id) {
+      URL_AGENCIA_ID = filas[0].agencia_id;
+      URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+      codigoAccesoValido = true;
+      return 'ok';
+    }
+    return 'invalido';
+  }
+
+  if (agenciaParam) {
+    // Compatibilidad con el link viejo (?agencia=670-XX), sin validar contra la base
+    URL_AGENCIA_ID = agenciaParam;
+    URL_AGENCIA_ENCODED = encodeURIComponent(URL_AGENCIA_ID);
+    codigoAccesoValido = true;
+    return 'ok';
+  }
+
+  // Ni ?t= ni ?agencia= presentes: sin código de acceso válido
+  codigoAccesoValido = false;
+  return 'invalido';
+}
+
+function mostrarCodigoInvalido() {
+  document.body.innerHTML = `
+    <div style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;">
+      <div style="color:#fff;font-family:'DM Sans',sans-serif;font-size:28px;letter-spacing:1px;text-align:center;">
+        Código de acceso no válido
+      </div>
+    </div>`;
+}
+
+let ultimaCargaTimestamps = {}; // ultimaCargaTimestamps[provincia][idx] = milisegundos desde epoch, o null
+
+async function cargarDatosReales(fechaStr, sorteoKey) {
+  const rows = await consultarSupabase(`resultados?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&order=posicion.asc&select=provincia,posicion,numero,actualizado_en`);
+  // Si no se pudo consultar, queda lo último bueno de ESTA misma fecha+sorteo (si había).
+  if (rows === null) return;
+  const nums = numerosVacios();
+  const ts = {};
+  provKeys.forEach(p => { ts[p] = Array(20).fill(null); });
+  rows.forEach(r => {
+    if (nums[r.provincia] && r.posicion >= 1 && r.posicion <= 20) {
+      nums[r.provincia][r.posicion - 1] = r.numero;
+      ts[r.provincia][r.posicion - 1] = r.actualizado_en ? new Date(r.actualizado_en).getTime() : null;
+    }
+  });
+  const clave = `${fechaStr}_${sorteoKey}`;
+  // Se descarta lo de otras fechas/sorteos, para no acumular memoria si la TV queda prendida semanas
+  Object.keys(cacheNumeros).forEach(k => { if (k !== clave) delete cacheNumeros[k]; });
+  cacheNumeros[clave] = { nums, ts };
+}
+
+// Guarda, por slot (previa/primera/etc.), la última "cabeza" que sí se pudo traer bien —
+// se usa como resguardo si una consulta puntual falla, en vez de tapar con guiones un
+// dato real que ya se conocía.
+let ultimasCabezasConocidas = {};
+
+async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
+  const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  // Posiciones FIJAS: siempre Previa, Primera, Matutina, Vespertina, Nocturna en ese orden,
+  // salvo el que está en pantalla ahora mismo (ese se saca de la lista, no se repite)
+  const slotsAMostrar = sorteoKeys.filter(s => s !== sorteoEfectivo);
+  const clavesVigentes = new Set();
+
+  // Las 4 consultas corren al mismo tiempo (antes iban una detrás de la otra).
+  // Promise.all respeta el orden de la lista, así que el orden en pantalla no cambia.
+  const datosPorSlot = await Promise.all(slotsAMostrar.map(async slot => {
+    const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
+    const claveCache = `${fecha}_${slot}`;
+    clavesVigentes.add(claveCache);
+    const rows = await consultarSupabase(`resultados?fecha=eq.${fecha}&sorteo=eq.${slot}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1&select=provincia,numero`);
+    let entrada;
+    if (rows !== null) {
+      const traido = {};
+      rows.forEach(r => { traido[r.provincia] = r.numero; });
+      entrada = {
+        chaquena:   traido.chaquena   || '----',
+        ciudad:     traido.ciudad     || '----',
+        provincia:  traido.provincia  || '----',
+        corrientes: traido.corrientes || '----',
+        cordoba:    traido.cordoba    || '----',
+      };
+      ultimasCabezasConocidas[claveCache] = entrada;
+    } else {
+      // No se pudo consultar: se usa la última que sí funcionó para esta misma fecha+sorteo
+      entrada = ultimasCabezasConocidas[claveCache]
+        || { chaquena:'----', ciudad:'----', provincia:'----', corrientes:'----', cordoba:'----' };
+    }
+    const partes = fecha.split('-');
+    const d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+    const labelSorteo = LABELS_SORTEO[slot];
+    const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
+    return { sorteo: `${labelCapitalizado} ${diasNombres[d.getDay()]}`, ...entrada };
+  }));
+
+  Object.keys(ultimasCabezasConocidas).forEach(k => { if (!clavesVigentes.has(k)) delete ultimasCabezasConocidas[k]; });
+  cabezasParaMostrar = datosPorSlot;
+}
+
+// =====================
+async function cargarNumeroSorteo(fechaStr, sorteoKey) {
+  const rows = await consultarSupabase(`sorteos_info?fecha=eq.${fechaStr}&sorteo=eq.${sorteoKey}&agencia_id=eq.${URL_AGENCIA_ENCODED}&select=numero_sorteo`);
+  if (rows === null) return; // no se pudo consultar: queda el último conocido de esta fecha+sorteo
+  const clave = `${fechaStr}_${sorteoKey}`;
+  Object.keys(cacheNumeroSorteo).forEach(k => { if (k !== clave) delete cacheNumeroSorteo[k]; });
+  cacheNumeroSorteo[clave] = (rows[0] && rows[0].numero_sorteo) ? rows[0].numero_sorteo : '';
+}
+
+// =====================
+// CONFIGURACIÓN VISUAL DINÁMICA
+// =====================
+
+// Resuelve la cantidad por provincia para el sorteo actual: primero busca si hay una
+// PROGRAMACIÓN activa hoy (fecha_desde <= hoy <= fecha_hasta, o sin fecha_hasta = para siempre);
+// si no hay ninguna, usa la configuración base de ese sorteo (clave numeros_<sorteo>).
+// Cantidad de números por provincia para un sorteo: primero una PROGRAMACIÓN activa hoy; si
+// no hay, la configuración base (clave numeros_<sorteo>), que ya viene en las filas de
+// configuración traídas al inicio del ciclo — antes eran dos consultas más, una tras otra.
+// Si algo no se pudo consultar, queda la última cantidad confirmada para ese sorteo.
+function resolverCantidadTV(sorteoKey, prog, filasConfig) {
+  if (prog && prog[0] && prog[0].numeros_por_provincia) {
+    cacheCantidadTV[sorteoKey] = prog[0].numeros_por_provincia;
+    return;
+  }
+  if (prog === null || filasConfig === null) return;
+  const fila = filasConfig.find(r => r.clave === `numeros_${sorteoKey}`);
+  cacheCantidadTV[sorteoKey] = (fila && fila.numeros_por_provincia) ? fila.numeros_por_provincia : {};
+}
+
+// =====================
+// CARTELES — bloque rotativo que tapa la pantalla cada tantos minutos
+// =====================
+let cartelesConfig = { frecuenciaMin: 60, lista: [] };
+let proximaRotacionCarteles = null; // timestamp en ms
+let bloqueCartelesEnCurso = false;
+
+function esperarMs(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function cargarConfigCarteles() {
+  const [filasFrec, filasCarteles] = await Promise.all([
+    consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}&clave=eq.carteles_frecuencia&select=valor`),
+    consultarSupabase(`carteles?agencia_id=eq.${URL_AGENCIA_ENCODED}&activo=eq.true&order=posicion.asc`)
+  ]);
+  // Si alguna consulta falla, se mantiene lo último que se sabía de esa parte.
+  if (filasFrec !== null) {
+    cartelesConfig.frecuenciaMin = (filasFrec[0] && parseInt(filasFrec[0].valor, 10)) || 60;
+  }
+  if (filasCarteles !== null) {
+    // Un cartel sin ninguna línea con texto no entra en la rotación
+    cartelesConfig.lista = filasCarteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
+  }
+}
+
+function escaparHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function mostrarCartelOverlay(cartel) {
+  const overlay = document.getElementById('carteles-overlay');
+  overlay.style.display = 'flex';
+  overlay.style.flexDirection = 'column';
+  overlay.style.gap = '10px';
+  overlay.style.background = cartel.color_fondo || '#1a1a2e';
+
+  const lineas = Array.isArray(cartel.lineas) ? cartel.lineas : [];
+  overlay.innerHTML = lineas
+    .filter(l => l.texto && l.texto.trim() !== '')
+    .map(l => {
+      const peso = l.negrita ? '700' : '400';
+      const estilo = l.cursiva ? 'italic' : 'normal';
+      const decoracion = l.subrayado ? 'underline' : 'none';
+      return `<div style="font-size:${l.tamano || 32}px;color:${l.color || '#ffffff'};font-family:'${l.fuente || 'Bebas Neue'}',sans-serif;font-weight:${peso};font-style:${estilo};text-decoration:${decoracion};">${escaparHtml(l.texto)}</div>`;
+    })
+    .join('');
+}
+
+function ocultarCartelOverlay() {
+  document.getElementById('carteles-overlay').style.display = 'none';
+}
+
+function programarProximaRotacionCarteles() {
+  proximaRotacionCarteles = Date.now() + cartelesConfig.frecuenciaMin * 60000;
+}
+
+// Misma lógica que usa el badge visual: puramente por tiempo (ventana configurada),
+// ya no depende de si hay números cargados.
+function estaSorteando() {
+  return slotEfectivo.live;
+}
+
+// Se llama cada 30 segundos (junto con el resto de las actualizaciones). Si todavía no
+// llegó el momento del bloque, no hace nada. Si llegó pero justo hay un sorteo en vivo,
+// se saltea esta vez (no reintenta) y programa la siguiente normalmente.
+async function intentarMostrarBloqueCarteles() {
+  if (bloqueCartelesEnCurso) return;
+  if (proximaRotacionCarteles === null || Date.now() < proximaRotacionCarteles) return;
+
+  // Se reprograma YA, se muestre o no el bloque esta vez
+  programarProximaRotacionCarteles();
+
+  if (estaSorteando()) return; // coincide con "SORTEANDO" de verdad: se saltea esta vez
+
+  await cargarConfigCarteles(); // trae la lista más fresca posible antes de mostrarla
+  if (!cartelesConfig.lista || cartelesConfig.lista.length === 0) return;
+
+  bloqueCartelesEnCurso = true;
+  for (const cartel of cartelesConfig.lista) {
+    mostrarCartelOverlay(cartel);
+    await esperarMs((cartel.duracion_segundos || 5) * 1000);
+  }
+  ocultarCartelOverlay();
+  bloqueCartelesEnCurso = false;
+}
+
+function aplicarConfigVisualDesdeFilas(rows) {
+  try {
+    // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
+    nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
+
+    if (!rows || rows.length === 0) { aplicarNombresProvinciaAlHeader(); return; }
+
+    const cfg = {};
+    rows.forEach(r => {
+      if (r.clave === 'tv') {
+        cfg.tv = r.valor;
+      } else if (r.clave === 'nombres_provincias' && r.numeros_por_provincia) {
+        Object.entries(r.numeros_por_provincia).forEach(([k, v]) => {
+          if (v && v.trim() !== '') nombresProvinciaTV[k] = v;
+        });
+      } else if (!r.clave.startsWith('numeros_')) {
+        cfg[r.clave] = r.valor + 'px';
+      }
+    });
+    aplicarNombresProvinciaAlHeader();
+
+    let style = document.getElementById('estilo-dinamico');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'estilo-dinamico';
+      document.head.appendChild(style);
+    }
+
+    style.textContent = `
+      .num-cell { font-size: ${cfg.normal || '22px'} !important; }
+      .num-cell.primero { font-size: ${cfg.primero || '34px'} !important; }
+      .cabeza-num { font-size: ${cfg.cabeza || '18px'} !important; }
+      .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
+      .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
+      .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
+    `;
+  } catch(e) { console.error('Error config visual:', e); }
+}
+
+// =====================
+// FECHA DE CONSULTA — centralizada
+// =====================
+function fechaLocalStr(d) {
+  // Usa fecha LOCAL (Argentina) en lugar de UTC para evitar desfase horario
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function getFechaConsulta(now = new Date()) {
+  const diaSemana = now.getDay(); // 0=domingo
+  const tm = now.getHours()*60 + now.getMinutes();
+  const fecha = new Date(now.getTime());
+
+  // Domingo: mostrar nocturna del sábado
+  if (diaSemana === 0) {
+    fecha.setDate(fecha.getDate() - 1);
+    return fechaLocalStr(fecha);
+  }
+
+  // Antes de las 10:15 cualquier día: nocturna del día anterior
+  if (tm < 10*60+15) {
+    fecha.setDate(fecha.getDate() - 1);
+    return fechaLocalStr(fecha);
+  }
+
+  return fechaLocalStr(fecha);
+}
+
+// INIT
+// =====================
+function calcularSlotEfectivo() {
+  const ahora = new Date(); // un solo "ahora" para sorteo y fecha
+  const natural = getSorteoActual(ahora);
+  const fechaNatural = getFechaConsulta(ahora);
+  const resuelto = resolverSlotEfectivo(fechaNatural, natural.key);
+  const huboFeriado = (resuelto.fecha !== fechaNatural || resuelto.sorteoKey !== natural.key);
+  slotEfectivo = {
+    fecha: resuelto.fecha,
+    key: resuelto.sorteoKey,
+    label: LABELS_SORTEO[resuelto.sorteoKey],
+    live: huboFeriado ? false : natural.live
+  };
+}
+
+// Un ciclo completo de actualización, en DOS etapas en paralelo en vez de ~13 consultas
+// una detrás de la otra: (1) configuración + feriados, que hacen falta para saber qué
+// sorteo toca mostrar; (2) todo lo de ese sorteo, al mismo tiempo. El ciclo dura una
+// fracción de lo que duraba, y la pantalla se redibuja una sola vez, al final.
+async function actualizarPantalla() {
+  const hoy = fechaLocalStr(new Date());
+  const [filasConfig] = await Promise.all([
+    consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`),
+    cargarMapaSorteosActivos(hoy),
+    cargarPanel()
+  ]);
+  if (filasConfig !== null) aplicarFilasConfig(filasConfig);
+
+  calcularSlotEfectivo();
+  const { fecha, key } = slotEfectivo;
+  const resultados = await Promise.all([
+    cargarDatosReales(fecha, key),
+    cargarCabezasReales(fecha, key),
+    cargarNumeroSorteo(fecha, key),
+    consultarSupabase(`programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&sorteo=eq.${key}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`)
+  ]);
+  resolverCantidadTV(key, resultados[3], filasConfig);
+  cantidadTV = cacheCantidadTV[key] || {};
+  render();
+}
+
+async function init() {
+  // El código de acceso se valida PRIMERO. Si todavía no se pudo consultar (sin internet
+  // al prender la TV), se reintenta cada 15 segundos en vez de declararlo inválido.
+  let estadoCodigo = await resolverAgenciaDesdeCodigoAcceso();
+  while (estadoCodigo === 'error') {
+    await esperarMs(15000);
+    estadoCodigo = await resolverAgenciaDesdeCodigoAcceso();
+  }
+  if (estadoCodigo !== 'ok') { mostrarCodigoInvalido(); return; }
+
+  await Promise.all([actualizarPantalla(), cargarConfigCarteles()]);
+  programarProximaRotacionCarteles();
+
+  // Cada ciclo se programa recién cuando el anterior terminó del todo (setTimeout, no
+  // setInterval) — así nunca hay dos actualizaciones pisándose entre sí.
+  async function cicloActualizacion() {
+    try {
+      await actualizarPantalla();
+      await intentarMostrarBloqueCarteles();
+    } catch(e) {
+      console.error('Error en el ciclo de actualización:', e);
+    }
+    setTimeout(cicloActualizacion, 30000);
+  }
+  setTimeout(cicloActualizacion, 30000);
+}
+
+init();
+
+// =====================
+// OCULTAR EL PUNTERO DEL CONTROL REMOTO (Smart TV)
+// =====================
+// Muchos navegadores de Smart TV ocultan solos el puntero tipo "mano" del
+// control remoto cuando la página está en pantalla completa y no hay
+// movimiento — por eso con el sistema anterior desaparecía solo. Acá se
+// intenta entrar a pantalla completa para que ese comportamiento nativo se
+// active. Como algunos navegadores exigen que sea a partir de una acción
+// del usuario (un clic o botón del control), también se reintenta apenas
+// se detecta la primera interacción.
+function intentarPantallaCompleta() {
+  const el = document.documentElement;
+  const pedir = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (pedir && !document.fullscreenElement) {
+    pedir.call(el).catch(() => {}); // si el navegador lo bloquea, no pasa nada — se reintenta con la próxima interacción
+  }
+}
+intentarPantallaCompleta();
+['click', 'keydown', 'pointerdown'].forEach(evento => {
+  document.addEventListener(evento, intentarPantallaCompleta, { once: true });
+});
+
+// Resguardo propio, además de lo anterior: se muestra el puntero mientras
+// hay movimiento, y se vuelve a ocultar a los 3 segundos de inactividad.
+let temporizadorCursor = null;
+function actividadDeCursorDetectada() {
+  document.body.classList.add('mostrar-cursor');
+  clearTimeout(temporizadorCursor);
+  temporizadorCursor = setTimeout(() => {
+    document.body.classList.remove('mostrar-cursor');
+  }, 3000);
+}
+document.addEventListener('mousemove', actividadDeCursorDetectada);
+document.addEventListener('pointermove', actividadDeCursorDetectada);
+</script>
+</body>
+</html>
