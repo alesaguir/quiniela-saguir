@@ -37,8 +37,39 @@
   .btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
   .btn-ghost:hover{border-color:var(--gold);}
   .btn-danger{background:rgba(230,57,70,0.15);color:var(--red);border:1px solid rgba(230,57,70,0.3);}
-  #btn-guardar-panel:disabled{opacity:0.5;cursor:not-allowed;}
-  #panel-titulo:disabled, #panel-numero:disabled, #panel-descripcion:disabled{opacity:0.5;}
+  #btn-guardar-panel:disabled, #btn-copiar-primer-dia:disabled{opacity:0.5;cursor:not-allowed;}
+
+  /* PESTAÑAS PRINCIPALES (Carga de números / Panel y carteles / Superadmin) */
+  .vistas{display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px;margin-bottom:24px;flex-wrap:wrap;}
+  .vista-btn{flex:1 1 auto;padding:10px 14px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .vista-btn:hover{color:var(--text);background:var(--surface2);}
+  .vista-btn.activa{background:var(--gold);color:#000;}
+
+  /* PLANILLA DE LA SEMANA DEL PANEL DE LA DERECHA */
+  .panel-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:20px;}
+  /* La vista previa baja hasta quedar al lado del día que se está editando (ver alinearPreviewPanel) */
+  .panel-preview-col{align-self:start;transition:margin-top 0.2s ease;}
+  .pd-fila{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;transition:border-color 0.2s;}
+  .pd-fila.hoy{border-color:rgba(240,180,41,0.6);}
+  .pd-fila.con-error{border-color:var(--red);}
+  .pd-cabecera{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .pd-dia{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px;color:var(--gold);min-width:86px;}
+  .pd-fecha{width:auto !important;padding:7px 10px !important;font-size:13px !important;}
+  .pd-hoy{font-size:11px;font-weight:700;color:#000;background:var(--gold);border-radius:999px;padding:3px 10px;}
+  .pd-campos{display:grid;grid-template-columns:minmax(0,1fr) 120px minmax(0,1.4fr);gap:10px;}
+  .pd-campos .form-label{font-size:10px;margin-bottom:4px;}
+  .pd-campos .form-input{padding:9px 11px;font-size:13.5px;}
+  .pd-campos .form-input:disabled{opacity:0.35;cursor:not-allowed;}
+  .pd-aviso{font-size:12px;margin-top:8px;line-height:1.4;display:none;}
+  .pd-aviso.gris{display:block;color:var(--muted);}
+  .pd-aviso.rojo{display:block;color:var(--red);font-weight:600;}
+  @media (max-width: 640px) {
+    .vista-btn{font-size:12.5px;padding:9px 10px;}
+    .panel-layout{grid-template-columns:1fr;}
+    .panel-preview-col{margin-top:0 !important;}
+    .pd-campos{grid-template-columns:minmax(0,1fr) 110px;}
+    .pd-campos > div:nth-child(3){grid-column:1 / -1;}
+  }
   .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
 
   /* APP */
@@ -192,6 +223,16 @@
 
   <div class="content">
 
+    <!-- PESTAÑAS PRINCIPALES — cada parte del admin en su propia pestaña, para que la página no sea tan larga -->
+    <div class="vistas" id="vistas">
+      <button class="vista-btn activa" data-vista="numeros" onclick="setVista('numeros')">📝 Carga de números</button>
+      <button class="vista-btn" data-vista="pantalla" onclick="setVista('pantalla')">📺 Panel y carteles</button>
+      <button class="vista-btn" data-vista="superadmin" id="vista-btn-superadmin" style="display:none;" onclick="setVista('superadmin')">⬟ Superadmin</button>
+    </div>
+
+    <!-- ===================== VISTA: CARGA DE NÚMEROS ===================== -->
+    <div id="vista-numeros">
+
     <!-- FECHA Y SORTEO -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
       <div>
@@ -242,49 +283,43 @@
       <div class="estado-grid" id="estado-dia"></div>
     </div>
 
-    <!-- PANEL DE LA DERECHA — visible para cualquiera logueado; cada agencia edita el suyo -->
-    <div style="margin-top:32px;margin-bottom:16px;">
+    </div><!-- /vista-numeros -->
+
+    <!-- ===================== VISTA: PANEL Y CARTELES ===================== -->
+    <div id="vista-pantalla" style="display:none;">
+
+    <!-- PANEL DE LA DERECHA — planilla de la semana; cada agencia carga la suya -->
+    <div style="margin-bottom:16px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📌 Panel de la derecha</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px;">
-        Un recuadro fijo a la derecha de los números de la pantalla, por ejemplo con el favorito del día. Queda en la pantalla todos los días, hasta que lo cambies o lo ocultes.
+        Se carga por día, de lunes a sábado. Cada día, la pantalla muestra lo que cargaste para esa fecha; si ese día no tiene nada cargado, el panel no aparece. Los domingos y los feriados sin sorteos no se cargan. Cuando termina la semana, se borra sola.
       </div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
       <div class="card-header" style="gap:10px;flex-wrap:wrap;">
-        <div class="card-title">📌 Contenido del panel</div>
+        <div class="card-title">📌 Planilla de la semana</div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
           <input type="checkbox" id="panel-mostrar" disabled onchange="onCambioMostrarPanel(this)" style="width:16px;height:16px;accent-color:var(--gold);">
           Mostrar en la pantalla
         </label>
       </div>
       <div class="card-body">
-        <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 240px;gap:20px;">
-          <div>
-            <div class="form-group">
-              <label class="form-label">Título (arriba, en la franja dorada)</label>
-              <input type="text" class="form-input" id="panel-titulo" maxlength="40" disabled placeholder="Ej: FAVORITO DE HOY" oninput="onEditarPanel()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Número (grande, en el medio)</label>
-              <input type="text" class="form-input" id="panel-numero" maxlength="20" disabled placeholder="Ej: 1845" oninput="onEditarPanel()"
-                style="font-family:'JetBrains Mono',monospace;font-size:18px;letter-spacing:2px;">
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Descripción (abajo)</label>
-              <textarea class="form-input" id="panel-descripcion" rows="3" disabled maxlength="150" placeholder="Ej: Día de la Soberanía Nacional" oninput="onEditarPanel()" style="resize:vertical;"></textarea>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Si es larga, se acomoda sola en varios renglones. Con Enter podés cortar el renglón donde quieras.</div>
-            </div>
+        <div class="panel-layout">
+          <div style="min-width:0;">
+            <div id="panel-planilla"></div>
+            <button class="btn btn-ghost" id="btn-copiar-primer-dia" disabled onclick="copiarPrimerDiaALosDemas()" style="font-size:12.5px;padding:8px 14px;">📋 Copiar el primer día a los demás</button>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;">En la descripción, con Enter podés cortar el renglón donde quieras. Si es larga, en la TV se acomoda sola.</div>
           </div>
-          <div>
-            <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa aproximada</div>
+          <div class="panel-preview-col">
+            <div id="panel-preview-titulo" style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa aproximada</div>
             <div id="panel-preview" style="height:300px;background:#0d0500;border:1px solid #3a2a00;border-left:2px solid #ffd700;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;"></div>
-            <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;">Para verlo exactamente como en la TV, guardalo y tocá <b>🖼 Copiar tablero</b>.</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;">Muestra el día que estás editando. Para verlo exactamente como en la TV, guardalo y tocá <b>🖼 Copiar tablero</b> (en Carga de números).</div>
           </div>
         </div>
         <div id="panel-estado" style="font-size:12.5px;color:var(--muted);margin:16px 0 12px;min-height:18px;">Cargando...</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-primary" id="btn-guardar-panel" disabled style="flex:1;width:auto;" onclick="guardarPanelDesdeBoton()">💾 Guardar y publicar en pantalla</button>
+          <button class="btn btn-primary" id="btn-guardar-panel" disabled style="flex:1;width:auto;" onclick="guardarPanel()">💾 Guardar y publicar en pantalla</button>
           <button class="btn btn-ghost" id="btn-reintentar-panel" style="display:none;" onclick="cargarPanel()">🔄 Reintentar</button>
         </div>
       </div>
@@ -321,8 +356,11 @@
       <div id="lista-carteles" class="info-lista" style="padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
     </div>
 
+    </div><!-- /vista-pantalla -->
+
+    <!-- ===================== VISTA: SUPERADMIN (solo superadmin) ===================== -->
     <!-- ZONA SUPERADMIN — organizada en pestañas -->
-    <div id="tabs-superadmin-wrap" style="display:none;margin-top:24px;">
+    <div id="tabs-superadmin-wrap" style="display:none;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:14px;">⬟ Panel de Superadmin</div>
       <div class="tabs" id="tabs-superadmin">
         <div class="tab active" onclick="setTabSuperadmin('subagencias', this)">🏪 Subagencias</div>
@@ -1477,16 +1515,27 @@ async function moverCartel(id, direccion) {
 }
 
 // =====================
-// PANEL DE LA DERECHA (ej. "Favorito de hoy · 1845 · Día de la Soberanía Nacional")
+// PANEL DE LA DERECHA — planilla de la semana (ej. "Favorito de hoy · 1845 · Día de la Soberanía Nacional")
 // =====================
-// Un solo registro por agencia en la tabla tablero_panel. Al guardar, ese registro se
-// reemplaza entero (no queda historial). Cada agencia edita el suyo, igual que los carteles.
-// Mientras no se pudo leer lo guardado, el formulario queda bloqueado: así nunca se
-// publica un panel a medias encima del que ya está en la TV.
-let panelGuardado = null;   // lo último leído o guardado: { titulo, numero, descripcion, mostrar, actualizado_en, actualizado_por }
-let panelCargado = false;   // true recién cuando se pudo leer lo guardado
+// Cada agencia carga una planilla de 6 días (de lunes a sábado), con fecha, título, número y
+// descripción, todo modificable. La TV muestra el renglón de la fecha de HOY; si hoy no tiene
+// nada cargado, el panel no aparece. Los domingos y los feriados sin sorteos no se cargan.
+// Al guardar, la planilla de la agencia se reemplaza entera, en un solo paso (función
+// guardar_panel_semana de la base): si algo falla, no cambia nada, y no queda historial.
+// Cuando termina la semana, se borra sola (al abrir el admin, se borran las semanas viejas).
+// El tilde "Mostrar en la pantalla" (tabla tablero_panel) oculta el panel todos los días.
+// Mientras no se pudo leer lo guardado, el formulario queda bloqueado: así nunca se publica
+// una planilla a medias encima de la que ya está en la TV.
+const PANEL_FILAS = 6;
+const PANEL_DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+let panelMostrar = true;      // el tilde, tal como está guardado
+let panelGuardadas = [];      // días guardados con datos (de esta semana en adelante), ordenados por fecha
+let panelFeriados = {};       // { 'aaaa-mm-dd': 'Navidad' } — días con los 5 sorteos sin actividad
+let panelLunesRef = null;     // lunes de la semana que se carga
+let panelCargado = false;     // true recién cuando se pudo leer todo lo guardado
 let guardandoPanel = false;
-let tokenCargaPanel = 0;    // descarta respuestas viejas (por ejemplo, de antes de cerrar sesión)
+let tokenCargaPanel = 0;      // descarta respuestas viejas (por ejemplo, de antes de cerrar sesión)
+let panelFilaPreview = 0;     // qué renglón muestra la vista previa (el último que se tocó)
 
 // Mismos tamaños que index.html (PANEL_NUM_MAX, etc.) — para "Copiar tablero"
 const PANEL_TV = { numMax: 120, numMin: 36, descMax: 30, descMin: 16 };
@@ -1518,82 +1567,250 @@ function ajustarTextoPanel(cuerpo, contenido, numero, descripcion, lim) {
   }
 }
 
-function panelNormalizar(fila) {
+function panelTieneTexto(p) {
+  return !!(p && (p.titulo || p.numero || p.descripcion));
+}
+
+function panelNormalizarDia(fila) {
   return {
+    fecha: (fila && fila.fecha) || '',
     titulo: ((fila && fila.titulo) || '').trim(),
     numero: ((fila && fila.numero) || '').trim(),
-    descripcion: ((fila && fila.descripcion) || '').trim(),
-    mostrar: fila ? fila.mostrar !== false : true, // sin panel guardado todavía: tildado
-    actualizado_en: (fila && fila.actualizado_en) || null,
-    actualizado_por: (fila && fila.actualizado_por) || ''
+    descripcion: ((fila && fila.descripcion) || '').trim()
   };
 }
 
-function panelTieneTexto(p) {
-  return !!(p.titulo || p.numero || p.descripcion);
+function panelDdMm(fecha) {
+  const p = fecha.split('-');
+  return `${p[2]}/${p[1]}`;
 }
 
-function leerFormularioPanel() {
-  return {
-    titulo: document.getElementById('panel-titulo').value.trim(),
-    numero: document.getElementById('panel-numero').value.trim(),
-    descripcion: document.getElementById('panel-descripcion').value.trim(),
-    mostrar: document.getElementById('panel-mostrar').checked
-  };
+function panelEtiquetaFecha(fecha) {
+  return `${PANEL_DIAS_SEMANA[tabParse(fecha).getDay()]} ${panelDdMm(fecha)}`;
 }
 
-function ponerFormularioPanel(p) {
-  document.getElementById('panel-titulo').value = p.titulo;
-  document.getElementById('panel-numero').value = p.numero;
-  document.getElementById('panel-descripcion').value = p.descripcion;
-  document.getElementById('panel-mostrar').checked = p.mostrar;
+// Lunes de la semana que se carga: el de esta semana; el domingo (la semana ya terminó),
+// el de la semana que viene.
+function panelLunesDeReferencia(hoy) {
+  const dia = tabParse(hoy).getDay();
+  return dia === 0 ? tabSumarDias(hoy, 1) : tabSumarDias(hoy, -(dia - 1));
 }
 
-// Habilita o bloquea los campos, el tilde y el botón (bloqueados mientras carga o guarda)
+// ¿Ese día no hay sorteos? Devuelve el motivo ('Domingo' o 'Feriado sin sorteos (Navidad)') o null
+function panelMotivoSinSorteos(fecha) {
+  if (!fecha) return null;
+  if (tabParse(fecha).getDay() === 0) return 'Domingo';
+  if (Object.prototype.hasOwnProperty.call(panelFeriados, fecha)) {
+    return 'Feriado sin sorteos' + (panelFeriados[fecha] ? ` (${panelFeriados[fecha]})` : '');
+  }
+  return null;
+}
+
+// Feriados sin sorteos, a partir de la configuración de "Fecha especial" del Superadmin: un día
+// cuenta solo si los 5 sorteos están sin actividad (si sale alguno, ese día se juega y el panel
+// sí se carga). Igual que index.html: un sorteo sin fila en la configuración cuenta como activo.
+function panelArmarFeriados(filas) {
+  const porFecha = {};
+  filas.forEach(r => {
+    if (!porFecha[r.fecha_especial]) porFecha[r.fecha_especial] = { activos: {}, descripcion: '' };
+    porFecha[r.fecha_especial].activos[r.sorteo] = r.activo;
+    if (r.descripcion) porFecha[r.fecha_especial].descripcion = r.descripcion;
+  });
+  const res = {};
+  Object.keys(porFecha).forEach(f => {
+    if (TAB_SORTEOS.every(k => porFecha[f].activos[k] === false)) res[f] = porFecha[f].descripcion || '';
+  });
+  return res;
+}
+
+// Los 6 renglones del formulario: los días guardados y, en los que faltan, los días de la
+// semana (lunes a sábado) que todavía no están usados. Ordenados por fecha.
+function panelConstruirPlanilla(guardadas) {
+  const filas = guardadas.slice(0, PANEL_FILAS).map(g => panelNormalizarDia(g));
+  const usadas = new Set(filas.map(f => f.fecha));
+  for (let i = 0; i < 6 && filas.length < PANEL_FILAS; i++) {
+    const f = tabSumarDias(panelLunesRef, i);
+    if (!usadas.has(f)) filas.push({ fecha: f, titulo: '', numero: '', descripcion: '' });
+  }
+  while (filas.length < PANEL_FILAS) filas.push({ fecha: '', titulo: '', numero: '', descripcion: '' });
+  const clave = f => f.fecha || '9999-99-99';
+  filas.sort((a, b) => clave(a) < clave(b) ? -1 : clave(a) > clave(b) ? 1 : 0);
+  return filas;
+}
+
+function panelRenderPlanilla(filas) {
+  const cont = document.getElementById('panel-planilla');
+  cont.innerHTML = filas.map((_, i) => `
+    <div class="pd-fila" id="pd-fila-${i}">
+      <div class="pd-cabecera">
+        <span class="pd-dia" id="pd-dia-${i}"></span>
+        <input type="date" class="form-input pd-fecha" id="pd-fecha-${i}" onchange="onEditarPanel(${i})" onfocus="onEnfocarPanel(${i})">
+        <span class="pd-hoy" id="pd-hoy-${i}" style="display:none;">HOY</span>
+      </div>
+      <div class="pd-campos">
+        <div>
+          <label class="form-label" for="pd-titulo-${i}">Título</label>
+          <input type="text" class="form-input" id="pd-titulo-${i}" maxlength="40" placeholder="Ej: FAVORITO DE HOY" oninput="onEditarPanel(${i})" onfocus="onEnfocarPanel(${i})">
+        </div>
+        <div>
+          <label class="form-label" for="pd-numero-${i}">Número</label>
+          <input type="text" class="form-input" id="pd-numero-${i}" maxlength="20" placeholder="Ej: 1845" oninput="onEditarPanel(${i})" onfocus="onEnfocarPanel(${i})" style="font-family:'JetBrains Mono',monospace;letter-spacing:1px;">
+        </div>
+        <div>
+          <label class="form-label" for="pd-descripcion-${i}">Descripción</label>
+          <textarea class="form-input" id="pd-descripcion-${i}" rows="2" maxlength="150" placeholder="Ej: Día de la Soberanía Nacional" oninput="onEditarPanel(${i})" onfocus="onEnfocarPanel(${i})" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+      <div class="pd-aviso" id="pd-aviso-${i}"></div>
+    </div>`).join('');
+  // Los valores se ponen después, uno por uno: así cualquier carácter (comillas, <, &) queda tal cual
+  filas.forEach((f, i) => {
+    document.getElementById(`pd-fecha-${i}`).value = f.fecha;
+    document.getElementById(`pd-titulo-${i}`).value = f.titulo;
+    document.getElementById(`pd-numero-${i}`).value = f.numero;
+    document.getElementById(`pd-descripcion-${i}`).value = f.descripcion;
+  });
+}
+
+function panelLeerPlanilla() {
+  const filas = [];
+  for (let i = 0; i < PANEL_FILAS; i++) {
+    const fecha = document.getElementById(`pd-fecha-${i}`);
+    if (!fecha) break;
+    filas.push({
+      fecha: fecha.value,
+      titulo: document.getElementById(`pd-titulo-${i}`).value.trim(),
+      numero: document.getElementById(`pd-numero-${i}`).value.trim(),
+      descripcion: document.getElementById(`pd-descripcion-${i}`).value.trim()
+    });
+  }
+  return filas;
+}
+
+// Revisa la planilla. Por renglón: null (todo bien) o { tipo: 'rojo' | 'gris', texto, deshabilitar }.
+// 'rojo' frena el guardado; 'gris' es solo informativo.
+function panelRevisarPlanilla(filas) {
+  const vecesConDatos = {};
+  filas.forEach(f => { if (f.fecha && panelTieneTexto(f)) vecesConDatos[f.fecha] = (vecesConDatos[f.fecha] || 0) + 1; });
+  return filas.map(f => {
+    const conDatos = panelTieneTexto(f);
+    if (!f.fecha) {
+      return conDatos ? { tipo: 'rojo', texto: 'Falta la fecha de este día.' }
+                      : { tipo: 'gris', texto: 'Sin fecha: este renglón no se usa.' };
+    }
+    if (f.fecha < panelLunesRef) {
+      return conDatos ? { tipo: 'rojo', texto: `La fecha ${panelDdMm(f.fecha)} ya pasó: cambiala o borrá los datos de este día.` }
+                      : { tipo: 'gris', texto: `La fecha ${panelDdMm(f.fecha)} ya pasó.` };
+    }
+    const motivo = panelMotivoSinSorteos(f.fecha);
+    if (motivo) {
+      return conDatos ? { tipo: 'rojo', texto: `${motivo}: ese día no hay sorteos. Borrá los datos de este día o cambiá la fecha.` }
+                      : { tipo: 'gris', texto: `${motivo}: ese día no hay sorteos, no se carga.`, deshabilitar: true };
+    }
+    if (conDatos && vecesConDatos[f.fecha] > 1) {
+      return { tipo: 'rojo', texto: `Hay otro día con la misma fecha (${panelDdMm(f.fecha)}): cambiá una de las dos.` };
+    }
+    return null;
+  });
+}
+
+// Actualiza cada renglón: día de la semana, marca HOY, avisos y qué campos se pueden escribir
+function panelActualizarAvisos() {
+  const filas = panelLeerPlanilla();
+  const revision = panelRevisarPlanilla(filas);
+  const hoy = hoyStr();
+  const editable = panelCargado && !guardandoPanel;
+  filas.forEach((f, i) => {
+    const r = revision[i];
+    document.getElementById(`pd-dia-${i}`).textContent = f.fecha ? PANEL_DIAS_SEMANA[tabParse(f.fecha).getDay()] : '—';
+    document.getElementById(`pd-hoy-${i}`).style.display = (f.fecha && f.fecha === hoy) ? '' : 'none';
+    document.getElementById(`pd-fila-${i}`).classList.toggle('hoy', !!f.fecha && f.fecha === hoy);
+    document.getElementById(`pd-fila-${i}`).classList.toggle('con-error', !!(r && r.tipo === 'rojo'));
+    const aviso = document.getElementById(`pd-aviso-${i}`);
+    aviso.className = 'pd-aviso' + (r ? ' ' + r.tipo : '');
+    aviso.textContent = r ? r.texto : '';
+    const bloquearCampos = !editable || !!(r && r.deshabilitar);
+    ['titulo', 'numero', 'descripcion'].forEach(c => { document.getElementById(`pd-${c}-${i}`).disabled = bloquearCampos; });
+    document.getElementById(`pd-fecha-${i}`).disabled = !editable;
+  });
+  return revision;
+}
+
+// Bloquea o habilita todo el formulario (mientras carga o guarda)
 function habilitarFormularioPanel(habilitado) {
-  ['panel-titulo', 'panel-numero', 'panel-descripcion', 'panel-mostrar', 'btn-guardar-panel'].forEach(id => {
+  ['panel-mostrar', 'btn-guardar-panel', 'btn-copiar-primer-dia'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = !habilitado;
   });
+  panelActualizarAvisos();
+}
+
+// Forma comparable de una planilla: solo los días con fecha y datos, ordenados
+function panelCanonica(filas) {
+  return JSON.stringify(filas.filter(f => f.fecha && panelTieneTexto(f))
+    .map(f => [f.fecha, f.titulo, f.numero, f.descripcion]).sort());
 }
 
 // ¿Lo escrito es distinto de lo publicado? (el tilde "Mostrar" se guarda solo, al tocarlo)
 function panelHayCambios() {
-  if (!panelCargado || !panelGuardado) return false;
-  const f = leerFormularioPanel();
-  return f.titulo !== panelGuardado.titulo || f.numero !== panelGuardado.numero || f.descripcion !== panelGuardado.descripcion;
+  if (!panelCargado) return false;
+  return panelCanonica(panelLeerPlanilla()) !== panelCanonica(panelGuardadas);
+}
+
+// ¿El día de HOY tiene cambios sin guardar? (para el aviso de "Copiar tablero")
+function panelHoyTieneCambios() {
+  if (!panelCargado) return false;
+  const hoy = hoyStr();
+  return panelCanonica(panelLeerPlanilla().filter(f => f.fecha === hoy))
+    !== panelCanonica(panelGuardadas.filter(f => f.fecha === hoy));
 }
 
 function actualizarEstadoPanel() {
   const el = document.getElementById('panel-estado');
-  if (!el || !panelCargado || !panelGuardado) return;
+  if (!el || !panelCargado) return;
   if (panelHayCambios()) {
     el.innerHTML = '<span style="color:var(--gold);font-weight:600;">● Hay cambios sin guardar: tocá "Guardar y publicar en pantalla" para que aparezcan en la TV.</span>';
     return;
   }
-  const p = panelGuardado;
-  if (!p.actualizado_en) { el.textContent = 'Todavía no se cargó ningún panel para esta pantalla.'; return; }
+  const hoy = hoyStr();
   let estado;
-  if (!p.mostrar) estado = '🙈 Oculto: no aparece en la pantalla.';
-  else if (!panelTieneTexto(p)) estado = 'Vacío: no aparece en la pantalla.';
-  else estado = '✅ Publicado en la pantalla.';
-  const f = new Date(p.actualizado_en);
-  const cuando = isNaN(f.getTime()) ? '' :
-    ` Última modificación: ${String(f.getDate()).padStart(2,'0')}/${String(f.getMonth()+1).padStart(2,'0')}/${f.getFullYear()} ${String(f.getHours()).padStart(2,'0')}:${String(f.getMinutes()).padStart(2,'0')}` +
-    (p.actualizado_por ? ` por ${p.actualizado_por}.` : '.');
-  el.textContent = estado + cuando;
+  if (!panelMostrar) {
+    estado = '🙈 Oculto: con "Mostrar en la pantalla" destildado, el panel no aparece ningún día.';
+  } else if (panelMotivoSinSorteos(hoy)) {
+    estado = `Hoy (${panelEtiquetaFecha(hoy)}) no hay sorteos: el panel no aparece.`;
+  } else if (panelGuardadas.some(f => f.fecha === hoy)) {
+    estado = `✅ Hoy (${panelEtiquetaFecha(hoy)}) el panel se ve en la pantalla.`;
+  } else {
+    estado = `Hoy (${panelEtiquetaFecha(hoy)}) no tiene nada cargado: el panel no aparece.`;
+  }
+  let ultima = null;
+  panelGuardadas.forEach(f => { if (f.actualizado_en && (!ultima || f.actualizado_en > ultima.actualizado_en)) ultima = f; });
+  if (ultima) {
+    const d = new Date(ultima.actualizado_en);
+    if (!isNaN(d.getTime())) {
+      estado += ` Última modificación: ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ` +
+        `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` + (ultima.actualizado_por ? ` por ${ultima.actualizado_por}.` : '.');
+    }
+  }
+  el.textContent = estado;
 }
 
-// Vista previa chica — mismo diseño que la TV, con letras más chicas
+// Vista previa chica del día que se está editando — mismo diseño que la TV, con letras más chicas
 function actualizarPreviewPanel() {
   const cont = document.getElementById('panel-preview');
   if (!cont) return;
-  const f = leerFormularioPanel();
+  const filas = panelLeerPlanilla();
+  const titulo = document.getElementById('panel-preview-titulo');
+  if (filas.length === 0) { cont.innerHTML = ''; if (titulo) titulo.textContent = 'Vista previa aproximada'; return; }
+  const f = filas[Math.min(Math.max(panelFilaPreview, 0), filas.length - 1)];
+  if (titulo) titulo.textContent = f.fecha ? `Vista previa — ${panelEtiquetaFecha(f.fecha)}` : 'Vista previa aproximada';
   if (!panelTieneTexto(f)) {
-    cont.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;color:var(--muted);font-size:12px;">(vacío — no aparece en la pantalla)</div>';
+    const msg = (f.fecha && panelMotivoSinSorteos(f.fecha)) ? '(no hay sorteos — ese día el panel no aparece)' : '(sin datos — ese día el panel no aparece)';
+    cont.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;color:var(--muted);font-size:12px;">${msg}</div>`;
     cont.style.opacity = '1';
     return;
   }
+  const mostrar = document.getElementById('panel-mostrar').checked;
   let html = f.titulo ? `<div style="background:#ffd700;color:#000;text-align:center;padding:5px 6px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;flex-shrink:0;">${tabEsc(f.titulo)}</div>` : '';
   html += '<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;overflow:hidden;text-align:center;">';
   html += '<div class="pp-contenido" style="width:100%;">';
@@ -1601,129 +1818,235 @@ function actualizarPreviewPanel() {
   if (f.numero && f.descripcion) html += '<div style="width:40%;height:2px;background:rgba(255,215,0,0.45);margin:14px auto;"></div>';
   if (f.descripcion) html += `<div class="pp-descripcion" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;font-size:20px;line-height:1.25;white-space:pre-line;overflow-wrap:break-word;">${tabEsc(f.descripcion)}</div>`;
   html += '</div></div>';
-  if (!f.mostrar) html += '<div style="flex-shrink:0;background:rgba(230,57,70,0.15);color:var(--red);text-align:center;font-size:11px;font-weight:600;padding:5px;">OCULTO — no aparece en la pantalla</div>';
+  if (!mostrar) html += '<div style="flex-shrink:0;background:rgba(230,57,70,0.15);color:var(--red);text-align:center;font-size:11px;font-weight:600;padding:5px;">OCULTO — no aparece en la pantalla</div>';
   cont.innerHTML = html;
-  cont.style.opacity = f.mostrar ? '1' : '0.55';
+  cont.style.opacity = mostrar ? '1' : '0.55';
   ajustarTextoPanel(cont.querySelector('.pp-cuerpo'), cont.querySelector('.pp-contenido'), cont.querySelector('.pp-numero'), cont.querySelector('.pp-descripcion'), PANEL_PREVIEW);
 }
 
-function onEditarPanel() {
+// En la computadora, la vista previa baja hasta quedar al lado del día que se está editando
+// (sin pasarse del final de la planilla). En el celular queda donde está, abajo de todo.
+function alinearPreviewPanel() {
+  const col = document.querySelector('.panel-preview-col');
+  const planilla = document.getElementById('panel-planilla');
+  const fila = document.getElementById(`pd-fila-${panelFilaPreview}`);
+  if (!col || !planilla) return;
+  if (!fila || window.innerWidth <= 640) { col.style.marginTop = '0px'; return; }
+  const deseado = fila.getBoundingClientRect().top - planilla.getBoundingClientRect().top;
+  const maximo = planilla.offsetHeight - col.offsetHeight;
+  col.style.marginTop = Math.max(0, Math.min(deseado, maximo)) + 'px';
+}
+
+window.addEventListener('resize', () => { if (panelCargado) alinearPreviewPanel(); });
+
+function onEnfocarPanel(i) {
+  if (panelFilaPreview === i) return;
+  panelFilaPreview = i;
+  actualizarPreviewPanel();
+  alinearPreviewPanel();
+}
+
+function onEditarPanel(i) {
+  panelFilaPreview = i;
+  panelActualizarAvisos();
   actualizarPreviewPanel();
   actualizarEstadoPanel();
+  alinearPreviewPanel();
 }
 
 async function cargarPanel() {
   if (!usuarioActual) return;
   const miToken = ++tokenCargaPanel;
   const agencia = usuarioActual.agencia_id;
+  const ag = encodeURIComponent(agencia);
+  const hoy = hoyStr();
+  const lunesRef = panelLunesDeReferencia(hoy);
   const estado = document.getElementById('panel-estado');
   const reintentar = document.getElementById('btn-reintentar-panel');
+  panelCargado = false;
   reintentar.style.display = 'none';
   habilitarFormularioPanel(false);
   estado.textContent = 'Cargando...';
-  const rows = await consultarJson(
-    `${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${encodeURIComponent(agencia)}&select=titulo,numero,descripcion,mostrar,actualizado_en,actualizado_por`,
-    usuarioActual.token
-  );
+  const [filasMostrar, filasDias, filasFeriados] = await Promise.all([
+    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${ag}&select=mostrar`, usuarioActual.token),
+    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_dias?agencia_id=eq.${ag}&select=fecha,titulo,numero,descripcion,actualizado_en,actualizado_por&order=fecha.asc`, usuarioActual.token),
+    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${lunesRef}&select=fecha_especial,sorteo,activo,descripcion`, usuarioActual.token)
+  ]);
   // Si mientras tanto se cerró la sesión o se volvió a pedir, esta respuesta quedó vieja
   if (miToken !== tokenCargaPanel || !usuarioActual || usuarioActual.agencia_id !== agencia) return;
-  if (rows === null) {
-    panelCargado = false;
-    estado.innerHTML = '<span style="color:var(--red);">⚠️ No se pudo leer el panel guardado. Tocá "Reintentar". Mientras tanto no se puede editar, para no pisar lo que ya está en la pantalla.</span>';
+  if (filasMostrar === null || filasDias === null || filasFeriados === null) {
+    estado.innerHTML = '<span style="color:var(--red);">⚠️ No se pudo leer la planilla guardada. Tocá "Reintentar". Mientras tanto no se puede editar, para no pisar lo que ya está en la pantalla.</span>';
     reintentar.style.display = 'inline-flex';
     return;
   }
-  panelGuardado = panelNormalizar(rows[0] || null);
+  panelLunesRef = lunesRef;
+  panelMostrar = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
+  panelFeriados = panelArmarFeriados(filasFeriados);
+  panelGuardadas = filasDias
+    .filter(f => f.fecha >= lunesRef)
+    .map(f => ({ ...panelNormalizarDia(f), actualizado_en: f.actualizado_en || null, actualizado_por: f.actualizado_por || '' }))
+    .filter(panelTieneTexto);
+  // Borrado automático: las semanas que ya terminaron se borran solas
+  if (filasDias.some(f => f.fecha < lunesRef)) {
+    fetchConRenovacion(`${SUPABASE_URL}/rest/v1/tablero_panel_dias?agencia_id=eq.${ag}&fecha=lt.${lunesRef}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Prefer': 'return=minimal' }
+    }).catch(e => console.error('No se pudieron borrar las semanas viejas del panel', e));
+  }
   panelCargado = true;
-  ponerFormularioPanel(panelGuardado);
+  document.getElementById('panel-mostrar').checked = panelMostrar;
+  const planilla = panelConstruirPlanilla(panelGuardadas);
+  panelRenderPlanilla(planilla);
+  const iHoy = planilla.findIndex(f => f.fecha === hoy);
+  panelFilaPreview = iHoy !== -1 ? iHoy : 0;
   habilitarFormularioPanel(true);
   actualizarPreviewPanel();
   actualizarEstadoPanel();
+  alinearPreviewPanel();
   // La vista previa usa las letras de la TV: se redibuja cuando terminan de cargar
-  cargarFuentesTablero().then(actualizarPreviewPanel);
+  cargarFuentesTablero().then(() => { if (panelCargado) actualizarPreviewPanel(); });
 }
 
-// Guarda TODO lo que hay en el formulario (título, número, descripción y el tilde),
-// reemplazando el registro de esta agencia. Devuelve true si se guardó.
-async function guardarPanel(origen) {
-  if (guardandoPanel) return false;
+// Guarda la planilla completa (los días con fecha y datos), reemplazando la anterior de esta agencia
+async function guardarPanel() {
+  if (guardandoPanel) return;
   if (!panelCargado || !usuarioActual) {
-    showToast('⚠️ Todavía no se pudo leer el panel guardado — tocá "Reintentar" primero', 'err');
-    return false;
+    showToast('⚠️ Todavía no se pudo leer la planilla guardada — tocá "Reintentar" primero', 'err');
+    return;
   }
-  const datos = leerFormularioPanel();
+  const filas = panelLeerPlanilla();
+  const revision = panelActualizarAvisos();
+  const iError = revision.findIndex(r => r && r.tipo === 'rojo');
+  if (iError !== -1) {
+    const f = filas[iError];
+    showToast(`⚠️ ${f.fecha ? panelEtiquetaFecha(f.fecha) : `Renglón ${iError + 1}`}: ${revision[iError].texto}`, 'err');
+    document.getElementById(`pd-fila-${iError}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const dias = filas.filter(f => f.fecha && panelTieneTexto(f));
   const agencia = usuarioActual.agencia_id;
+  const nombre = usuarioActual.nombre;
   const ahora = new Date().toISOString();
+  const fechaPreview = (filas[panelFilaPreview] || {}).fecha;
   const btn = document.getElementById('btn-guardar-panel');
   const textoBtn = btn.innerHTML;
   guardandoPanel = true;
   habilitarFormularioPanel(false);
   btn.innerHTML = '⏳ Guardando...';
-  let ok = false;
   try {
-    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/tablero_panel?on_conflict=agencia_id`, {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/rpc/guardar_panel_semana`, {
       method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=representation'
-      },
-      body: JSON.stringify([{
-        agencia_id: agencia,
-        titulo: datos.titulo, numero: datos.numero, descripcion: datos.descripcion, mostrar: datos.mostrar,
-        actualizado_en: ahora, actualizado_por: usuarioActual.nombre
-      }])
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_agencia: agencia,
+        p_dias: dias.map(d => ({ fecha: d.fecha, titulo: d.titulo, numero: d.numero, descripcion: d.descripcion, actualizado_por: nombre }))
+      })
     });
     if (!res.ok) {
-      console.error('Error al guardar el panel', res.status, await res.text().catch(() => ''));
-      showToast('⚠️ No se pudo guardar el panel — probá de nuevo', 'err');
-    } else {
-      let fila = null;
-      try { const cuerpo = await res.json(); fila = Array.isArray(cuerpo) ? cuerpo[0] : null; } catch(e) {}
-      if (usuarioActual && usuarioActual.agencia_id === agencia) {
-        panelGuardado = panelNormalizar(fila || { ...datos, actualizado_en: ahora, actualizado_por: usuarioActual.nombre });
-        ponerFormularioPanel(panelGuardado);
-      }
-      ok = true;
-      let msg;
-      if (origen === 'mostrar') msg = datos.mostrar ? '✅ Panel visible en la pantalla' : '✅ Panel oculto — ya no aparece en la pantalla';
-      else if (!datos.mostrar) msg = '✅ Guardado. El panel está oculto: tildá "Mostrar en la pantalla" para que aparezca';
-      else if (!panelTieneTexto(datos)) msg = '✅ Guardado. El panel quedó vacío, así que no aparece en la pantalla';
-      else msg = '✅ Panel publicado en la pantalla';
-      showToast(msg, 'ok');
+      console.error('Error al guardar la planilla del panel', res.status, await res.text().catch(() => ''));
+      showToast('⚠️ No se pudo guardar la planilla — no se cambió nada en la pantalla. Probá de nuevo', 'err');
+      return;
     }
+    if (usuarioActual && usuarioActual.agencia_id === agencia) {
+      panelGuardadas = dias.map(d => ({ ...d, actualizado_en: ahora, actualizado_por: nombre }))
+        .sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0);
+      const planilla = panelConstruirPlanilla(panelGuardadas);
+      panelRenderPlanilla(planilla);
+      const iPrev = planilla.findIndex(f => f.fecha === fechaPreview);
+      panelFilaPreview = iPrev !== -1 ? iPrev : 0;
+    }
+    if (dias.length === 0) showToast('✅ Planilla guardada: quedó vacía, así que el panel no aparece ningún día', 'ok');
+    else if (!panelMostrar) showToast('✅ Planilla guardada. El panel está oculto: tildá "Mostrar en la pantalla" para que aparezca', 'ok');
+    else showToast('✅ Planilla guardada y publicada en la pantalla', 'ok');
   } catch(e) {
     console.error(e);
-    showToast('⚠️ Error de conexión — el panel no se guardó', 'err');
+    showToast('⚠️ Error de conexión — la planilla no se guardó', 'err');
   } finally {
     guardandoPanel = false;
     btn.innerHTML = textoBtn;
     if (usuarioActual && usuarioActual.agencia_id === agencia && panelCargado) habilitarFormularioPanel(true);
     actualizarPreviewPanel();
     actualizarEstadoPanel();
+    alinearPreviewPanel();
   }
-  return ok;
 }
 
-function guardarPanelDesdeBoton() {
-  guardarPanel('boton');
+// Copia el primer día que tiene datos a los demás días de la planilla (salvo los que no tienen
+// sorteos, no tienen fecha o ya pasaron). No guarda: después hay que tocar "Guardar y publicar".
+function copiarPrimerDiaALosDemas() {
+  if (!panelCargado || guardandoPanel) return;
+  const filas = panelLeerPlanilla();
+  const iOrigen = filas.findIndex(f => panelTieneTexto(f));
+  if (iOrigen === -1) { showToast('Completá primero un día; después lo copiás a los demás', 'err'); return; }
+  const o = filas[iOrigen];
+  const destinos = [];
+  filas.forEach((f, i) => {
+    if (i !== iOrigen && f.fecha && f.fecha >= panelLunesRef && !panelMotivoSinSorteos(f.fecha)) destinos.push(i);
+  });
+  if (destinos.length === 0) { showToast('No hay otros días donde copiarlo', 'err'); return; }
+  const pisa = destinos.some(i => panelTieneTexto(filas[i]) &&
+    (filas[i].titulo !== o.titulo || filas[i].numero !== o.numero || filas[i].descripcion !== o.descripcion));
+  if (pisa && !confirm('Algunos días ya tienen otros datos escritos. ¿Reemplazarlos por los del primer día?')) return;
+  destinos.forEach(i => {
+    document.getElementById(`pd-titulo-${i}`).value = o.titulo;
+    document.getElementById(`pd-numero-${i}`).value = o.numero;
+    document.getElementById(`pd-descripcion-${i}`).value = o.descripcion;
+  });
+  panelActualizarAvisos();
+  actualizarPreviewPanel();
+  actualizarEstadoPanel();
+  const salteados = filas.length - 1 - destinos.length;
+  showToast(`📋 Copiado a ${destinos.length} día${destinos.length === 1 ? '' : 's'}` +
+    (salteados ? ` (${salteados} sin sorteos o sin fecha quedaron vacíos)` : '') + '. Falta tocar "Guardar y publicar en pantalla".', 'ok');
 }
 
 // El tilde "Mostrar en la pantalla" se guarda al instante, como el "Activo" de los carteles.
-// Si no se pudo guardar, vuelve a como estaba.
+// Solo cambia si el panel se ve o no; la planilla se guarda con su botón.
 async function onCambioMostrarPanel(el) {
-  const ok = await guardarPanel('mostrar');
-  if (!ok) {
-    el.checked = !el.checked;
+  const nuevo = el.checked;
+  if (!panelCargado || !usuarioActual) { el.checked = !nuevo; return; }
+  const agencia = usuarioActual.agencia_id;
+  el.disabled = true;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/tablero_panel?on_conflict=agencia_id`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
+        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify([{ agencia_id: agencia, mostrar: nuevo, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre }])
+    });
+    if (res.ok) {
+      if (usuarioActual && usuarioActual.agencia_id === agencia) panelMostrar = nuevo;
+      showToast(nuevo ? '✅ Panel visible en la pantalla' : '✅ Panel oculto — ya no aparece en la pantalla', 'ok');
+    } else {
+      console.error('Error al guardar "Mostrar en la pantalla"', res.status);
+      el.checked = !nuevo;
+      showToast('⚠️ No se pudo cambiar — probá de nuevo', 'err');
+    }
+  } catch(e) {
+    console.error(e);
+    el.checked = !nuevo;
+    showToast('⚠️ Error de conexión — no se cambió', 'err');
+  } finally {
+    if (usuarioActual && usuarioActual.agencia_id === agencia && panelCargado && !guardandoPanel) el.disabled = false;
     actualizarPreviewPanel();
+    actualizarEstadoPanel();
   }
 }
 
 // Al cerrar sesión: se vacía y se bloquea, para que el próximo usuario no vea ni guarde lo del anterior
 function reiniciarPanel() {
   tokenCargaPanel++;
-  panelGuardado = null;
   panelCargado = false;
-  ponerFormularioPanel({ titulo: '', numero: '', descripcion: '', mostrar: true });
+  panelGuardadas = [];
+  panelFeriados = {};
+  panelMostrar = true;
+  panelLunesRef = null;
+  panelFilaPreview = 0;
+  const planilla = document.getElementById('panel-planilla');
+  if (planilla) planilla.innerHTML = '';
+  document.getElementById('panel-mostrar').checked = false;
   habilitarFormularioPanel(false);
   const estado = document.getElementById('panel-estado');
   if (estado) estado.textContent = 'Cargando...';
@@ -1731,6 +2054,8 @@ function reiniciarPanel() {
   if (reintentar) reintentar.style.display = 'none';
   const prev = document.getElementById('panel-preview');
   if (prev) prev.innerHTML = '';
+  const tit = document.getElementById('panel-preview-titulo');
+  if (tit) tit.textContent = 'Vista previa aproximada';
 }
 
 // =====================
@@ -2041,15 +2366,17 @@ async function cargarDatosTablero(fecha, sorteo) {
   const hoy = hoyStr();
   const desde = tabSumarDias(fecha < hoy ? fecha : hoy, -35);
   const hasta = fecha > hoy ? fecha : hoy;
-  const [resultados, info, config, feriados, cantidades, panel] = await Promise.all([
+  const [resultados, info, config, feriados, cantidades, panelMostrarFilas, panelHoyFilas] = await Promise.all([
     consultarJson(`${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fecha}&sorteo=eq.${sorteo}&agencia_id=eq.${ag}&order=posicion.asc&select=provincia,posicion,numero`),
     consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteo}&agencia_id=eq.${ag}&select=numero_sorteo`),
     consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}`),
     consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${desde}&fecha_especial=lte.${hasta}&select=fecha_especial,sorteo,activo`),
     resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteo, usuarioActual.token),
-    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${ag}&select=titulo,numero,descripcion,mostrar`)
+    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${ag}&select=mostrar`),
+    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_dias?agencia_id=eq.${ag}&fecha=eq.${hoy}&select=titulo,numero,descripcion`)
   ]);
-  if (resultados === null || info === null || config === null || feriados === null || cantidades === null || panel === null) return null;
+  if (resultados === null || info === null || config === null || feriados === null || cantidades === null
+      || panelMostrarFilas === null || panelHoyFilas === null) return null;
 
   const mapa = {};
   feriados.forEach(r => {
@@ -2107,13 +2434,20 @@ async function cargarDatosTablero(fecha, sorteo) {
   const huboFeriado = enCurso.fecha !== fechaNat || enCurso.sorteoKey !== natural.key;
   const live = !huboFeriado && natural.live && enCurso.fecha === fecha && enCurso.sorteoKey === sorteo;
 
+  // Panel de la derecha: lo mismo que muestra la TV AHORA (el día de HOY de la planilla), con las
+  // mismas reglas que renderPanel() de index.html: el tilde "Mostrar", que hoy tenga datos, y que
+  // hoy haya sorteos (nunca domingo ni feriado sin sorteos).
+  const mostrarPanel = !(panelMostrarFilas[0] && panelMostrarFilas[0].mostrar === false);
+  const filaHoy = panelNormalizarDia(panelHoyFilas[0] || null);
+  const hoyConSorteos = TAB_SORTEOS.some(k => tabActivoEn(mapa, hoy, k));
+  const panelDelDia = (mostrarPanel && hoyConSorteos && panelTieneTexto(filaHoy)) ? filaHoy : null;
+
   return {
     fecha, sorteo, numeros, cabezas, nombres, cfg, live,
     conConfig: config.length > 0,
     nroSorteo: (info[0] && info[0].numero_sorteo) ? info[0].numero_sorteo : '',
     cantidades,
-    // El panel de la derecha, tal como está publicado AHORA (no tiene historial por fecha)
-    panel: panelNormalizar(panel[0] || null)
+    panel: panelDelDia
   };
 }
 
@@ -2208,7 +2542,7 @@ function htmlTablero(d) {
   // Panel de la derecha — mismas reglas que renderPanel() de index.html
   let panel = '';
   const pn = d.panel;
-  if (pn && pn.mostrar && panelTieneTexto(pn)) {
+  if (pn && panelTieneTexto(pn)) {
     panel = '<div class="tvc-panel">';
     if (pn.titulo) panel += `<div class="tvc-panel-titulo">${tabEsc(pn.titulo)}</div>`;
     panel += '<div class="tvc-panel-cuerpo"><div class="tvc-panel-contenido">';
@@ -2478,11 +2812,11 @@ async function copiarTablero() {
     if (!datos) { showToast('⚠️ No se pudieron traer los datos publicados — probá de nuevo en unos segundos','err'); return; }
     const canvas = dibujarTablero(datos);
     const faltanNumeros = hayCambiosSinPublicar(fecha, sorteo, datos);
-    const faltaPanel = panelHayCambios();
+    const faltaPanel = panelHoyTieneCambios();
     let nota = '';
     if (faltanNumeros && faltaPanel) nota = '⚠️ Hay números, un N° de sorteo o cambios del panel de la derecha sin publicar: la imagen muestra lo publicado, igual que la TV.';
     else if (faltanNumeros) nota = '⚠️ Hay números o un N° de sorteo sin publicar: la imagen muestra lo publicado, igual que la TV.';
-    else if (faltaPanel) nota = '⚠️ El panel de la derecha tiene cambios sin guardar: la imagen muestra lo publicado, igual que la TV.';
+    else if (faltaPanel) nota = '⚠️ El panel de hoy tiene cambios sin guardar: la imagen muestra lo publicado, igual que la TV.';
     const [a, m, dd] = fecha.split('-');
     const nombre = `Tablero ${sorteo.charAt(0).toUpperCase() + sorteo.slice(1)} ${dd}-${m}-${a}.png`;
     mostrarTableroModal(canvas, nombre, nota);
@@ -2525,6 +2859,8 @@ async function logout() {
   document.getElementById('inp-user').value = '';
   document.getElementById('login-error').style.display = 'none';
   document.getElementById('tabs-superadmin-wrap').style.display = 'none';
+  document.getElementById('vista-btn-superadmin').style.display = 'none';
+  setVista('numeros');
 }
 
 // =====================
@@ -2547,8 +2883,8 @@ async function initApp() {
   else                    sorteoActual = 'nocturna';
 
   // Activar tab correcto
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  const tabs = document.querySelectorAll('.tab');
+  document.querySelectorAll('#tabs-sorteo .tab').forEach(t => t.classList.remove('active'));
+  const tabs = document.querySelectorAll('#tabs-sorteo .tab');
   const idx = SORTEOS.indexOf(sorteoActual);
   if (tabs[idx]) tabs[idx].classList.add('active');
 
@@ -2576,7 +2912,7 @@ async function setTab(sorteo, el) {
   sorteoActual = sorteo;
   valoresAlCargar = {}; // se vacía ya mismo — cargarExistentes() lo repuebla cuando termine
   provinciaActivaPestana = PROVINCIAS[0].key; // arranca siempre desde la primera provincia
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#tabs-sorteo .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('num-sorteo').value = '';
   // La cantidad por provincia y el chequeo de "sorteo sin actividad" son independientes:
@@ -4346,15 +4682,36 @@ async function eliminarProgramacion(id) {
 // =====================
 function verificarSuperadmin() {
   if (usuarioActual && usuarioActual.rol === 'superadmin') {
-    document.getElementById('tabs-superadmin-wrap').style.display = 'block';
+    // La zona de Superadmin vive en su propia pestaña principal (ver setVista): acá solo se
+    // muestra el botón de esa pestaña. La zona se ve recién al tocarlo.
+    document.getElementById('vista-btn-superadmin').style.display = '';
     // Al loguearse, mostrar por defecto la primera pestaña (Subagencias) y
     // ocultar el resto. Los datos de cada panel se siguen cargando recién
     // cuando se abre ese panel puntual (ver toggleSeccionColapsable), no
     // todos de una — no cambia el comportamiento de antes en ese sentido.
     setTabSuperadmin('subagencias', document.querySelector('#tabs-superadmin .tab'));
   } else {
-    document.getElementById('tabs-superadmin-wrap').style.display = 'none';
+    document.getElementById('vista-btn-superadmin').style.display = 'none';
+    if (vistaActual === 'superadmin') setVista('numeros');
   }
+}
+
+// =====================
+// PESTAÑAS PRINCIPALES — Carga de números / Panel y carteles / Superadmin
+// =====================
+// Cada parte del admin en su propia pestaña, para que la página no sea tan larga. Cambiar de
+// pestaña solo muestra u oculta: no recarga nada ni se pierde lo que se estaba escribiendo.
+let vistaActual = 'numeros';
+function setVista(nombre) {
+  if (nombre === 'superadmin' && !(usuarioActual && usuarioActual.rol === 'superadmin')) nombre = 'numeros';
+  vistaActual = nombre;
+  document.getElementById('vista-numeros').style.display = nombre === 'numeros' ? 'block' : 'none';
+  document.getElementById('vista-pantalla').style.display = nombre === 'pantalla' ? 'block' : 'none';
+  document.getElementById('tabs-superadmin-wrap').style.display = nombre === 'superadmin' ? 'block' : 'none';
+  document.querySelectorAll('#vistas .vista-btn').forEach(b => b.classList.toggle('activa', b.dataset.vista === nombre));
+  // La vista previa del panel se mide con el tamaño real de la pantalla: se redibuja al quedar visible
+  if (nombre === 'pantalla' && panelCargado) { actualizarPreviewPanel(); alinearPreviewPanel(); }
+  window.scrollTo(0, 0);
 }
 
 const PANELES_SUPERADMIN = {
