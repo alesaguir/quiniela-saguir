@@ -212,6 +212,10 @@
     font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
     flex-shrink: 0;
   }
+  /* Cada parte del panel (favorito del día arriba, número de la semana abajo) es un bloque.
+     Si están las dos, se reparten el alto en partes iguales; si hay una sola, ocupa todo. */
+  .panel-bloque { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .panel-bloque + .panel-bloque { border-top: 2px solid #ffd700; }
   .panel-cuerpo {
     flex: 1; min-height: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -595,44 +599,75 @@ function render() {
 // =====================
 // PANEL DE LA DERECHA (ej. "Favorito de hoy · 1845 · Día de la Soberanía Nacional")
 // =====================
-// Cada agencia carga en admin.html una planilla de la semana (tabla tablero_panel_dias, un
-// renglón por fecha). La pantalla muestra el renglón de la fecha de HOY; si hoy no tiene nada
-// cargado, el panel no aparece. Nunca aparece un día sin sorteos (domingo o feriado sin
-// sorteos). El tilde "Mostrar en la pantalla" (tabla tablero_panel) lo oculta todos los días.
-// Si una consulta falla, se sigue mostrando lo último conocido DE ESE MISMO DÍA, igual que con
-// los números: a la medianoche nunca queda en pantalla el panel del día anterior.
-let panelMostrar = true;                        // el tilde (true si nunca se configuró)
+// El panel tiene dos partes, que cada agencia carga en admin.html:
+//  - Arriba, el FAVORITO DEL DÍA: una planilla con un renglón por fecha (tabla tablero_panel_dias).
+//    Se ve el renglón de HOY, y solo si hoy hay sorteos (nunca domingo ni feriado sin sorteos).
+//  - Abajo, el NÚMERO DE LA SEMANA (tabla tablero_panel_semanas, un renglón por semana, que se
+//    identifica por su lunes). Vale de lunes a sábado; el domingo ya se ve el de la semana que
+//    viene. Se ve también los domingos y los feriados sin sorteos.
+// Cada parte tiene su tilde (tabla tablero_panel: "mostrar" = favorito del día, "mostrar_semana"
+// = número de la semana). Si no hay ninguna parte para mostrar, el panel no aparece.
+// Si una consulta falla, se sigue mostrando lo último conocido DE ESE MISMO DÍA / ESA MISMA
+// SEMANA, igual que con los números: nunca queda en pantalla lo del día o la semana anterior.
+let panelMostrarDia = true;                     // tildes (true si nunca se configuraron)
+let panelMostrarSemana = true;
 let panelDia = { fecha: null, fila: null };     // el renglón de hoy (fila null = hoy no tiene nada)
+let panelSemana = { lunes: null, fila: null };  // el número de la semana vigente
 let panelClaveMostrada = null; // lo que está dibujado ahora, para no redibujar si no cambió
 
-// Tamaños máximos y mínimos de la letra del panel. El número y la descripción se achican
-// solos si no entran (por ejemplo, si el panel se configura más angosto o el texto es largo).
+// Tamaño de letra del panel: el máximo se configura en Superadmin → Visual (vale para las dos
+// partes). El número y la descripción se achican solos si no entran (por ejemplo, si el panel
+// se configura más angosto o el texto es largo).
 // OJO: admin.html tiene una copia de esto para "Copiar tablero" — si se cambia acá, cambiarlo allá.
-const PANEL_NUM_MAX = 120, PANEL_NUM_MIN = 36, PANEL_DESC_MAX = 30, PANEL_DESC_MIN = 16;
+const PANEL_TAM_DEFECTO = { titulo: 20, numero: 120, descripcion: 30 };
+let panelTam = { ...PANEL_TAM_DEFECTO };
 
-function ajustarTextoPanel(cuerpo, contenido, numero, descripcion) {
+function panelLimites(tam) {
+  return { numMax: tam.numero, numMin: Math.min(36, tam.numero), descMax: tam.descripcion, descMin: Math.min(16, tam.descripcion) };
+}
+
+function ajustarTextoPanel(cuerpo, contenido, numero, descripcion, lim) {
   if (numero) {
     // El número va en un solo renglón, lo más grande que entre a lo ancho
     numero.style.whiteSpace = 'nowrap';
-    let tam = PANEL_NUM_MAX;
+    let tam = lim.numMax;
     numero.style.fontSize = tam + 'px';
-    while (tam > PANEL_NUM_MIN && numero.scrollWidth > numero.clientWidth) {
+    while (tam > lim.numMin && numero.scrollWidth > numero.clientWidth) {
       tam -= 2;
       numero.style.fontSize = tam + 'px';
     }
     // Si ni siquiera al mínimo entra en un renglón, se deja partir en dos
     if (numero.scrollWidth > numero.clientWidth) numero.style.whiteSpace = 'normal';
   }
+  if (!cuerpo.clientHeight) return; // oculto: no se puede medir el alto
+  const cs = getComputedStyle(cuerpo);
+  const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
   if (descripcion) {
-    const cs = getComputedStyle(cuerpo);
-    const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-    let tam = PANEL_DESC_MAX;
+    let tam = lim.descMax;
     descripcion.style.fontSize = tam + 'px';
-    while (tam > PANEL_DESC_MIN && contenido.offsetHeight > alto) {
+    while (tam > lim.descMin && contenido.offsetHeight > alto) {
       tam -= 1;
       descripcion.style.fontSize = tam + 'px';
     }
   }
+  if (numero) {
+    // Si ni con la descripción al mínimo entra a lo alto, se achica también el número
+    let tam = parseFloat(numero.style.fontSize) || lim.numMax;
+    while (tam > lim.numMin && contenido.offsetHeight > alto) {
+      tam -= 2;
+      numero.style.fontSize = tam + 'px';
+    }
+  }
+}
+
+// Lunes de la semana vigente para el número de la semana: de lunes a sábado, el lunes de esta
+// semana; el domingo, el lunes de mañana (ya rige el de la semana que viene).
+function lunesDeLaSemanaVigente(fecha) {
+  const p = fecha.split('-').map(Number);
+  const d = new Date(p[0], p[1] - 1, p[2]);
+  const dia = d.getDay();
+  d.setDate(d.getDate() + (dia === 0 ? 1 : 1 - dia));
+  return fechaLocalStr(d);
 }
 
 // ¿Ese día hay al menos un sorteo? (domingo nunca; un feriado, si los 5 sorteos están sin actividad)
@@ -640,33 +675,42 @@ function hayAlgunSorteo(fecha) {
   return sorteoKeys.some(k => activoEn(fecha, k));
 }
 
-function panelVisible() {
+// Lo que se muestra de cada parte (o null si esa parte no va)
+function panelParteDia() {
   const d = panelDia.fila;
-  if (!panelMostrar || !panelDia.fecha || !d) return false;
-  if (!hayAlgunSorteo(panelDia.fecha)) return false;
-  return !!((d.titulo || '').trim() || (d.numero || '').trim() || (d.descripcion || '').trim());
+  if (!panelMostrarDia || !panelDia.fecha || !d || !hayAlgunSorteo(panelDia.fecha)) return null;
+  const p = { titulo: (d.titulo || '').trim(), numero: (d.numero || '').trim(), descripcion: (d.descripcion || '').trim() };
+  return (p.titulo || p.numero || p.descripcion) ? p : null;
+}
+function panelParteSemana() {
+  const s = panelSemana.fila;
+  if (!panelMostrarSemana || !panelSemana.lunes || !s) return null;
+  const p = { titulo: (s.titulo || '').trim(), numero: (s.numero || '').trim(), descripcion: '' };
+  return (p.titulo || p.numero) ? p : null;
+}
+
+function htmlBloquePanel(p) {
+  let html = '<div class="panel-bloque">';
+  if (p.titulo) html += `<div class="panel-titulo">${escaparHtml(p.titulo)}</div>`;
+  html += '<div class="panel-cuerpo"><div class="panel-contenido">';
+  if (p.numero) html += `<div class="panel-numero">${escaparHtml(p.numero)}</div>`;
+  if (p.numero && p.descripcion) html += '<div class="panel-separador"></div>';
+  if (p.descripcion) html += `<div class="panel-descripcion">${escaparHtml(p.descripcion)}</div>`;
+  html += '</div></div></div>';
+  return html;
 }
 
 function renderPanel() {
   const col = document.getElementById('col-panel');
   if (!col) return;
-  const d = panelDia.fila;
-  if (!panelVisible()) {
+  const partes = [panelParteDia(), panelParteSemana()].filter(Boolean);
+  if (partes.length === 0) {
     if (panelClaveMostrada !== '') { col.style.display = 'none'; col.innerHTML = ''; panelClaveMostrada = ''; }
     return;
   }
-  const titulo = (d.titulo || '').trim();
-  const numero = (d.numero || '').trim();
-  const descripcion = (d.descripcion || '').trim();
-  const clave = JSON.stringify([titulo, numero, descripcion]);
+  const clave = JSON.stringify(partes);
   if (clave !== panelClaveMostrada) {
-    let html = titulo ? `<div class="panel-titulo">${escaparHtml(titulo)}</div>` : '';
-    html += '<div class="panel-cuerpo"><div class="panel-contenido">';
-    if (numero) html += `<div class="panel-numero">${escaparHtml(numero)}</div>`;
-    if (numero && descripcion) html += '<div class="panel-separador"></div>';
-    if (descripcion) html += `<div class="panel-descripcion">${escaparHtml(descripcion)}</div>`;
-    html += '</div></div>';
-    col.innerHTML = html;
+    col.innerHTML = partes.map(htmlBloquePanel).join('');
     col.style.display = 'flex';
     panelClaveMostrada = clave;
   }
@@ -678,9 +722,10 @@ function renderPanel() {
 function ajustarPanelEnPantalla() {
   const col = document.getElementById('col-panel');
   if (!col || col.style.display === 'none') return;
-  const cuerpo = col.querySelector('.panel-cuerpo');
-  if (!cuerpo) return;
-  ajustarTextoPanel(cuerpo, col.querySelector('.panel-contenido'), col.querySelector('.panel-numero'), col.querySelector('.panel-descripcion'));
+  const lim = panelLimites(panelTam);
+  col.querySelectorAll('.panel-bloque').forEach(b => {
+    ajustarTextoPanel(b.querySelector('.panel-cuerpo'), b.querySelector('.panel-contenido'), b.querySelector('.panel-numero'), b.querySelector('.panel-descripcion'), lim);
+  });
 }
 if (document.fonts) {
   if (document.fonts.ready) document.fonts.ready.then(ajustarPanelEnPantalla).catch(() => {});
@@ -689,15 +734,23 @@ if (document.fonts) {
 window.addEventListener('resize', ajustarPanelEnPantalla);
 
 async function cargarPanel(hoy) {
-  const [filasMostrar, filasDia] = await Promise.all([
-    consultarSupabase(`tablero_panel?agencia_id=eq.${URL_AGENCIA_ENCODED}&select=mostrar`),
-    consultarSupabase(`tablero_panel_dias?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha=eq.${hoy}&select=titulo,numero,descripcion`)
+  const lunes = lunesDeLaSemanaVigente(hoy);
+  const [filasMostrar, filasDia, filasSemana] = await Promise.all([
+    // select=*: así funciona aunque todavía no exista la columna mostrar_semana
+    consultarSupabase(`tablero_panel?agencia_id=eq.${URL_AGENCIA_ENCODED}&select=*`),
+    consultarSupabase(`tablero_panel_dias?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha=eq.${hoy}&select=titulo,numero,descripcion`),
+    consultarSupabase(`tablero_panel_semanas?agencia_id=eq.${URL_AGENCIA_ENCODED}&lunes=eq.${lunes}&select=titulo,numero`)
   ]);
   // Si alguna consulta falla, queda lo último conocido de esa parte...
-  if (filasMostrar !== null) panelMostrar = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
+  if (filasMostrar !== null) {
+    panelMostrarDia = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
+    panelMostrarSemana = !(filasMostrar[0] && filasMostrar[0].mostrar_semana === false);
+  }
   if (filasDia !== null) panelDia = { fecha: hoy, fila: filasDia[0] || null };
   // ...salvo que lo último conocido sea de OTRO día (justo cambió la fecha): ahí no se muestra nada
   else if (panelDia.fecha !== hoy) panelDia = { fecha: hoy, fila: null };
+  if (filasSemana !== null) panelSemana = { lunes, fila: filasSemana[0] || null };
+  else if (panelSemana.lunes !== lunes) panelSemana = { lunes, fila: null };
 }
 
 // =====================
@@ -948,6 +1001,7 @@ function aplicarConfigVisualDesdeFilas(rows) {
   try {
     // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
     nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
+    panelTam = { ...PANEL_TAM_DEFECTO };
 
     if (!rows || rows.length === 0) { aplicarNombresProvinciaAlHeader(); return; }
 
@@ -964,6 +1018,11 @@ function aplicarConfigVisualDesdeFilas(rows) {
       }
     });
     aplicarNombresProvinciaAlHeader();
+    panelTam = {
+      titulo: parseInt(cfg['panel-titulo'], 10) || PANEL_TAM_DEFECTO.titulo,
+      numero: parseInt(cfg['panel-numero'], 10) || PANEL_TAM_DEFECTO.numero,
+      descripcion: parseInt(cfg['panel-descripcion'], 10) || PANEL_TAM_DEFECTO.descripcion
+    };
 
     let style = document.getElementById('estilo-dinamico');
     if (!style) {
@@ -979,6 +1038,7 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
       .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
+      .panel-titulo { font-size: ${panelTam.titulo}px !important; }
     `;
   } catch(e) { console.error('Error config visual:', e); }
 }
