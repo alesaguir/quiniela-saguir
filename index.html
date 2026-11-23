@@ -19,19 +19,35 @@
     flex-direction: column;
   }
 
-  /* HEADER */
-  .header {
-    background: linear-gradient(90deg, #8B0000, #cc0000, #8B0000);
-    padding: 2px 12px;
-    display: grid;
-    grid-template-columns: 190px 1fr 100px;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 3px solid #ffd700;
-    flex-shrink: 0;
+  /* PANTALLA: la columna de ÚLTIMAS CABEZAS va de arriba hasta el pie. A su derecha, una
+     grilla de 2 columnas: arriba la franja del sorteo y la marca, abajo la tabla y el panel.
+     Al compartir columna, la franja del sorteo mide siempre exactamente lo mismo que la
+     tabla (columna N° incluida). Sin panel, la tabla ocupa las dos columnas y la marca queda
+     igual arriba a la derecha, centrada (ahí la franja queda un poco más corta que la tabla). */
+  .pantalla { flex:1; display:flex; overflow:hidden; min-height:0; }
+  .zona-derecha {
+    flex:1; min-width:0; overflow:hidden;
+    display:grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    grid-template-rows: auto minmax(0,1fr);
   }
+  /* Fondo rojo con la línea dorada de abajo, detrás de la franja del sorteo y de la marca */
+  .franja-roja {
+    grid-row:1; grid-column:1 / -1;
+    background: linear-gradient(90deg, #8B0000, #cc0000, #8B0000);
+    border-bottom: 3px solid #ffd700;
+  }
+  .header-sorteo { grid-row:1; grid-column:1; min-width:0; padding:2px 0 5px; }
+  .header-marca {
+    grid-row:1; grid-column:2;
+    padding:2px 12px 5px;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+  }
+  .col-tabla { grid-row:2; grid-column:1; min-width:0; min-height:0; }
+  .col-panel { grid-row:2; grid-column:2; }
+  .zona-derecha.sin-panel .col-tabla { grid-column:1 / -1; }
 
-  .marca-box { text-align:left; }
+  .marca-box { text-align:center; } /* centrada arriba a la derecha, encima del panel */
   .marca-principal {
     font-family:'Bebas Neue', sans-serif;
     font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1;
@@ -41,13 +57,14 @@
   }
 
   .sorteo-badge {
+    --escala-franja: 1;
     display: grid;
     grid-template-columns: auto auto auto auto;
     align-items: center;
     justify-content: center;
-    gap: 24px;
+    gap: calc(24px * var(--escala-franja));
     height: 44px;
-    padding: 0 20px;
+    padding: 0 calc(20px * var(--escala-franja));
     background: rgba(0,0,0,.30);
     border: 1px solid rgba(255,215,0,.40);
     border-radius: 6px;
@@ -62,7 +79,7 @@
   /* NOMBRE SORTEO — más chico para dar espacio a números */
   .sorteo-badge-name {
     font-family: 'DM Sans', sans-serif;
-    font-size: 26px;
+    font-size: calc(26px * var(--escala-franja));
     font-weight: 900;
     letter-spacing: 1px;
     color: #ffd700;
@@ -71,24 +88,22 @@
     text-transform: uppercase;
   }
 
-  .sorteo-fecha { font-size:20px; color:#fff; white-space:nowrap; }
+  .sorteo-fecha { font-size:calc(20px * var(--escala-franja)); color:#fff; white-space:nowrap; }
+  .sorteo-nro {
+    font-family:'Oswald',sans-serif; font-size:calc(22px * var(--escala-franja)); font-weight:700;
+    color:#fff; letter-spacing:2px; white-space:nowrap;
+  }
 
   .live-label {
-    font-size: 20px; color: #44ff88; font-weight: 900;
+    font-size: calc(20px * var(--escala-franja)); color: #44ff88; font-weight: 900;
     letter-spacing: 1px; white-space: nowrap;
   }
   .done-label {
-    font-size: 20px; color: #ffd700; font-weight: 900;
+    font-size: calc(20px * var(--escala-franja)); color: #ffd700; font-weight: 900;
     letter-spacing: 1px; white-space: nowrap;
   }
 
   /* FECHA — sin hora */
-  .header-right {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-end;
-  }
   .fecha-txt {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 32px;
@@ -96,9 +111,6 @@
     letter-spacing: 1px;
     line-height: 1;
   }
-
-  /* MAIN */
-  .main { flex:1; display:flex; overflow:hidden; }
 
   /* CABEZAS */
   .col-cabezas {
@@ -138,7 +150,7 @@
   }
 
   /* TABLA */
-  .col-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .col-tabla { display:flex; flex-direction:column; overflow:hidden; }
 
   .provincias-header {
     display: grid;
@@ -153,8 +165,10 @@
     color: #ffd700; border-right: 1px solid rgba(255,255,255,0.15);
   }
   .prov-cell:last-child { border-right: none; }
+  /* "N°": misma letra y tamaño que los números de ubicación de abajo (.pos-label) */
   .prov-cell.label {
-    color: rgba(255,255,255,0.4); font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
     display: flex; align-items: center; justify-content: center;
   }
 
@@ -250,29 +264,33 @@
 </head>
 <body>
 
-<!-- HEADER -->
-<div class="header">
-  <div class="marca-box">
-    <div class="marca-principal">QUINIELA SAGUIR</div>
-    <div class="marca-frase">Para Saguir Ganando</div>
-  </div>
-
-  <div class="sorteo-badge" id="sorteo-badge">
-    <div class="sorteo-badge-name" id="badge-name">PRIMERA</div>
-    <div id="badge-fecha" class="sorteo-fecha"></div>
-    <div id="badge-nsorteo" style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:#fff;letter-spacing:2px;white-space:nowrap;"></div>
-    <div id="badge-label" class="done-label">SORTEANDO</div>
-  </div>
-
-  <div class="header-right">
-  </div>
-</div>
-
-<!-- MAIN -->
-<div class="main">
+<!-- PANTALLA -->
+<div class="pantalla">
+  <!-- Últimas cabezas: arranca arriba de todo -->
   <div class="col-cabezas">
     <div class="cabezas-header">ÚLTIMAS CABEZAS</div>
     <div id="cabezas-content"></div>
+  </div>
+
+  <div class="zona-derecha sin-panel" id="zona-derecha">
+  <div class="franja-roja"></div>
+
+  <!-- Franja del sorteo: mide lo mismo que la tabla de abajo -->
+  <div class="header-sorteo">
+    <div class="sorteo-badge" id="sorteo-badge">
+      <div class="sorteo-badge-name" id="badge-name">PRIMERA</div>
+      <div id="badge-fecha" class="sorteo-fecha"></div>
+      <div id="badge-nsorteo" class="sorteo-nro"></div>
+      <div id="badge-label" class="done-label">SORTEANDO</div>
+    </div>
+  </div>
+
+  <!-- Marca: arriba a la derecha, encima del panel -->
+  <div class="header-marca">
+    <div class="marca-box">
+      <div class="marca-principal">QUINIELA SAGUIR</div>
+      <div class="marca-frase">Para Saguir Ganando</div>
+    </div>
   </div>
 
   <div class="col-tabla">
@@ -291,6 +309,7 @@
 
   <!-- Panel de la derecha: oculto hasta que haya algo para mostrar -->
   <div class="col-panel" id="col-panel" style="display:none;"></div>
+  </div>
 </div>
 
 <!-- FOOTER -->
@@ -554,7 +573,7 @@ function render() {
   const maxFilas = Math.max(...provKeys.map(p => cantidadProvinciaTV(p)));
 
   let html = '<div class="pos-col">';
-  for (let i=1; i<=maxFilas; i++) html += `<div class="pos-label">${String(i).padStart(2,'0')}°</div>`;
+  for (let i=1; i<=maxFilas; i++) html += `<div class="pos-label">${String(i).padStart(2,'0')}</div>`;
   html += '</div>';
 
   provKeys.forEach(p => {
@@ -704,8 +723,11 @@ function renderPanel() {
   const col = document.getElementById('col-panel');
   if (!col) return;
   const partes = [panelParteDia(), panelParteSemana()].filter(Boolean);
+  const zona = document.getElementById('zona-derecha');
   if (partes.length === 0) {
     if (panelClaveMostrada !== '') { col.style.display = 'none'; col.innerHTML = ''; panelClaveMostrada = ''; }
+    if (zona) zona.classList.add('sin-panel');
+    ajustarFranjaSorteo();
     return;
   }
   const clave = JSON.stringify(partes);
@@ -714,7 +736,28 @@ function renderPanel() {
     col.style.display = 'flex';
     panelClaveMostrada = clave;
   }
+  if (zona) zona.classList.remove('sin-panel');
   ajustarPanelEnPantalla();
+  ajustarFranjaSorteo();
+}
+
+// La franja del sorteo mide lo mismo que la tabla. Si en una pantalla angosta (o con las
+// columnas de los costados muy anchas) su texto no entra, se achica todo en la misma
+// proporción. Si entra, queda en su tamaño de siempre (escala 1).
+function ajustarFranjaSorteo() {
+  const badge = document.getElementById('sorteo-badge');
+  if (!badge) return;
+  badge.style.setProperty('--escala-franja', '1');
+  const disponible = badge.clientWidth;
+  if (!disponible) return;
+  const hijos = Array.from(badge.children);
+  const cs = getComputedStyle(badge);
+  const necesario = hijos.reduce((t, h) => t + h.scrollWidth, 0)
+    + (parseFloat(cs.columnGap) || 0) * Math.max(0, hijos.length - 1)
+    + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  if (necesario > disponible) {
+    badge.style.setProperty('--escala-franja', Math.max(0.5, (disponible - 6) / necesario).toFixed(3));
+  }
 }
 
 // Se vuelve a ajustar en cada ciclo (por si cambió el ancho del panel) y cuando terminan de
@@ -728,10 +771,10 @@ function ajustarPanelEnPantalla() {
   });
 }
 if (document.fonts) {
-  if (document.fonts.ready) document.fonts.ready.then(ajustarPanelEnPantalla).catch(() => {});
-  if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', ajustarPanelEnPantalla);
+  if (document.fonts.ready) document.fonts.ready.then(() => { ajustarPanelEnPantalla(); ajustarFranjaSorteo(); }).catch(() => {});
+  if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => { ajustarPanelEnPantalla(); ajustarFranjaSorteo(); });
 }
-window.addEventListener('resize', ajustarPanelEnPantalla);
+window.addEventListener('resize', () => { ajustarPanelEnPantalla(); ajustarFranjaSorteo(); });
 
 async function cargarPanel(hoy) {
   const lunes = lunesDeLaSemanaVigente(hoy);
