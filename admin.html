@@ -710,7 +710,7 @@
             <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
               Solo afecta cómo se ve el admin al cargar números (celular/notebook) — el Smart TV no cambia.
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr));gap:16px;margin-bottom:16px;">
               <div>
                 <label class="form-label">Orden de la grilla</label>
                 <select class="form-input" id="grilla-orden-sel" onchange="document.getElementById('grilla-columnas-wrap').style.display = this.value==='columna' ? 'block' : 'none';">
@@ -726,13 +726,23 @@
                 </select>
               </div>
               <div>
+                <label class="form-label">Al completar la última posición de una provincia</label>
+                <select class="form-input" id="pasar-provincia-sel">
+                  <option value="si">Pasar sola a la siguiente provincia (como ahora)</option>
+                  <option value="no">Quedarse en la misma provincia</option>
+                </select>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                  Las flechas del teclado siguen pasando de provincia igual.
+                </div>
+              </div>
+              <div>
                 <label class="form-label">Vista de provincias al cargar</label>
                 <select class="form-input" id="modo-carga-sel">
                   <option value="clasico">Todas juntas (como ahora)</option>
                   <option value="pestanas">Por pestañas — una provincia a la vez</option>
                 </select>
                 <div style="font-size:11px;color:var(--muted);margin-top:4px;">
-                  Con pestañas, al completar la última posición de una provincia pasa solo a la siguiente.
+                  Con pestañas se ve una provincia a la vez.
                 </div>
               </div>
               <div>
@@ -753,24 +763,11 @@
             </div>
           </div>
 
-          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA (por sorteo) -->
-          <div style="margin-bottom:24px;padding-bottom:20px;padding-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA: ahora se configura SOLO en Programaciones -->
+          <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Cantidad de números por provincia</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuántos números se cargan en admin y se muestran en la TV. Se configura sorteo por sorteo, para la agencia seleccionada arriba.</div>
-
-            <div class="tabs" id="tabs-sorteo-numeros" style="margin-bottom:16px;">
-              <div class="tab active" onclick="setTabNumeros('previa',this)">Previa</div>
-              <div class="tab" onclick="setTabNumeros('primera',this)">Primera</div>
-              <div class="tab" onclick="setTabNumeros('matutina',this)">Matutina</div>
-              <div class="tab" onclick="setTabNumeros('vespertina',this)">Vespertina</div>
-              <div class="tab" onclick="setTabNumeros('nocturna',this)">Nocturna</div>
-            </div>
-
-            <div id="grid-cantidad-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:14px;"></div>
-
-            <button class="btn btn-ghost" style="font-size:12px;" onclick="copiarCantidadATodosLosSorteos()">
-              📋 Copiar estos valores a los 5 sorteos
-            </button>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">Ahora se configura en un solo lugar: <b>⬟ Superadmin → 🔢 Programaciones</b>. Ahí ves cuál rige en cada sorteo y podés programarla en los 5 sorteos de una vez.</div>
+            <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;" onclick="setTabSuperadmin('programaciones', document.querySelector('#tabs-superadmin .tab[onclick*=programaciones]'))">🔢 Ir a Programaciones</button>
           </div>
 
           <!-- DURACIÓN DE "SORTEANDO" POR SORTEO -->
@@ -820,12 +817,12 @@
     <div id="seccion-programaciones" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
         <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones', this, () => { buildProgProvinciasGrid(); cargarAgenciasEnSelectorUnaVez(); })">▸</button>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📅 Programar Cambios de Cantidad</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🔢 Cantidad de números por provincia</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
       <div id="contenido-programaciones" style="display:none;">
       <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-        Programá un cambio de cantidad de números para una fecha futura. Si le ponés fecha de fin, al terminar ese rango el sistema vuelve solo a usar la configuración de siempre.
+        Acá se configura cuántos números por provincia se cargan en el admin y se muestran en la TV, en cada sorteo. Rige la programación más nueva que esté en fecha (la que dice <b>ACTIVA AHORA</b>). Para un cambio permanente, marcá "Para siempre"; si le ponés fecha de fin, al terminar vuelve a regir la anterior. Un sorteo sin ninguna programación muestra 20 números por provincia.
       </div>
 
       <div class="card" style="margin-bottom:16px;">
@@ -848,6 +845,11 @@
                 <option value="vespertina">Vespertina</option>
                 <option value="nocturna">Nocturna</option>
               </select>
+              <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;">
+                <input type="checkbox" id="prog-todos-sorteos" onchange="onCambioProgTodosSorteos()"
+                  style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;">
+                <span style="font-size:13px;">Programar en los 5 sorteos (previa, primera, matutina, vespertina y nocturna)</span>
+              </label>
             </div>
           </div>
 
@@ -871,7 +873,7 @@
             <span style="font-size:13px;">Para siempre (sin fecha de fin — no vuelve atrás sola)</span>
           </label>
 
-          <button class="btn btn-primary" style="width:100%" onclick="programarCambio()">💾 Programar cambio</button>
+          <button class="btn btn-primary" id="btn-programar-cambio" style="width:100%" onclick="programarCambio()">💾 Programar cambio</button>
         </div>
       </div>
 
@@ -893,7 +895,7 @@
     <!-- CONFIGURACIÓN DE SORTEOS — solo superadmin -->
     <div id="seccion-config" style="display:none;">
       <div style="margin-top:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
-        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this, () => { buildConfigGrids(); buildCantidadProvinciasGrid(); cargarConfiguraciones(); })">▸</button>
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this, () => { buildConfigGrids(); cargarConfiguraciones(); })">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">⚙️ Configuración de Sorteos</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
@@ -3234,7 +3236,7 @@ function actualizarTitulos() {
 // =====================
 // Config de disposición de la grilla y modo de avance — se carga por agencia, una sola vez al loguearse
 let gridConfig = { orden: 'fila', columnas: [10, 10] };
-let configTeclado = { modo: 'automatico' };
+let configTeclado = { modo: 'automatico', pasarProvincia: true }; // pasarProvincia: al completar la última posición, ¿pasa sola a la siguiente provincia?
 let modoCarga = 'clasico'; // 'clasico' = todas las provincias juntas | 'pestanas' = una por vez
 let provinciaActivaPestana = PROVINCIAS[0].key;
 
@@ -3256,12 +3258,12 @@ function previsualizarTamanoNumeros(tam) {
 
 async function cargarConfigCarga() {
   gridConfig = { orden: 'fila', columnas: [10, 10] };
-  configTeclado = { modo: 'automatico' };
+  configTeclado = { modo: 'automatico', pasarProvincia: true };
   modoCarga = 'clasico';
   aplicarTamanoNumeros(26); // valor por defecto hasta que se sepa si hay uno guardado
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga,tamano_fuente_numeros)&select=clave,valor`,
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga,tamano_fuente_numeros,pasar_provincia)&select=clave,valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
@@ -3272,6 +3274,7 @@ async function cargarConfigCarga() {
         if (partes.length > 0) gridConfig.columnas = partes;
       }
       if (r.clave === 'modo_avance' && (r.valor === 'automatico' || r.valor === 'enter')) configTeclado.modo = r.valor;
+      if (r.clave === 'pasar_provincia') configTeclado.pasarProvincia = r.valor !== 'no';
       if (r.clave === 'modo_carga' && (r.valor === 'clasico' || r.valor === 'pestanas')) modoCarga = r.valor;
       if (r.clave === 'tamano_fuente_numeros' && r.valor) aplicarTamanoNumeros(r.valor);
     });
@@ -3440,6 +3443,8 @@ function avanzarSiguiente(el) {
   const pos = parseInt(el.dataset.pos);
   const next = document.getElementById(`n_${prov}_${pos+1}`);
   if (next) { next.focus(); return; }
+  // Última posición de la provincia: si así está configurado, se queda acá (no pasa de provincia)
+  if (!configTeclado.pasarProvincia) return;
   const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
   if (provIdx < PROVINCIAS.length-1) {
     const siguienteProv = PROVINCIAS[provIdx+1].key;
@@ -4575,17 +4580,6 @@ function actualizarSlider(tipo, valor) {
   if (previewEl) previewEl.style.fontSize = valor + 'px';
 }
 
-function buildCantidadProvinciasGrid() {
-  const cont = document.getElementById('grid-cantidad-provincias');
-  if (!cont) return;
-  cont.innerHTML = PROVINCIAS.map(p => `
-    <div>
-      <label class="form-label">${p.label}</label>
-      <input type="number" min="1" max="20" class="form-input" id="cant_${p.key}" value="20">
-    </div>
-  `).join('');
-}
-
 function buildProgProvinciasGrid() {
   const cont = document.getElementById('grid-prog-provincias');
   if (!cont) return;
@@ -4608,34 +4602,6 @@ function buildNombresProvinciaGrid() {
   `).join('');
 }
 
-let sorteoNumerosSeleccionado = 'previa';
-
-function setTabNumeros(sorteo, el) {
-  sorteoNumerosSeleccionado = sorteo;
-  document.querySelectorAll('#tabs-sorteo-numeros .tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  cargarCantidadesSorteo();
-}
-
-// Trae SOLO la cantidad por provincia del sorteo seleccionado (independiente de los sliders)
-async function cargarCantidadesSorteo() {
-  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}&clave=eq.numeros_${sorteoNumerosSeleccionado}&select=numeros_por_provincia`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-    if (rows && rows[0] && rows[0].numeros_por_provincia) {
-      Object.entries(rows[0].numeros_por_provincia).forEach(([k, v]) => {
-        const el = document.getElementById(`cant_${k}`);
-        if (el) el.value = v;
-      });
-    }
-  } catch(e) { console.error(e); }
-}
-
 async function cargarConfigVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
   Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
@@ -4652,17 +4618,14 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('grilla-orden-sel'); if (el) { el.value = 'fila'; el.dispatchEvent(new Event('change')); } }
   { const el = document.getElementById('grilla-columnas-input'); if (el) el.value = '10,10'; }
   { const el = document.getElementById('modo-avance-sel'); if (el) el.value = 'automatico'; }
+  { const el = document.getElementById('pasar-provincia-sel'); if (el) el.value = 'si'; }
   { const el = document.getElementById('modo-carga-sel'); if (el) el.value = 'clasico'; }
   { const el = document.getElementById('tamano-numeros-sel'); if (el) { el.value = '26'; document.getElementById('tamano-numeros-valor').textContent = '26px'; } }
   try {
-    const [resConfig] = await Promise.all([
-      fetchConRenovacion(
-        `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      ),
-      cargarCantidadesSorteo() // independiente del resto — antes se esperaba a que
-                                 // terminara todo lo de arriba para recién arrancarla
-    ]);
+    const resConfig = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
     const rows = await resConfig.json();
     if (rows && rows.length > 0) {
       rows.forEach(r => {
@@ -4684,6 +4647,9 @@ async function cargarConfigVisual() {
         } else if (r.clave === 'modo_avance') {
           const el = document.getElementById('modo-avance-sel');
           if (el) el.value = r.valor;
+        } else if (r.clave === 'pasar_provincia') {
+          const el = document.getElementById('pasar-provincia-sel');
+          if (el) el.value = r.valor === 'no' ? 'no' : 'si';
         } else if (r.clave === 'modo_carga') {
           const el = document.getElementById('modo-carga-sel');
           if (el) el.value = r.valor;
@@ -4704,18 +4670,6 @@ async function cargarConfigVisual() {
   } catch(e) { console.error(e); }
 }
 
-function leerCantidadesDeLosInputs() {
-  const obj = {};
-  PROVINCIAS.forEach(p => {
-    const el = document.getElementById(`cant_${p.key}`);
-    let v = parseInt(el?.value, 10);
-    if (isNaN(v)) v = 20;
-    v = Math.min(20, Math.max(1, v));
-    obj[p.key] = v;
-  });
-  return obj;
-}
-
 async function guardarVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
   const claves = ['primero','normal','cabeza','prov','ancho-cabezas','ancho-panel','panel-titulo','panel-numero','panel-descripcion'];
@@ -4729,14 +4683,6 @@ async function guardarVisual() {
     valor: document.getElementById('visual-tv-size').value,
     numeros_por_provincia: null,
     actualizado_por: usuarioActual.nombre });
-
-  // Cantidad de números por provincia — solo del sorteo seleccionado en las tabs
-  rows.push({
-    agencia_id: agencia, clave: `numeros_${sorteoNumerosSeleccionado}`,
-    valor: '1',
-    numeros_por_provincia: leerCantidadesDeLosInputs(),
-    actualizado_por: usuarioActual.nombre
-  });
 
   // Duración de SORTEANDO por sorteo (en minutos)
   SORTEOS.forEach(s => {
@@ -4781,6 +4727,7 @@ async function guardarVisual() {
   const ordenGrilla = document.getElementById('grilla-orden-sel')?.value || 'fila';
   const columnasGrilla = (document.getElementById('grilla-columnas-input')?.value || '10,10').trim() || '10,10';
   const modoAvance = document.getElementById('modo-avance-sel')?.value || 'automatico';
+  const pasarProvincia = document.getElementById('pasar-provincia-sel')?.value === 'no' ? 'no' : 'si';
   const modoCargaSel = document.getElementById('modo-carga-sel')?.value || 'clasico';
   const tamanoNumerosSel = document.getElementById('tamano-numeros-sel')?.value || '26';
   rows.push({
@@ -4794,6 +4741,10 @@ async function guardarVisual() {
   rows.push({
     agencia_id: agencia, clave: 'modo_avance',
     valor: modoAvance, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'pasar_provincia',
+    valor: pasarProvincia, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
   });
   rows.push({
     agencia_id: agencia, clave: 'modo_carga',
@@ -4826,34 +4777,6 @@ async function guardarVisual() {
   } catch(e) { showToast('Error de conexión','err'); }
 }
 
-// Copia los valores actuales de los inputs a los 5 sorteos de una sola vez
-async function copiarCantidadATodosLosSorteos() {
-  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const valores = leerCantidadesDeLosInputs();
-  const rows = SORTEOS.map(s => ({
-    agencia_id: agencia, clave: `numeros_${s}`,
-    valor: '1',
-    numeros_por_provincia: valores,
-    actualizado_por: usuarioActual.nombre
-  }));
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
-      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify(rows) }
-    );
-    if (res.ok || res.status === 201) {
-      showToast(`✅ Copiado a los 5 sorteos de ${agencia}`,'ok');
-      if (usuarioActual && agencia === usuarioActual.agencia_id) {
-        await cargarNumerosPorProvincia();
-        buildForm();
-        cargarExistentes();
-      }
-    } else { showToast('Error al copiar','err'); }
-  } catch(e) { showToast('Error de conexión','err'); }
-}
-
 async function resetearVisual() {
   Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
@@ -4865,9 +4788,26 @@ async function resetearVisual() {
 // =====================
 // PROGRAMACIONES DE CANTIDAD (con fecha)
 // =====================
+// Tilde "Programar en los 5 sorteos": deja el selector de sorteo de lado y avisa en el botón
+function onCambioProgTodosSorteos() {
+  const todos = document.getElementById('prog-todos-sorteos').checked;
+  const sel = document.getElementById('prog-sorteo-sel');
+  sel.disabled = todos;
+  sel.style.opacity = todos ? 0.4 : 1;
+  document.getElementById('btn-programar-cambio').innerHTML = todos ? '💾 Programar cambio en los 5 sorteos' : '💾 Programar cambio';
+}
+
+let programandoCambio = false; // evita que un doble clic cree la programación dos veces
+
+// Crea la programación para el sorteo elegido, o para los 5 si está marcado el tilde.
+// Si para alguno de esos sorteos ya hay una programación que empieza el MISMO día, se
+// reemplaza (previo aviso): si quedaran dos empatadas, no habría forma segura de saber cuál
+// usa la TV. Las que empiezan otro día no se tocan: rige siempre la que empezó más tarde.
 async function programarCambio() {
+  if (programandoCambio) return;
   const agencia = document.getElementById('prog-agencia-sel').value;
-  const sorteo = document.getElementById('prog-sorteo-sel').value;
+  const todos = document.getElementById('prog-todos-sorteos').checked;
+  const sorteos = todos ? SORTEOS.slice() : [document.getElementById('prog-sorteo-sel').value];
   const fechaDesde = document.getElementById('prog-fecha-desde').value;
   const paraSiempre = document.getElementById('prog-para-siempre').checked;
   const fechaHasta = paraSiempre ? null : document.getElementById('prog-fecha-hasta').value;
@@ -4885,31 +4825,76 @@ async function programarCambio() {
     numerosPorProvinciaProg[p.key] = v;
   });
 
+  const nombresSorteo = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
+  const btn = document.getElementById('btn-programar-cambio');
+  const textoBtn = btn.innerHTML;
+  programandoCambio = true;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Guardando...';
   try {
+    // 1) ¿Hay programaciones de esos sorteos que empiecen el mismo día?
+    const ag = encodeURIComponent(agencia);
+    const mismas = await consultarJson(
+      `${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${ag}&fecha_desde=eq.${fechaDesde}&sorteo=in.(${sorteos.join(',')})&select=id,sorteo`,
+      usuarioActual.token
+    );
+    if (mismas === null) { showToast('⚠️ No se pudo revisar lo ya programado — no se guardó nada. Probá de nuevo','err'); return; }
+    if (mismas.length > 0) {
+      const lista = [...new Set(mismas.map(m => nombresSorteo[m.sorteo] || m.sorteo))].join(', ');
+      const [a, m, d] = fechaDesde.split('-');
+      if (!confirm(`Ya hay una programación que empieza el ${d}/${m}/${a} para: ${lista}.\n\n¿Reemplazarla por esta nueva?`)) return;
+    }
+
+    // 2) Se guardan las nuevas (todas juntas, en un solo pedido: o se guardan todas o ninguna)
     const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/programaciones_numeros`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'return=minimal'
       },
-      body: JSON.stringify([{
+      body: JSON.stringify(sorteos.map(sorteo => ({
         agencia_id: agencia,
         sorteo: sorteo,
         numeros_por_provincia: numerosPorProvinciaProg,
         fecha_desde: fechaDesde,
         fecha_hasta: fechaHasta,
         creado_por: usuarioActual.nombre
-      }])
+      })))
     });
-    if (res.ok || res.status === 201) {
-      showToast('✅ Programación guardada','ok');
-      cargarProgramaciones();
-    } else {
-      const err = await res.text();
-      console.error(err);
-      showToast('Error al programar','err');
+    if (!(res.ok || res.status === 201)) {
+      console.error(await res.text().catch(() => ''));
+      showToast('⚠️ Error al programar — no se guardó nada','err');
+      return;
     }
-  } catch(e) { showToast('Error de conexión','err'); }
+
+    // 3) Recién con las nuevas ya guardadas, se borran las que reemplazan (así nunca queda
+    //    un sorteo sin programación por una falla en el medio)
+    let reemplazoOk = true;
+    if (mismas.length > 0) {
+      try {
+        const resDel = await fetchConRenovacion(
+          `${SUPABASE_URL}/rest/v1/programaciones_numeros?id=in.(${mismas.map(m => m.id).join(',')})`,
+          { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+        );
+        reemplazoOk = resDel.ok;
+      } catch(e) { reemplazoOk = false; }
+    }
+    if (!reemplazoOk) {
+      showToast('⚠️ Se programó, pero no se pudo quitar la anterior del mismo día. Eliminala con 🗑 en la lista de abajo','err');
+    } else if (todos) {
+      showToast('✅ Programación guardada en los 5 sorteos','ok');
+    } else {
+      showToast('✅ Programación guardada','ok');
+    }
+    cargarProgramaciones();
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión','err');
+  } finally {
+    programandoCambio = false;
+    btn.disabled = false;
+    btn.innerHTML = textoBtn;
+  }
 }
 
 async function cargarProgramaciones() {
@@ -4926,18 +4911,30 @@ async function cargarProgramaciones() {
     }
     const hoy = hoyStr();
     const nombresSorteo = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
+    // Igual que la TV: de las que están en fecha para una misma agencia y sorteo, rige solo la
+    // que empezó más tarde. Las demás figuran como "Reemplazada".
+    const vigente = {};
+    rows.forEach(r => {
+      const enFecha = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      if (!enFecha) return;
+      const k = `${r.agencia_id}|${r.sorteo}`;
+      const actual = vigente[k];
+      if (!actual || r.fecha_desde > actual.fecha_desde || (r.fecha_desde === actual.fecha_desde && r.id > actual.id)) vigente[k] = r;
+    });
     lista.innerHTML = rows.map(r => {
-      const activa = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      const enFecha = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      const activa = enFecha && vigente[`${r.agencia_id}|${r.sorteo}`] === r;
+      const reemplazada = enFecha && !activa;
       const vencida = r.fecha_hasta && r.fecha_hasta < hoy;
-      const estado = activa ? 'ACTIVA AHORA' : vencida ? 'Vencida' : 'Programada a futuro';
-      const colorEstado = activa ? 'var(--green)' : vencida ? 'var(--muted)' : 'var(--gold)';
+      const estado = activa ? 'ACTIVA AHORA' : reemplazada ? 'Reemplazada (rige una más nueva)' : vencida ? 'Vencida' : 'Programada a futuro';
+      const colorEstado = activa ? 'var(--green)' : (vencida || reemplazada) ? 'var(--muted)' : 'var(--gold)';
       const rango = r.fecha_hasta ? `${r.fecha_desde} → ${r.fecha_hasta}` : `${r.fecha_desde} → para siempre`;
       const numeros = Object.entries(r.numeros_por_provincia || {}).map(([k,v]) => `${k}: ${v}`).join(' · ');
       return `
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;${reemplazada ? 'opacity:0.6;' : ''}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
             <div style="font-weight:600;font-size:14px;">${r.agencia_id} — ${nombresSorteo[r.sorteo] || r.sorteo}</div>
-            <span style="padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;color:${colorEstado};background:rgba(255,255,255,0.06);">${estado}</span>
+            <span style="padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;color:${colorEstado};background:rgba(255,255,255,0.06);text-align:right;">${estado}</span>
           </div>
           <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${rango} · Creado por ${r.creado_por || '—'}</div>
           <div style="font-size:12px;color:var(--text);margin-bottom:10px;">${numeros}</div>
