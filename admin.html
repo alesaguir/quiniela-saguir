@@ -580,24 +580,24 @@
               <div>
                 <label class="form-label">1° Premio</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-primero" min="20" max="60" value="34"
+                  <input type="range" id="slider-primero" min="20" max="120" value="34"
                     oninput="actualizarSlider('primero',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-primero" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">34px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-primero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;font-size:34px;">7732</span>
                 </div>
               </div>
               <div>
                 <label class="form-label">Resto de números</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-normal" min="14" max="40" value="22"
+                  <input type="range" id="slider-normal" min="14" max="120" value="22"
                     oninput="actualizarSlider('normal',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-normal" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">22px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-normal" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:22px;">3638</span>
                 </div>
               </div>
@@ -607,30 +607,54 @@
           <!-- CABEZAS -->
           <div style="margin-bottom:24px;padding-top:20px;border-top:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Últimas cabezas</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de los números en la columna izquierda</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de las letras de la columna izquierda</div>
             <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
               <div>
                 <label class="form-label">Números de cabezas</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-cabeza" min="12" max="32" value="18"
+                  <input type="range" id="slider-cabeza" min="12" max="50" value="18"
                     oninput="actualizarSlider('cabeza',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-cabeza" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">18px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-cabeza" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:18px;">6772</span>
                 </div>
               </div>
               <div>
                 <label class="form-label">Texto de provincia</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-prov" min="10" max="22" value="14"
+                  <input type="range" id="slider-prov" min="10" max="40" value="14"
                     oninput="actualizarSlider('prov',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-prov" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">14px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-prov" style="font-family:'DM Sans',sans-serif;color:rgba(255,255,255,0.65);font-size:14px;">CHAQUEÑA</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Título "Últimas cabezas"</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-titulo-cabezas" min="14" max="40" value="20"
+                    oninput="actualizarSlider('titulo-cabezas',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-titulo-cabezas" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">20px</span>
+                </div>
+                <div style="margin-top:8px;background:#ffd700;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-titulo-cabezas" style="font-family:'Bebas Neue',sans-serif;color:#000;letter-spacing:2px;font-size:20px;">ÚLTIMAS CABEZAS</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Títulos de los sorteos</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-titulo-sorteos" min="10" max="30" value="12"
+                    oninput="actualizarSlider('titulo-sorteos',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-titulo-sorteos" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">12px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:left;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-titulo-sorteos" style="display:inline-block;background:rgba(255,215,0,0.1);padding:2px 10px;font-family:'DM Sans',sans-serif;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;font-size:12px;">Previa lunes</span>
                 </div>
               </div>
             </div>
@@ -668,7 +692,7 @@
               <div>
                 <label class="form-label">Título (franja dorada)</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-panel-titulo" min="12" max="40" value="20"
+                  <input type="range" id="slider-panel-titulo" min="12" max="60" value="20"
                     oninput="actualizarSlider('panel-titulo',this.value)"
                     style="flex:1;min-width:0;accent-color:var(--gold);">
                   <span id="val-panel-titulo" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
@@ -2744,20 +2768,23 @@ const TVC_CSS = `
   font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; font-style:normal; line-height:normal;
   letter-spacing:normal; text-transform:none; text-align:left; white-space:normal; display:flex; flex-direction:column;
   overflow:hidden; -webkit-text-size-adjust:100%; text-size-adjust:100%; pointer-events:none; z-index:-1; }
-.tvc-header { background:linear-gradient(90deg,#8B0000,#cc0000,#8B0000); padding:2px 12px; display:grid; grid-template-columns:190px 1fr 100px; align-items:center; gap:10px; border-bottom:3px solid #ffd700; flex-shrink:0; }
-.tvc-marca-box { text-align:left; }
+.tvc-pantalla { flex:1; display:flex; overflow:hidden; min-height:0; }
+.tvc-zona-derecha { flex:1; min-width:0; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto minmax(0,1fr); }
+.tvc-franja-roja { grid-row:1; grid-column:1 / -1; background:linear-gradient(90deg,#8B0000,#cc0000,#8B0000); border-bottom:3px solid #ffd700; }
+.tvc-header-sorteo { grid-row:1; grid-column:1; min-width:0; padding:2px 0 5px; }
+.tvc-header-marca { grid-row:1; grid-column:2; padding:2px 12px 5px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+.tvc-zona-derecha.sin-panel .tvc-tabla { grid-column:1 / -1; }
+.tvc-marca-box { text-align:center; }
 .tvc-marca-principal { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1; }
 .tvc-marca-frase { font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase; }
-.tvc-badge { display:grid; grid-template-columns:auto auto auto auto; align-items:center; justify-content:center; gap:24px; height:44px; padding:0 20px; background:rgba(0,0,0,.30); border:1px solid rgba(255,215,0,.40); border-radius:6px; }
+.tvc-badge { --escala-franja:1; display:grid; grid-template-columns:auto auto auto auto; align-items:center; justify-content:center; gap:calc(24px * var(--escala-franja)); height:44px; padding:0 calc(20px * var(--escala-franja)); background:rgba(0,0,0,.30); border:1px solid rgba(255,215,0,.40); border-radius:6px; }
 .tvc-badge.finalizado { background:linear-gradient(90deg,rgba(140,55,0,.95),rgba(210,105,0,.95),rgba(140,55,0,.95)); }
 .tvc-badge.sorteando { background:linear-gradient(90deg,rgba(0,80,0,.95),rgba(0,140,0,.90),rgba(0,80,0,.95)); }
-.tvc-badge-name { font-family:'DM Sans',sans-serif; font-size:26px; font-weight:900; letter-spacing:1px; color:#ffd700; line-height:1; white-space:nowrap; text-transform:uppercase; }
-.tvc-fecha { font-size:20px; color:#fff; white-space:nowrap; }
-.tvc-nsorteo { font-family:'Oswald',sans-serif; font-size:22px; font-weight:700; color:#fff; letter-spacing:2px; white-space:nowrap; }
-.tvc-live { font-size:20px; color:#44ff88; font-weight:900; letter-spacing:1px; white-space:nowrap; }
-.tvc-done { font-size:20px; color:#ffd700; font-weight:900; letter-spacing:1px; white-space:nowrap; }
-.tvc-header-right { display:flex; flex-direction:column; justify-content:center; align-items:flex-end; }
-.tvc-main { flex:1; display:flex; overflow:hidden; }
+.tvc-badge-name { font-family:'DM Sans',sans-serif; font-size:calc(26px * var(--escala-franja)); font-weight:900; letter-spacing:1px; color:#ffd700; line-height:1; white-space:nowrap; text-transform:uppercase; }
+.tvc-fecha { font-size:calc(20px * var(--escala-franja)); color:#fff; white-space:nowrap; }
+.tvc-nsorteo { font-family:'Oswald',sans-serif; font-size:calc(22px * var(--escala-franja)); font-weight:700; color:#fff; letter-spacing:2px; white-space:nowrap; }
+.tvc-live { font-size:calc(20px * var(--escala-franja)); color:#44ff88; font-weight:900; letter-spacing:1px; white-space:nowrap; }
+.tvc-done { font-size:calc(20px * var(--escala-franja)); color:#ffd700; font-weight:900; letter-spacing:1px; white-space:nowrap; }
 .tvc-cabezas { width:240px; background:#0d0500; border-right:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-cabezas-header { background:#ffd700; color:#000; text-align:center; padding:6px 4px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; flex-shrink:0; }
 .tvc-cab-section { border-bottom:1px solid rgba(255,215,0,0.25); flex-shrink:0; }
@@ -2765,11 +2792,11 @@ const TVC_CSS = `
 .tvc-cab-row { display:flex; align-items:center; justify-content:space-between; padding:0 10px; min-height:25px; border-bottom:1px solid rgba(255,255,255,0.04); }
 .tvc-cab-prov { font-size:16px; color:rgba(255,255,255,0.65); text-transform:uppercase; letter-spacing:1px; }
 .tvc-cab-num { font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; color:#fff; }
-.tvc-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-tabla { grid-row:2; grid-column:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-prov-header { display:grid; grid-template-columns:70px repeat(5,1fr); background:#8B0000; border-bottom:1px solid #ffd700; flex-shrink:0; }
 .tvc-prov-cell { padding:5px 4px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; color:#ffd700; border-right:1px solid rgba(255,255,255,0.15); }
 .tvc-prov-cell:last-child { border-right:none; }
-.tvc-prov-cell.label { color:rgba(255,255,255,0.4); font-size:11px; display:flex; align-items:center; justify-content:center; }
+.tvc-prov-cell.label { color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; font-size:12px; display:flex; align-items:center; justify-content:center; }
 .tvc-nums-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-nums-grid { flex:1; display:grid; grid-template-columns:70px repeat(5,1fr); }
 .tvc-pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
@@ -2782,7 +2809,7 @@ const TVC_CSS = `
 .tvc-num-cell.primero { color:#ffd700; font-size:34px; font-weight:700; }
 .tvc-num-cell.empty { color:rgba(255,255,255,0.2); font-size:14px; letter-spacing:2px; }
 .tvc-num-cell.filler { visibility:hidden; border-bottom:none; }
-.tvc-panel { width:340px; background:#0d0500; border-left:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-panel { grid-row:2; grid-column:2; width:340px; background:#0d0500; border-left:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-panel-bloque { flex:1 1 0; min-height:0; display:flex; flex-direction:column; }
 .tvc-panel-bloque + .tvc-panel-bloque { border-top:2px solid #ffd700; }
 .tvc-panel-titulo { background:#ffd700; color:#000; text-align:center; padding:6px 8px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; flex-shrink:0; }
@@ -2803,7 +2830,7 @@ function htmlTablero(d) {
   const maxFilas = Math.max(...TAB_PROVS.map(filasDe));
 
   let grid = '<div class="tvc-pos-col">';
-  for (let i = 1; i <= maxFilas; i++) grid += `<div class="tvc-pos-label">${String(i).padStart(2,'0')}°</div>`;
+  for (let i = 1; i <= maxFilas; i++) grid += `<div class="tvc-pos-label">${String(i).padStart(2,'0')}</div>`;
   grid += '</div>';
   TAB_PROVS.forEach(p => {
     grid += '<div class="tvc-num-col">';
@@ -2841,19 +2868,21 @@ function htmlTablero(d) {
     }).join('') + '</div>';
   }
 
+  // Mismo armado que index.html: cabezas de arriba hasta el pie; a la derecha, la franja del
+  // sorteo (del ancho de la tabla) y la marca centrada arriba; abajo la tabla y el panel.
   return `
-<div class="tvc-header">
-  <div class="tvc-marca-box"><div class="tvc-marca-principal">QUINIELA SAGUIR</div><div class="tvc-marca-frase">Para Saguir Ganando</div></div>
-  <div class="tvc-badge ${d.live ? 'sorteando' : 'finalizado'}"><div class="tvc-badge-name">${TAB_LABELS[d.sorteo]}</div><div class="tvc-fecha">${fechaTxt}</div><div class="tvc-nsorteo">${d.nroSorteo ? 'SORTEO N° ' + tabEsc(d.nroSorteo) : ''}</div><div class="${d.live ? 'tvc-live' : 'tvc-done'}">${d.live ? 'SORTEANDO' : '✓ FINALIZADO'}</div></div>
-  <div class="tvc-header-right"></div>
-</div>
-<div class="tvc-main">
+<div class="tvc-pantalla">
   <div class="tvc-cabezas"><div class="tvc-cabezas-header">ÚLTIMAS CABEZAS</div><div>${cabezas}</div></div>
-  <div class="tvc-tabla">
-    <div class="tvc-prov-header"><div class="tvc-prov-cell label">N°</div>${encabezadoProv}</div>
-    <div class="tvc-nums-wrap"><div class="tvc-nums-grid">${grid}</div></div>
+  <div class="tvc-zona-derecha${panel ? '' : ' sin-panel'}">
+    <div class="tvc-franja-roja"></div>
+    <div class="tvc-header-sorteo"><div class="tvc-badge ${d.live ? 'sorteando' : 'finalizado'}"><div class="tvc-badge-name">${TAB_LABELS[d.sorteo]}</div><div class="tvc-fecha">${fechaTxt}</div><div class="tvc-nsorteo">${d.nroSorteo ? 'SORTEO N° ' + tabEsc(d.nroSorteo) : ''}</div><div class="${d.live ? 'tvc-live' : 'tvc-done'}">${d.live ? 'SORTEANDO' : '✓ FINALIZADO'}</div></div></div>
+    <div class="tvc-header-marca"><div class="tvc-marca-box"><div class="tvc-marca-principal">QUINIELA SAGUIR</div><div class="tvc-marca-frase">Para Saguir Ganando</div></div></div>
+    <div class="tvc-tabla">
+      <div class="tvc-prov-header"><div class="tvc-prov-cell label">N°</div>${encabezadoProv}</div>
+      <div class="tvc-nums-wrap"><div class="tvc-nums-grid">${grid}</div></div>
+    </div>
+    ${panel}
   </div>
-  ${panel}
 </div>
 <div class="tvc-footer"><div class="tvc-aviso">Los resultados son de carácter informativo. No son un Extracto Oficial.</div></div>`;
 }
@@ -2868,6 +2897,8 @@ function cssDinamicoTablero(d) {
 .tvc .tvc-num-cell.primero { font-size: ${c.primero || '34px'} !important; }
 .tvc .tvc-cab-num { font-size: ${c.cabeza || '18px'} !important; }
 .tvc .tvc-cab-prov { font-size: ${c.prov || '14px'} !important; }
+.tvc .tvc-cabezas-header { font-size: ${c['titulo-cabezas'] || '20px'} !important; }
+.tvc .tvc-cab-title { font-size: ${c['titulo-sorteos'] || '12px'} !important; }
 .tvc .tvc-cabezas { width: ${c['ancho-cabezas'] || '240px'} !important; }
 .tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }
 .tvc .tvc-panel-titulo { font-size: ${d.tamPanel.titulo}px !important; }`;
@@ -2997,6 +3028,23 @@ function pintarTablero(cont) {
   return canvas;
 }
 
+// Igual que ajustarFranjaSorteo() de index.html: si el texto de la franja del sorteo no entra
+// en el ancho de la tabla, se achica todo en la misma proporción; si entra, queda igual.
+function ajustarFranjaTablero(badge) {
+  if (!badge) return;
+  badge.style.setProperty('--escala-franja', '1');
+  const disponible = badge.clientWidth;
+  if (!disponible) return;
+  const hijos = Array.from(badge.children);
+  const cs = getComputedStyle(badge);
+  const necesario = hijos.reduce((t, h) => t + h.scrollWidth, 0)
+    + (parseFloat(cs.columnGap) || 0) * Math.max(0, hijos.length - 1)
+    + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  if (necesario > disponible) {
+    badge.style.setProperty('--escala-franja', Math.max(0.5, (disponible - 6) / necesario).toFixed(3));
+  }
+}
+
 function dibujarTablero(d) {
   let estilo = document.getElementById('tvc-estilo');
   if (!estilo) {
@@ -3024,6 +3072,7 @@ function dibujarTablero(d) {
     ajustarTextoPanel(b.querySelector('.tvc-panel-cuerpo'), b.querySelector('.tvc-panel-contenido'),
       b.querySelector('.tvc-panel-numero'), b.querySelector('.tvc-panel-descripcion'), limPanel);
   });
+  ajustarFranjaTablero(cont.querySelector('.tvc-badge'));
   try { return pintarTablero(cont); }
   finally { cont.remove(); }
 }
@@ -4431,7 +4480,7 @@ async function cargarActividad() {
 // =====================
 // CONFIGURACIÓN VISUAL
 // =====================
-const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'ancho-cabezas':'240', 'ancho-panel':'340',
+const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'ancho-cabezas':'240', 'ancho-panel':'340',
   'panel-titulo':'20', 'panel-numero':'120', 'panel-descripcion':'30', tv:'1.0' };
 
 function aplicarMultiplicadorTV() {
@@ -4672,7 +4721,7 @@ async function cargarConfigVisual() {
 
 async function guardarVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const claves = ['primero','normal','cabeza','prov','ancho-cabezas','ancho-panel','panel-titulo','panel-numero','panel-descripcion'];
+  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','ancho-cabezas','ancho-panel','panel-titulo','panel-numero','panel-descripcion'];
   const rows = claves.map(c => ({
     agencia_id: agencia, clave: c,
     valor: document.getElementById(`slider-${c}`).value,
