@@ -58,12 +58,14 @@
 
   .sorteo-badge {
     --escala-franja: 1;
+    /* Tamaño de cada texto de la franja (Superadmin → Visual los cambia) */
+    --tam-nombre: 26px; --tam-fecha: 20px; --tam-nro: 22px; --tam-estado: 20px;
     display: grid;
     grid-template-columns: auto auto auto auto;
     align-items: center;
     justify-content: center;
     gap: calc(24px * var(--escala-franja));
-    height: 44px;
+    min-height: 44px; /* con letras más grandes, la franja se hace más alta */
     padding: 0 calc(20px * var(--escala-franja));
     background: rgba(0,0,0,.30);
     border: 1px solid rgba(255,215,0,.40);
@@ -79,7 +81,7 @@
   /* NOMBRE SORTEO — más chico para dar espacio a números */
   .sorteo-badge-name {
     font-family: 'DM Sans', sans-serif;
-    font-size: calc(26px * var(--escala-franja));
+    font-size: calc(var(--tam-nombre) * var(--escala-franja));
     font-weight: 900;
     letter-spacing: 1px;
     color: #ffd700;
@@ -88,18 +90,18 @@
     text-transform: uppercase;
   }
 
-  .sorteo-fecha { font-size:calc(20px * var(--escala-franja)); color:#fff; white-space:nowrap; }
+  .sorteo-fecha { font-size:calc(var(--tam-fecha) * var(--escala-franja)); color:#fff; white-space:nowrap; }
   .sorteo-nro {
-    font-family:'Oswald',sans-serif; font-size:calc(22px * var(--escala-franja)); font-weight:700;
+    font-family:'Oswald',sans-serif; font-size:calc(var(--tam-nro) * var(--escala-franja)); font-weight:700;
     color:#fff; letter-spacing:2px; white-space:nowrap;
   }
 
   .live-label {
-    font-size: calc(20px * var(--escala-franja)); color: #44ff88; font-weight: 900;
+    font-size: calc(var(--tam-estado) * var(--escala-franja)); color: #44ff88; font-weight: 900;
     letter-spacing: 1px; white-space: nowrap;
   }
   .done-label {
-    font-size: calc(20px * var(--escala-franja)); color: #ffd700; font-weight: 900;
+    font-size: calc(var(--tam-estado) * var(--escala-franja)); color: #ffd700; font-weight: 900;
     letter-spacing: 1px; white-space: nowrap;
   }
 
@@ -247,6 +249,24 @@
   .panel-descripcion {
     font-family: 'DM Sans', sans-serif; font-weight: 700; color: #fff;
     font-size: 30px; line-height: 1.25;
+    white-space: pre-line; overflow-wrap: break-word;
+  }
+  /* POCEADA (tercera parte del panel): el día, los 10 números en 2 filas de 5 y, si se
+     cargó, la línea de ganadores. Los tamaños los cambia Superadmin → Visual. */
+  .poceada-fecha {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; color: #fff;
+    font-size: 24px; letter-spacing: 1px; line-height: 1.2; white-space: nowrap;
+    margin-bottom: 0.45em;
+  }
+  .poceada-numeros {
+    display: grid; grid-template-columns: repeat(5, auto); justify-content: center;
+    column-gap: 0.4em; row-gap: 0.05em;
+    font-family: 'Oswald', sans-serif; font-weight: 700; color: #ffd700;
+    font-size: 44px; line-height: 1.15;
+  }
+  .poceada-ganadores {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; color: #fff;
+    font-size: 20px; line-height: 1.25; margin-top: 0.7em;
     white-space: pre-line; overflow-wrap: break-word;
   }
 
@@ -679,6 +699,133 @@ function ajustarTextoPanel(cuerpo, contenido, numero, descripcion, lim) {
   }
 }
 
+// =====================
+// POCEADA — reglas (OJO: index.html y admin.html tienen esta MISMA copia; si se cambia una, cambiar la otra)
+// =====================
+// - Se sortea martes, jueves y sábado a las 21, junto con la Nocturna. Si ese día no hay
+//   Nocturna (feriado cargado en Superadmin), no cuenta como sorteo.
+// - Los 10 números: las dos últimas cifras de la Chaqueña desde la ubicación 1 en adelante;
+//   si una ya salió, se saltea y se sigue con la próxima ubicación, hasta juntar 10 distintos.
+// - Sin repetidos (o si las ubicaciones siguientes están cargadas), se arma sola. Si faltan
+//   números porque la ubicación siguiente no está cargada, un empleado los completa según el
+//   extracto oficial y la confirma. Si después se corrige la Chaqueña y cambia lo que se
+//   confirmó, deja de verse hasta que se confirme de nuevo.
+// - Se ve desde que queda armada hasta las 21 del próximo sorteo. Se muestra de menor a mayor.
+const POCEADA_DIAS = [2, 4, 6];             // martes, jueves y sábado
+const POCEADA_MINUTO_SORTEO = 21 * 60;      // 21:00
+const POCEADA_TAM_DEFECTO = { fecha: 24, numeros: 44, ganadores: 20 };
+const POCEADA_NOMBRE_DIA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+
+function poceadaParse(fecha) { const p = fecha.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function poceadaSumarDias(fecha, n) {
+  const d = poceadaParse(fecha);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// "MARTES 24/11"
+function poceadaEtiquetaFecha(fecha) {
+  const p = fecha.split('-');
+  return `${POCEADA_NOMBRE_DIA[poceadaParse(fecha).getDay()]} ${p[2]}/${p[1]}`;
+}
+
+// El sorteo de Poceada que corresponde mostrar: el último martes/jueves/sábado con Nocturna
+// cuyo horario (21 h) ya llegó. hayNocturna(fecha) dice si ese día hubo Nocturna.
+function poceadaSorteoVigente(hoy, minutoAhora, hayNocturna) {
+  for (let i = 0; i <= 28; i++) {
+    const f = poceadaSumarDias(hoy, -i);
+    if (!POCEADA_DIAS.includes(poceadaParse(f).getDay())) continue;
+    if (i === 0 && minutoAhora < POCEADA_MINUTO_SORTEO) continue;
+    if (!hayNocturna(f)) continue;
+    return f;
+  }
+  return null;
+}
+
+// nums: las 20 ubicaciones de la Chaqueña ('1234', o vacío si no está cargada).
+// Hacen falta las ubicaciones 1 a 10 cargadas; después se siguen usando las que estén
+// cargadas una detrás de otra (11, 12...) para reemplazar los repetidos.
+function poceadaCalcular(nums) {
+  const ok = n => typeof n === 'string' && /^\d{4}$/.test(n);
+  for (let i = 0; i < 10; i++) if (!ok(nums[i])) return { cargada: false, completa: false, base: [], faltan: 10, detalle: [] };
+  const base = [], detalle = [];
+  for (let i = 0; i < nums.length && base.length < 10; i++) {
+    if (!ok(nums[i])) break;
+    const dos = nums[i].slice(-2);
+    const repetido = base.includes(dos);
+    detalle.push({ pos: i + 1, numero: nums[i], dos, repetido });
+    if (!repetido) base.push(dos);
+  }
+  return { cargada: true, completa: base.length === 10, base, faltan: 10 - base.length, detalle };
+}
+
+// Los 10 números que se ven (de menor a mayor), o null si todavía no se puede mostrar.
+// fila: el renglón guardado de ese sorteo (confirmación con los faltantes), o null.
+function poceadaResultado(calc, fila) {
+  if (!calc || !calc.cargada) return null;
+  if (calc.completa) return calc.base.slice().sort();
+  if (!fila || !fila.confirmado) return null;
+  const base = Array.isArray(fila.base) ? fila.base : [];
+  const faltantes = Array.isArray(fila.faltantes) ? fila.faltantes : [];
+  // Si se corrigió la Chaqueña después de confirmar y cambió lo que salió, hay que confirmar de nuevo
+  if (base.length !== calc.base.length || base.some((n, i) => n !== calc.base[i])) return null;
+  if (faltantes.length !== calc.faltan) return null;
+  const todos = base.concat(faltantes);
+  if (todos.some(n => !/^\d{2}$/.test(n)) || new Set(todos).size !== 10) return null;
+  return todos.slice().sort();
+}
+
+// Achica la fecha, los números y la línea de ganadores en la misma proporción hasta que entren
+// en su parte del panel (tam = los tamaños máximos, configurados en Superadmin → Visual).
+function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) {
+  if (!cuerpo || !contenido || !numeros) return;
+  const aplicar = f => {
+    if (fecha) fecha.style.fontSize = Math.max(8, Math.round(tam.fecha * f)) + 'px';
+    numeros.style.fontSize = Math.max(10, Math.round(tam.numeros * f)) + 'px';
+    if (ganadores) ganadores.style.fontSize = Math.max(8, Math.round(tam.ganadores * f)) + 'px';
+  };
+  let f = 1;
+  aplicar(f);
+  if (!cuerpo.clientHeight) return; // oculto: no se puede medir
+  const cs = getComputedStyle(cuerpo);
+  const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+  const noEntra = () => contenido.offsetHeight > alto || numeros.scrollWidth > numeros.clientWidth + 1
+    || (fecha && fecha.scrollWidth > fecha.clientWidth + 1);
+  while (f > 0.3 && noEntra()) { f -= 0.04; aplicar(f); }
+}
+
+// Estado de la Poceada en esta pantalla
+let poceadaMostrar = false;                    // tilde "Mostrar la Poceada" (apagado si nunca se configuró)
+let poceadaTam = { ...POCEADA_TAM_DEFECTO };   // tamaños máximos (Superadmin → Visual)
+let poceadaVista = { sorteo: null, parte: null }; // lo último armado, y de qué sorteo es
+
+// Trae lo necesario y arma la Poceada que corresponde ahora. Solo consulta si el tilde está
+// prendido. Si una consulta falla, queda lo último armado DEL MISMO sorteo (nunca el anterior).
+async function cargarPoceada(hoy) {
+  if (!poceadaMostrar) { poceadaVista = { sorteo: null, parte: null }; return; }
+  const ahora = new Date();
+  const sorteo = poceadaSorteoVigente(hoy, ahora.getHours() * 60 + ahora.getMinutes(), f => activoEn(f, 'nocturna'));
+  if (!sorteo) { poceadaVista = { sorteo: null, parte: null }; return; }
+  const falla = () => { if (poceadaVista.sorteo !== sorteo) poceadaVista = { sorteo, parte: null }; };
+  const filas = await consultarSupabase(`tablero_poceada?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha=eq.${sorteo}&select=*`);
+  if (filas === null) return falla();
+  const fila = filas[0] || null;
+  // Si el sorteo se pasó a otro día, el empleado cargó el día y el turno de donde salen los números
+  const fechaReal = (fila && fila.fecha_real) || sorteo;
+  const turno = (fila && fila.sorteo_real) || 'nocturna';
+  const rows = await consultarSupabase(`resultados?fecha=eq.${fechaReal}&sorteo=eq.${turno}&agencia_id=eq.${URL_AGENCIA_ENCODED}&provincia=eq.chaquena&order=posicion.asc&select=posicion,numero`);
+  if (rows === null) return falla();
+  const nums = Array(20).fill(null);
+  rows.forEach(r => { if (r.posicion >= 1 && r.posicion <= 20) nums[r.posicion - 1] = r.numero; });
+  const numeros = poceadaResultado(poceadaCalcular(nums), fila);
+  poceadaVista = { sorteo, parte: numeros ? {
+    tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(fechaReal), numeros,
+    ganadores: ((fila && fila.ganadores) || '').trim()
+  } : null };
+}
+function panelPartePoceada() {
+  return (poceadaMostrar && poceadaVista.parte) ? poceadaVista.parte : null;
+}
+
 // Lunes de la semana vigente para el número de la semana: de lunes a sábado, el lunes de esta
 // semana; el domingo, el lunes de mañana (ya rige el de la semana que viene).
 function lunesDeLaSemanaVigente(fecha) {
@@ -709,6 +856,15 @@ function panelParteSemana() {
 }
 
 function htmlBloquePanel(p) {
+  if (p.tipo === 'poceada') {
+    let h = '<div class="panel-bloque panel-bloque-poceada">';
+    h += `<div class="panel-titulo">${escaparHtml(p.titulo)}</div>`;
+    h += '<div class="panel-cuerpo"><div class="panel-contenido">';
+    h += `<div class="poceada-fecha">${escaparHtml(p.fecha)}</div>`;
+    h += `<div class="poceada-numeros">${p.numeros.map(n => `<span>${escaparHtml(n)}</span>`).join('')}</div>`;
+    if (p.ganadores) h += `<div class="poceada-ganadores">${escaparHtml(p.ganadores)}</div>`;
+    return h + '</div></div></div>';
+  }
   let html = '<div class="panel-bloque">';
   if (p.titulo) html += `<div class="panel-titulo">${escaparHtml(p.titulo)}</div>`;
   html += '<div class="panel-cuerpo"><div class="panel-contenido">';
@@ -722,7 +878,7 @@ function htmlBloquePanel(p) {
 function renderPanel() {
   const col = document.getElementById('col-panel');
   if (!col) return;
-  const partes = [panelParteDia(), panelParteSemana()].filter(Boolean);
+  const partes = [panelParteDia(), panelParteSemana(), panelPartePoceada()].filter(Boolean);
   const zona = document.getElementById('zona-derecha');
   if (partes.length === 0) {
     if (panelClaveMostrada !== '') { col.style.display = 'none'; col.innerHTML = ''; panelClaveMostrada = ''; }
@@ -767,6 +923,10 @@ function ajustarPanelEnPantalla() {
   if (!col || col.style.display === 'none') return;
   const lim = panelLimites(panelTam);
   col.querySelectorAll('.panel-bloque').forEach(b => {
+    if (b.classList.contains('panel-bloque-poceada')) {
+      ajustarPoceadaPanel(b.querySelector('.panel-cuerpo'), b.querySelector('.panel-contenido'), b.querySelector('.poceada-fecha'), b.querySelector('.poceada-numeros'), b.querySelector('.poceada-ganadores'), poceadaTam);
+      return;
+    }
     ajustarTextoPanel(b.querySelector('.panel-cuerpo'), b.querySelector('.panel-contenido'), b.querySelector('.panel-numero'), b.querySelector('.panel-descripcion'), lim);
   });
 }
@@ -788,6 +948,7 @@ async function cargarPanel(hoy) {
   if (filasMostrar !== null) {
     panelMostrarDia = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
     panelMostrarSemana = !(filasMostrar[0] && filasMostrar[0].mostrar_semana === false);
+    poceadaMostrar = !!(filasMostrar[0] && filasMostrar[0].mostrar_poceada === true);
   }
   if (filasDia !== null) panelDia = { fecha: hoy, fila: filasDia[0] || null };
   // ...salvo que lo último conocido sea de OTRO día (justo cambió la fecha): ahí no se muestra nada
@@ -972,8 +1133,12 @@ async function cargarConfigCarteles() {
     cartelesConfig.frecuenciaMin = (filasFrec[0] && parseInt(filasFrec[0].valor, 10)) || 60;
   }
   if (filasCarteles !== null) {
-    // Un cartel sin ninguna línea con texto no entra en la rotación
-    cartelesConfig.lista = filasCarteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
+    // Un cartel sin ninguna línea con texto no entra en la rotación; tampoco uno que todavía
+    // no empezó o que ya venció (las fechas son opcionales: vacías = sin límite; el último día
+    // se muestra completo, hasta la medianoche).
+    const hoy = fechaLocalStr(new Date());
+    cartelesConfig.lista = filasCarteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== '')
+      && (!c.fecha_desde || c.fecha_desde <= hoy) && (!c.fecha_hasta || c.fecha_hasta >= hoy));
   }
 }
 
@@ -1045,6 +1210,7 @@ function aplicarConfigVisualDesdeFilas(rows) {
     // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
     nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
     panelTam = { ...PANEL_TAM_DEFECTO };
+    poceadaTam = { ...POCEADA_TAM_DEFECTO };
 
     if (!rows || rows.length === 0) { aplicarNombresProvinciaAlHeader(); return; }
 
@@ -1066,6 +1232,11 @@ function aplicarConfigVisualDesdeFilas(rows) {
       numero: parseInt(cfg['panel-numero'], 10) || PANEL_TAM_DEFECTO.numero,
       descripcion: parseInt(cfg['panel-descripcion'], 10) || PANEL_TAM_DEFECTO.descripcion
     };
+    poceadaTam = {
+      fecha: parseInt(cfg['poceada-fecha'], 10) || POCEADA_TAM_DEFECTO.fecha,
+      numeros: parseInt(cfg['poceada-numeros'], 10) || POCEADA_TAM_DEFECTO.numeros,
+      ganadores: parseInt(cfg['poceada-ganadores'], 10) || POCEADA_TAM_DEFECTO.ganadores
+    };
 
     let style = document.getElementById('estilo-dinamico');
     if (!style) {
@@ -1079,6 +1250,10 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .num-cell.primero { font-size: ${cfg.primero || '34px'} !important; }
       .cabeza-num { font-size: ${cfg.cabeza || '18px'} !important; }
       .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
+      .cabezas-header { font-size: ${cfg['titulo-cabezas'] || '20px'} !important; }
+      .prov-cell:not(.label) { font-size: ${cfg['prov-header'] || '18px'} !important; }
+      #sorteo-badge { --tam-nombre: ${cfg['franja-sorteo'] || '26px'}; --tam-fecha: ${cfg['franja-fecha'] || '20px'}; --tam-nro: ${cfg['franja-numero'] || '22px'}; --tam-estado: ${cfg['franja-estado'] || '20px'}; }
+      .cabezas-section-title { font-size: ${cfg['titulo-sorteos'] || '12px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
       .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
       .panel-titulo { font-size: ${panelTam.titulo}px !important; }
@@ -1152,7 +1327,8 @@ async function actualizarPantalla() {
     cargarDatosReales(fecha, key),
     cargarCabezasReales(fecha, key),
     cargarNumeroSorteo(fecha, key),
-    consultarSupabase(`programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&sorteo=eq.${key}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`)
+    consultarSupabase(`programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&sorteo=eq.${key}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`),
+    cargarPoceada(hoy)
   ]);
   resolverCantidadTV(key, resultados[3], filasConfig);
   cantidadTV = cacheCantidadTV[key] || {};
