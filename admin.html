@@ -75,6 +75,14 @@
     /* En el celular, cada campo en su propio renglón: así el título se lee entero */
     .pd-campos, .ps-campos{grid-template-columns:minmax(0,1fr);}
   }
+  /* SUPERADMIN → VISUAL: alto y letra del panel de la derecha, con su vista previa al costado */
+  .visual-panel-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:20px;}
+  .visual-panel-grilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 18px;}
+  .visual-panel-preview-col{align-self:start;}
+  @media (max-width: 640px) {
+    .visual-panel-layout{grid-template-columns:1fr;}
+    .visual-panel-preview-col{width:220px;max-width:100%;justify-self:center;}
+  }
   .error-msg{color:var(--red);font-size:13px;margin-top:8px;display:none;}
 
   /* APP */
@@ -766,82 +774,131 @@
             </div>
           </div>
 
-          <!-- LETRA DEL PANEL DE LA DERECHA (vale para el favorito del día y el número de la semana) -->
+          <!-- PANEL DE LA DERECHA: ALTO Y LETRA DE CADA PARTE (favorito de hoy, pálpito semanal y Poceada) -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Letra del panel de la derecha</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">El título (franja dorada) vale para las tres partes; el número y la descripción, para el favorito del día y el número de la semana; abajo, los de la Poceada. Es el tamaño máximo: si un texto no entra, en la TV se achica solo.</div>
-            <div class="grid2-mobile1" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Panel de la derecha: alto y letra de cada parte</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.45;">El pálpito semanal ocupa solo lo que necesita (su título, su número y el espacio que elijas arriba y abajo); la Poceada, el porcentaje del alto del panel que elijas; y el favorito de hoy se queda con todo lo que sobra. Si no está el favorito, lo que sobra va al pálpito; si se ve una sola parte, ocupa todo el panel. Aunque la Poceada y el pálpito se configuren muy altos, el favorito conserva al menos el 25 % del panel. Las letras son el tamaño máximo: si un texto no entra, en la TV se achica solo.</div>
+            <div class="visual-panel-layout">
               <div>
-                <label class="form-label">Título (franja dorada)</label>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-panel-titulo" min="12" max="60" value="20"
-                    oninput="actualizarSlider('panel-titulo',this.value)"
-                    style="flex:1;min-width:0;accent-color:var(--gold);">
-                  <span id="val-panel-titulo" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
+                <div style="margin-bottom:18px;">
+                  <div style="font-size:12.5px;font-weight:700;color:var(--gold);letter-spacing:0.5px;margin-bottom:4px;">Favorito de hoy</div>
+                  <div class="visual-panel-grilla">
+                  <div>
+                    <label class="form-label">Título (franja dorada)</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-titulo-dia" min="12" max="60" value="20"
+                        oninput="actualizarSlider('panel-titulo-dia',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-titulo-dia" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Número</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-numero-dia" min="40" max="200" value="120"
+                        oninput="actualizarSlider('panel-numero-dia',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-numero-dia" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">120px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Descripción</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-descripcion" min="14" max="60" value="30"
+                        oninput="actualizarSlider('panel-descripcion',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-descripcion" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">30px</span>
+                    </div>
+                  </div>
+                  </div>
                 </div>
-                <div style="margin-top:8px;background:#ffd700;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
-                  <span id="preview-panel-titulo" style="font-family:'Bebas Neue',sans-serif;color:#000;letter-spacing:2px;font-size:20px;">FAVORITO DE HOY</span>
+                <div style="margin-bottom:18px;">
+                  <div style="font-size:12.5px;font-weight:700;color:var(--gold);letter-spacing:0.5px;margin-bottom:4px;">Pálpito semanal</div>
+                  <div class="visual-panel-grilla">
+                  <div>
+                    <label class="form-label">Título (franja dorada)</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-titulo-semana" min="12" max="60" value="20"
+                        oninput="actualizarSlider('panel-titulo-semana',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-titulo-semana" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Número</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-numero-semana" min="40" max="200" value="120"
+                        oninput="actualizarSlider('panel-numero-semana',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-numero-semana" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">120px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Espacio arriba y abajo del número</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-margen-semana" min="0" max="80" value="14"
+                        oninput="actualizarSlider('panel-margen-semana',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-margen-semana" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">14px</span>
+                    </div>
+                  </div>
+                  </div>
+                </div>
+                <div style="margin-bottom:0px;">
+                  <div style="font-size:12.5px;font-weight:700;color:var(--gold);letter-spacing:0.5px;margin-bottom:4px;">Poceada</div>
+                  <div class="visual-panel-grilla">
+                  <div>
+                    <label class="form-label">Alto (% del panel)</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-alto-poceada" min="15" max="70" value="33"
+                        oninput="actualizarSlider('panel-alto-poceada',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-alto-poceada" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">33%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Título (franja dorada)</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-titulo-poceada" min="12" max="60" value="20"
+                        oninput="actualizarSlider('panel-titulo-poceada',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-titulo-poceada" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Día</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-poceada-fecha" min="12" max="48" value="24"
+                        oninput="actualizarSlider('poceada-fecha',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-poceada-fecha" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">24px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Números</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-poceada-numeros" min="20" max="90" value="44"
+                        oninput="actualizarSlider('poceada-numeros',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-poceada-numeros" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">44px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label">Ganadores</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-poceada-ganadores" min="12" max="48" value="20"
+                        oninput="actualizarSlider('poceada-ganadores',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-poceada-ganadores" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
+                    </div>
+                  </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <label class="form-label">Número</label>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-panel-numero" min="40" max="200" value="120"
-                    oninput="actualizarSlider('panel-numero',this.value)"
-                    style="flex:1;min-width:0;accent-color:var(--gold);">
-                  <span id="val-panel-numero" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">120px</span>
-                </div>
-                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
-                  <span id="preview-panel-numero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.1;font-size:120px;">1845</span>
-                </div>
-              </div>
-              <div>
-                <label class="form-label">Descripción (favorito del día)</label>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-panel-descripcion" min="14" max="60" value="30"
-                    oninput="actualizarSlider('panel-descripcion',this.value)"
-                    style="flex:1;min-width:0;accent-color:var(--gold);">
-                  <span id="val-panel-descripcion" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">30px</span>
-                </div>
-                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;">
-                  <span id="preview-panel-descripcion" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;font-size:30px;">Día de la Soberanía</span>
-                </div>
-              </div>
-              <div>
-                <label class="form-label">Poceada: día</label>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-poceada-fecha" min="12" max="48" value="24"
-                    oninput="actualizarSlider('poceada-fecha',this.value)"
-                    style="flex:1;min-width:0;accent-color:var(--gold);">
-                  <span id="val-poceada-fecha" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">24px</span>
-                </div>
-                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
-                  <span id="preview-poceada-fecha" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;letter-spacing:1px;font-size:24px;">MARTES 24/11</span>
-                </div>
-              </div>
-              <div>
-                <label class="form-label">Poceada: números</label>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-poceada-numeros" min="20" max="90" value="44"
-                    oninput="actualizarSlider('poceada-numeros',this.value)"
-                    style="flex:1;min-width:0;accent-color:var(--gold);">
-                  <span id="val-poceada-numeros" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">44px</span>
-                </div>
-                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
-                  <span id="preview-poceada-numeros" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.15;font-size:44px;">02 06 09</span>
-                </div>
-              </div>
-              <div>
-                <label class="form-label">Poceada: ganadores</label>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-poceada-ganadores" min="12" max="48" value="20"
-                    oninput="actualizarSlider('poceada-ganadores',this.value)"
-                    style="flex:1;min-width:0;accent-color:var(--gold);">
-                  <span id="val-poceada-ganadores" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
-                </div>
-                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;">
-                  <span id="preview-poceada-ganadores" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;font-size:20px;">Sin ganadores</span>
-                </div>
+              <div class="visual-panel-preview-col">
+                <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa (datos de ejemplo)</div>
+                <div id="visual-panel-preview" style="height:420px;background:#0d0500;border:1px solid #3a2a00;border-left:2px solid #ffd700;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;"></div>
+                <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;">Se ve al instante, antes de guardar. El ancho es el de "Ancho del panel de la derecha".</div>
               </div>
             </div>
           </div>
@@ -1815,11 +1872,22 @@ let guardandoPanel = false;
 let tokenCargaPanel = 0;      // descarta respuestas viejas (por ejemplo, de antes de cerrar sesión)
 let panelPreview = { tipo: 'dia', i: 0 }; // qué muestra la vista previa: un día de la planilla o una semana
 
-// Igual que index.html: tamaño de letra por defecto (se cambia en Superadmin → Visual) y alto
-// del panel en la TV (1080 menos el encabezado y el pie), para la vista previa proporcional.
-const PANEL_TAM_DEFECTO = { titulo: 20, numero: 120, descripcion: 30 };
+// Igual que index.html: letra y alto de cada parte por defecto (se cambian en Superadmin →
+// Visual) y alto del panel en la TV (1080 menos el encabezado y el pie), para las vistas previas.
+const PANEL_TAM_DEFECTO = {
+  tituloDia: 20, numeroDia: 120, descripcion: 30, // favorito de hoy
+  tituloSemana: 20, numeroSemana: 120,            // pálpito semanal
+  tituloPoceada: 20,                              // Poceada (el día, los números y los ganadores van en POCEADA_TAM_DEFECTO)
+  margenSemana: 14,                               // espacio arriba y abajo del número del pálpito
+  altoPoceada: 33                                 // porcentaje del alto del panel que ocupa la Poceada
+};
 const PANEL_ANCHO_DEFECTO = 340;
 const PANEL_ALTO_TV = 1006;
+// Las claves de configuracion_visual que usa el panel (en la vista previa de la pestaña Panel se
+// leen solo estas). 'panel-titulo' y 'panel-numero' son las de antes, por si todavía están guardadas.
+const PANEL_CLAVES_VISUAL = ['ancho-panel', 'panel-titulo', 'panel-numero', 'panel-descripcion',
+  'panel-titulo-dia', 'panel-numero-dia', 'panel-titulo-semana', 'panel-numero-semana', 'panel-titulo-poceada',
+  'panel-margen-semana', 'panel-alto-poceada', 'poceada-fecha', 'poceada-numeros', 'poceada-ganadores'];
 
 // =====================
 // POCEADA — reglas (OJO: index.html y admin.html tienen esta MISMA copia; si se cambia una, cambiar la otra)
@@ -2116,13 +2184,62 @@ function panelLimites(tam) {
   return { numMax: tam.numero, numMin: Math.min(36, tam.numero), descMax: tam.descripcion, descMin: Math.min(16, tam.descripcion) };
 }
 
-// Tamaños de letra a partir de la configuración visual de la agencia (filas o cfg con 'px')
+// Copia de panelTamDesdeCfg de index.html: letra y alto de cada parte a partir de la
+// configuración visual de la agencia (valores sueltos o con 'px'). Si todavía tiene guardados
+// los de antes (un solo título para las tres partes y un solo número para el favorito y el
+// pálpito), se arranca de esos.
 function panelTamDesdeCfg(cfg) {
-  return {
-    titulo: parseInt(cfg['panel-titulo'], 10) || PANEL_TAM_DEFECTO.titulo,
-    numero: parseInt(cfg['panel-numero'], 10) || PANEL_TAM_DEFECTO.numero,
-    descripcion: parseInt(cfg['panel-descripcion'], 10) || PANEL_TAM_DEFECTO.descripcion
+  const D = PANEL_TAM_DEFECTO;
+  const leer = (claves, def, min, max) => {
+    for (const c of claves) {
+      const v = parseInt(cfg[c], 10);
+      if (Number.isFinite(v) && v >= min) return Math.min(v, max);
+    }
+    return def;
   };
+  return {
+    tituloDia: leer(['panel-titulo-dia', 'panel-titulo'], D.tituloDia, 1, 999),
+    numeroDia: leer(['panel-numero-dia', 'panel-numero'], D.numeroDia, 1, 999),
+    descripcion: leer(['panel-descripcion'], D.descripcion, 1, 999),
+    tituloSemana: leer(['panel-titulo-semana', 'panel-titulo'], D.tituloSemana, 1, 999),
+    numeroSemana: leer(['panel-numero-semana', 'panel-numero'], D.numeroSemana, 1, 999),
+    tituloPoceada: leer(['panel-titulo-poceada', 'panel-titulo'], D.tituloPoceada, 1, 999),
+    margenSemana: leer(['panel-margen-semana'], D.margenSemana, 0, 999),
+    altoPoceada: leer(['panel-alto-poceada'], D.altoPoceada, 10, 90)
+  };
+}
+
+// Copia de panelLimitesParte de index.html: los límites del número y la descripción de una parte
+function panelLimitesParte(tam, tipo) {
+  return panelLimites({ numero: tipo === 'semana' ? tam.numeroSemana : tam.numeroDia, descripcion: tam.descripcion });
+}
+
+// Copia de repartirAltoPanel de index.html (OJO: si se cambia una, cambiar la otra).
+// Reparte el alto del panel entre sus partes. partes: [{ bloque, cuerpo, tipo }] en el orden en
+// que se ven ('dia', 'semana' o 'poceada'); altoPanel: el alto del panel en px; tam: los tamaños
+// del panel; f: la escala (1 en la TV, menos en las vistas previas del admin).
+// El pálpito semanal ocupa solo lo que necesita (su título, su número y el margen elegido arriba
+// y abajo), la Poceada su porcentaje del alto del panel y el favorito de hoy todo lo que sobra.
+// Si no está el favorito, lo que sobra va al pálpito; si hay una sola parte, ocupa todo el panel.
+// La parte que se queda con lo que sobra nunca baja del 25 % del panel (aunque se configure la
+// Poceada muy alta y el margen del pálpito muy grande): en ese caso cede la Poceada, que achica
+// sola sus letras.
+// Devuelve las partes en el orden en que hay que ajustar sus letras: la que se queda con lo que
+// sobra va al final, porque su alto depende de cómo quedaron las otras.
+function repartirAltoPanel(partes, altoPanel, tam, f) {
+  const resto = partes.find(p => p.tipo === 'dia') || partes.find(p => p.tipo === 'semana') || partes[0];
+  partes.forEach(p => {
+    const compacto = p !== resto && p.tipo === 'semana';
+    if (p === resto) p.bloque.style.flex = '1 1 0';
+    else if (compacto) p.bloque.style.flex = '0 0 auto';
+    else p.bloque.style.flex = `0 1 ${Math.round(altoPanel * tam.altoPoceada / 100)}px`;
+    p.bloque.style.minHeight = (p === resto && partes.length > 1) ? Math.round(altoPanel * 0.25) + 'px' : '0px';
+    p.cuerpo.style.flex = compacto ? '0 0 auto' : '1 1 0%';
+    const vertical = Math.round((compacto ? tam.margenSemana : 24) * f) + 'px';
+    p.cuerpo.style.paddingTop = vertical;
+    p.cuerpo.style.paddingBottom = vertical;
+  });
+  return partes.filter(p => p !== resto).concat(resto ? [resto] : []);
 }
 
 // Copia de ajustarTextoPanel de index.html: el número va en un renglón, lo más grande que
@@ -2227,12 +2344,12 @@ function panelArmarFeriados(filas) {
 function panelPartes(fecha, filaDia, semanas, mostrarDia, mostrarSemana, sinSorteos) {
   const partes = [];
   if (mostrarDia && fecha && !sinSorteos && filaDia && panelTieneTexto(filaDia)) {
-    partes.push({ titulo: filaDia.titulo, numero: filaDia.numero, descripcion: filaDia.descripcion });
+    partes.push({ tipo: 'dia', titulo: filaDia.titulo, numero: filaDia.numero, descripcion: filaDia.descripcion });
   }
   if (mostrarSemana && fecha) {
     const lunes = panelLunesDeReferencia(fecha);
     const s = semanas.find(x => x.lunes === lunes && (x.titulo || x.numero));
-    if (s) partes.push({ titulo: s.titulo, numero: s.numero, descripcion: '' });
+    if (s) partes.push({ tipo: 'semana', titulo: s.titulo, numero: s.numero, descripcion: '' });
   }
   return partes;
 }
@@ -2547,37 +2664,47 @@ function actualizarPreviewPanel() {
     cont.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;color:var(--muted);font-size:12px;">${msg}</div>`;
     return;
   }
+  dibujarPanelEscalado(cont, partes, tam, (panelTamAgencia && panelTamAgencia.tamPoceada) || POCEADA_TAM_DEFECTO, f);
+}
+
+// Dibuja el panel de la derecha a escala dentro de cont (vista previa de la pestaña Panel y de
+// Superadmin → Visual): el mismo armado, el mismo reparto del alto y las mismas letras que la
+// TV, todo multiplicado por f. partes: como las de la TV ({ tipo: 'dia' | 'semana', titulo,
+// numero, descripcion } o la Poceada); tam: letra y alto de cada parte (panelTamDesdeCfg);
+// tamPc: letra de la Poceada (día, números y ganadores).
+function dibujarPanelEscalado(cont, partes, tam, tamPc, f) {
   const px = v => Math.max(1, Math.round(v * f));
-  const lim = panelLimites({ numero: px(tam.numero), descripcion: px(tam.descripcion) });
-  lim.numMin = Math.min(px(36), lim.numMax);
-  lim.descMin = Math.min(px(16), lim.descMax);
-  const tamPc = (panelTamAgencia && panelTamAgencia.tamPoceada) || POCEADA_TAM_DEFECTO;
+  const titulo = (texto, t) => `<div style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(t)}px;letter-spacing:${px(2)}px;flex-shrink:0;">${tabEsc(texto)}</div>`;
+  const cuerpo = `<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${px(24)}px ${px(18)}px;overflow:hidden;text-align:center;"><div class="pp-contenido" style="width:100%;">`;
   cont.innerHTML = partes.map((p, k) => {
-    if (p.tipo === 'poceada') {
-      let h = `<div class="pp-bloque pp-bloque-poceada" style="flex:1 1 0;min-height:0;display:flex;flex-direction:column;${k > 0 ? `border-top:${Math.max(1, px(2))}px solid #ffd700;` : ''}">`;
-      h += `<div style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(tam.titulo)}px;letter-spacing:${px(2)}px;flex-shrink:0;">${tabEsc(p.titulo)}</div>`;
-      h += `<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${px(24)}px ${px(18)}px;overflow:hidden;text-align:center;"><div class="pp-contenido" style="width:100%;">`;
+    const tipo = p.tipo === 'poceada' ? 'poceada' : (p.tipo === 'semana' ? 'semana' : 'dia');
+    let h = `<div class="pp-bloque pp-bloque-${tipo}" data-tipo="${tipo}" style="flex:1 1 0;min-height:0;display:flex;flex-direction:column;${k > 0 ? `border-top:${Math.max(1, px(2))}px solid #ffd700;` : ''}">`;
+    if (tipo === 'poceada') {
+      h += titulo(p.titulo, tam.tituloPoceada) + cuerpo;
       h += `<div class="pp-pc-fecha" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;letter-spacing:${px(1)}px;line-height:1.2;white-space:nowrap;margin-bottom:0.45em;">${tabEsc(p.fecha)}</div>`;
       h += `<div class="pp-pc-numeros" style="display:grid;grid-template-columns:repeat(5,auto);justify-content:center;column-gap:0.4em;row-gap:0.05em;font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.15;">${p.numeros.map(n => `<span>${tabEsc(n)}</span>`).join('')}</div>`;
       if (p.ganadores) h += `<div class="pp-pc-ganadores" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;margin-top:0.7em;white-space:pre-line;overflow-wrap:break-word;">${tabEsc(p.ganadores)}</div>`;
       return h + '</div></div></div>';
     }
-    let h = `<div class="pp-bloque" style="flex:1 1 0;min-height:0;display:flex;flex-direction:column;${k > 0 ? `border-top:${Math.max(1, px(2))}px solid #ffd700;` : ''}">`;
-    if (p.titulo) h += `<div style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(tam.titulo)}px;letter-spacing:${px(2)}px;flex-shrink:0;">${tabEsc(p.titulo)}</div>`;
-    h += `<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${px(24)}px ${px(18)}px;overflow:hidden;text-align:center;">`;
-    h += '<div class="pp-contenido" style="width:100%;">';
+    if (p.titulo) h += titulo(p.titulo, tipo === 'semana' ? tam.tituloSemana : tam.tituloDia);
+    h += cuerpo;
     if (p.numero) h += `<div class="pp-numero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.1;letter-spacing:${px(2)}px;white-space:nowrap;overflow-wrap:break-word;">${tabEsc(p.numero)}</div>`;
     if (p.numero && p.descripcion) h += `<div style="width:40%;height:${Math.max(1, px(2))}px;background:rgba(255,215,0,0.45);margin:${px(22)}px auto;"></div>`;
     if (p.descripcion) h += `<div class="pp-descripcion" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;white-space:pre-line;overflow-wrap:break-word;">${tabEsc(p.descripcion)}</div>`;
     return h + '</div></div></div>';
   }).join('');
-  cont.querySelectorAll('.pp-bloque').forEach(b => {
-    if (b.classList.contains('pp-bloque-poceada')) {
-      ajustarPoceadaPanel(b.querySelector('.pp-cuerpo'), b.querySelector('.pp-contenido'), b.querySelector('.pp-pc-fecha'), b.querySelector('.pp-pc-numeros'), b.querySelector('.pp-pc-ganadores'),
+  const bloques = Array.from(cont.querySelectorAll('.pp-bloque')).map(b => ({ bloque: b, cuerpo: b.querySelector('.pp-cuerpo'), tipo: b.dataset.tipo }));
+  repartirAltoPanel(bloques, cont.clientHeight, tam, f).forEach(p => {
+    const b = p.bloque;
+    if (p.tipo === 'poceada') {
+      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.pp-contenido'), b.querySelector('.pp-pc-fecha'), b.querySelector('.pp-pc-numeros'), b.querySelector('.pp-pc-ganadores'),
         { fecha: px(tamPc.fecha), numeros: px(tamPc.numeros), ganadores: px(tamPc.ganadores) });
       return;
     }
-    ajustarTextoPanel(b.querySelector('.pp-cuerpo'), b.querySelector('.pp-contenido'), b.querySelector('.pp-numero'), b.querySelector('.pp-descripcion'), lim);
+    const lim = panelLimitesParte({ numeroDia: px(tam.numeroDia), numeroSemana: px(tam.numeroSemana), descripcion: px(tam.descripcion) }, p.tipo);
+    lim.numMin = Math.min(px(36), lim.numMax);
+    lim.descMin = Math.min(px(16), lim.descMax);
+    ajustarTextoPanel(p.cuerpo, b.querySelector('.pp-contenido'), b.querySelector('.pp-numero'), b.querySelector('.pp-descripcion'), lim);
   });
 }
 
@@ -2632,7 +2759,7 @@ async function cargarPanel() {
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_dias?agencia_id=eq.${ag}&select=fecha,titulo,numero,descripcion,actualizado_en,actualizado_por&order=fecha.asc`, tk),
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_semanas?agencia_id=eq.${ag}&select=lunes,titulo,numero,actualizado_en,actualizado_por&order=lunes.asc`, tk),
     consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${lunesRef}&select=fecha_especial,sorteo,activo,descripcion`, tk),
-    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}&clave=in.(ancho-panel,panel-titulo,panel-numero,panel-descripcion,poceada-fecha,poceada-numeros,poceada-ganadores)&select=clave,valor`, tk)
+    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}&clave=in.(${PANEL_CLAVES_VISUAL.join(',')})&select=clave,valor`, tk)
   ]);
   // Si mientras tanto se cerró la sesión o se volvió a pedir, esta respuesta quedó vieja
   if (miToken !== tokenCargaPanel || !usuarioActual || usuarioActual.agencia_id !== agencia) return;
@@ -3371,7 +3498,7 @@ function htmlTablero(d) {
         if (p.ganadores) h += `<div class="tvc-poceada-ganadores">${tabEsc(p.ganadores)}</div>`;
         return h + '</div></div></div>';
       }
-      let h = '<div class="tvc-panel-bloque">';
+      let h = `<div class="tvc-panel-bloque tvc-panel-bloque-${p.tipo === 'semana' ? 'semana' : 'dia'}">`;
       if (p.titulo) h += `<div class="tvc-panel-titulo">${tabEsc(p.titulo)}</div>`;
       h += '<div class="tvc-panel-cuerpo"><div class="tvc-panel-contenido">';
       if (p.numero) h += `<div class="tvc-panel-numero">${tabEsc(p.numero)}</div>`;
@@ -3416,7 +3543,9 @@ function cssDinamicoTablero(d) {
 .tvc .tvc-cab-title { font-size: ${c['titulo-sorteos'] || '12px'} !important; }
 .tvc .tvc-cabezas { width: ${c['ancho-cabezas'] || '240px'} !important; }
 .tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }
-.tvc .tvc-panel-titulo { font-size: ${d.tamPanel.titulo}px !important; }`;
+.tvc .tvc-panel-bloque-dia .tvc-panel-titulo { font-size: ${d.tamPanel.tituloDia}px !important; }
+.tvc .tvc-panel-bloque-semana .tvc-panel-titulo { font-size: ${d.tamPanel.tituloSemana}px !important; }
+.tvc .tvc-panel-bloque-poceada .tvc-panel-titulo { font-size: ${d.tamPanel.tituloPoceada}px !important; }`;
 }
 
 // Las letras de la TV (algunas no las usa admin). Se cargan una sola vez, la primera vez que
@@ -3581,16 +3710,22 @@ function dibujarTablero(d) {
   cont.setAttribute('aria-hidden', 'true');
   cont.innerHTML = htmlTablero(d);
   document.body.appendChild(cont);
-  // Igual que la TV: en cada parte del panel, el número y la descripción se achican si no entran
-  const limPanel = panelLimites(d.tamPanel);
-  cont.querySelectorAll('.tvc-panel-bloque').forEach(b => {
-    if (b.classList.contains('tvc-panel-bloque-poceada')) {
-      ajustarPoceadaPanel(b.querySelector('.tvc-panel-cuerpo'), b.querySelector('.tvc-panel-contenido'), b.querySelector('.tvc-poceada-fecha'),
+  // Igual que la TV: se reparte el alto entre las partes del panel y en cada una el número y la
+  // descripción se achican si no entran
+  const colPanel = cont.querySelector('.tvc-panel');
+  const partesPanel = Array.from(cont.querySelectorAll('.tvc-panel-bloque')).map(b => ({
+    bloque: b, cuerpo: b.querySelector('.tvc-panel-cuerpo'),
+    tipo: b.classList.contains('tvc-panel-bloque-poceada') ? 'poceada' : b.classList.contains('tvc-panel-bloque-semana') ? 'semana' : 'dia'
+  }));
+  repartirAltoPanel(partesPanel, colPanel ? colPanel.clientHeight : 0, d.tamPanel, 1).forEach(p => {
+    const b = p.bloque;
+    if (p.tipo === 'poceada') {
+      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.tvc-panel-contenido'), b.querySelector('.tvc-poceada-fecha'),
         b.querySelector('.tvc-poceada-numeros'), b.querySelector('.tvc-poceada-ganadores'), d.tamPoceada || POCEADA_TAM_DEFECTO);
       return;
     }
-    ajustarTextoPanel(b.querySelector('.tvc-panel-cuerpo'), b.querySelector('.tvc-panel-contenido'),
-      b.querySelector('.tvc-panel-numero'), b.querySelector('.tvc-panel-descripcion'), limPanel);
+    ajustarTextoPanel(p.cuerpo, b.querySelector('.tvc-panel-contenido'),
+      b.querySelector('.tvc-panel-numero'), b.querySelector('.tvc-panel-descripcion'), panelLimitesParte(d.tamPanel, p.tipo));
   });
   ajustarFranjaTablero(cont.querySelector('.tvc-badge'));
   try { return pintarTablero(cont); }
@@ -5001,7 +5136,9 @@ async function cargarActividad() {
 // CONFIGURACIÓN VISUAL
 // =====================
 const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'prov-header':'18', 'franja-sorteo':'26', 'franja-fecha':'20', 'franja-numero':'22', 'franja-estado':'20', 'poceada-fecha':'24', 'poceada-numeros':'44', 'poceada-ganadores':'20', 'ancho-cabezas':'240', 'ancho-panel':'340',
-  'panel-titulo':'20', 'panel-numero':'120', 'panel-descripcion':'30', tv:'1.0' };
+  'panel-titulo-dia':'20', 'panel-numero-dia':'120', 'panel-descripcion':'30',
+  'panel-titulo-semana':'20', 'panel-numero-semana':'120', 'panel-margen-semana':'14',
+  'panel-titulo-poceada':'20', 'panel-alto-poceada':'33', tv:'1.0' };
 
 function aplicarMultiplicadorTV() {
   const mult = parseFloat(document.getElementById('visual-tv-size').value);
@@ -5144,10 +5281,31 @@ async function cargarAgenciasEnSelector() {
 
 function actualizarSlider(tipo, valor) {
   const valEl = document.getElementById(`val-${tipo}`);
-  if (valEl) valEl.textContent = valor + 'px';
+  if (valEl) valEl.textContent = valor + (tipo === 'panel-alto-poceada' ? '%' : 'px');
   const previewEl = document.getElementById(`preview-${tipo}`);
   if (previewEl) previewEl.style.fontSize = valor + 'px';
+  if (PANEL_CLAVES_VISUAL.includes(tipo)) actualizarPreviewVisualPanel();
 }
+
+// Vista previa del panel de la derecha en Superadmin → Visual: datos de ejemplo con los valores
+// de las barritas tal como están (antes de guardar). No consulta nada a la base.
+const PANEL_EJEMPLO = [
+  { tipo: 'dia', titulo: 'FAVORITO DE HOY', numero: '1845', descripcion: 'Día de la Soberanía' },
+  { tipo: 'semana', titulo: 'PÁLPITO SEMANAL', numero: '2832', descripcion: '' },
+  { tipo: 'poceada', titulo: 'POCEADA', fecha: 'MARTES 24/11', numeros: ['02', '06', '09', '13', '41', '50', '59', '81', '89', '90'], ganadores: 'Sin ganadores' }
+];
+function actualizarPreviewVisualPanel() {
+  const cont = document.getElementById('visual-panel-preview');
+  if (!cont || !cont.offsetParent) return; // oculta: se dibuja cuando queda a la vista
+  const cfg = {};
+  PANEL_CLAVES_VISUAL.forEach(k => { const el = document.getElementById(`slider-${k}`); if (el) cfg[k] = el.value; });
+  const ancho = parseInt(cfg['ancho-panel'], 10) || PANEL_ANCHO_DEFECTO;
+  const f = (cont.clientWidth || 220) / ancho;
+  cont.style.height = Math.max(360, Math.min(680, Math.round(PANEL_ALTO_TV * f))) + 'px';
+  dibujarPanelEscalado(cont, PANEL_EJEMPLO, panelTamDesdeCfg(cfg), poceadaTamDesdeCfg(cfg), f);
+}
+window.addEventListener('resize', actualizarPreviewVisualPanel);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(actualizarPreviewVisualPanel).catch(() => {});
 
 function buildProgProvinciasGrid() {
   const cont = document.getElementById('grid-prog-provincias');
@@ -5235,13 +5393,27 @@ async function cargarConfigVisual() {
           if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
         }
       });
+      // Si la agencia todavía tiene guardados los tamaños de antes (un solo título para las tres
+      // partes del panel y un solo número para el favorito y el pálpito), se arranca de esos,
+      // igual que en la TV
+      const anteriores = { 'panel-titulo': ['panel-titulo-dia', 'panel-titulo-semana', 'panel-titulo-poceada'], 'panel-numero': ['panel-numero-dia', 'panel-numero-semana'] };
+      Object.entries(anteriores).forEach(([vieja, nuevas]) => {
+        const fila = rows.find(r => r.clave === vieja);
+        if (!fila) return;
+        nuevas.forEach(n => {
+          if (rows.some(r => r.clave === n)) return;
+          const slider = document.getElementById(`slider-${n}`);
+          if (slider) { slider.value = fila.valor; actualizarSlider(n, fila.valor); }
+        });
+      });
     }
   } catch(e) { console.error(e); }
 }
 
 async function guardarVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-fecha','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel','panel-titulo','panel-numero','panel-descripcion'];
+  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-fecha','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel',
+    'panel-titulo-dia','panel-numero-dia','panel-descripcion','panel-titulo-semana','panel-numero-semana','panel-margen-semana','panel-titulo-poceada','panel-alto-poceada'];
   const rows = claves.map(c => ({
     agencia_id: agencia, clave: c,
     valor: document.getElementById(`slider-${c}`).value,
@@ -5567,6 +5739,7 @@ function setVista(nombre) {
   document.querySelectorAll('#vistas .vista-btn').forEach(b => b.classList.toggle('activa', b.dataset.vista === nombre));
   // La vista previa del panel se mide con el tamaño real de la pantalla: se redibuja al quedar visible
   if (nombre === 'panel' && panelCargado) { actualizarPreviewPanel(); alinearPreviewPanel(); cargarPoceadaAdmin(); }
+  if (nombre === 'superadmin') actualizarPreviewVisualPanel();
   window.scrollTo(0, 0);
 }
 
@@ -5585,6 +5758,7 @@ function setTabSuperadmin(nombre, el) {
   Object.entries(PANELES_SUPERADMIN).forEach(([clave, idSeccion]) => {
     document.getElementById(idSeccion).style.display = (clave === nombre) ? 'block' : 'none';
   });
+  if (nombre === 'visual') actualizarPreviewVisualPanel();
 }
 
 const SORTEOS_CONFIG = [
@@ -5840,6 +6014,7 @@ function toggleSeccionColapsable(contenidoId, btnEl, cargarFn) {
     seccionesYaCargadas.add(contenidoId);
     cargarFn();
   }
+  if (colapsado && contenidoId === 'contenido-visual') actualizarPreviewVisualPanel();
 }
 
 // cargarAgenciasEnSelector() llena selectores usados tanto en "Apariencia" como en
