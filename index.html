@@ -228,8 +228,8 @@
     font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
     flex-shrink: 0;
   }
-  /* Cada parte del panel (favorito del día arriba, número de la semana abajo) es un bloque.
-     Si están las dos, se reparten el alto en partes iguales; si hay una sola, ocupa todo. */
+  /* Cada parte del panel (favorito de hoy, pálpito semanal y Poceada) es un bloque. El alto de
+     cada uno lo reparte repartirAltoPanel() según Superadmin → Visual; si hay uno solo, ocupa todo. */
   .panel-bloque { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
   .panel-bloque + .panel-bloque { border-top: 2px solid #ffd700; }
   .panel-cuerpo {
@@ -655,15 +655,77 @@ let panelDia = { fecha: null, fila: null };     // el renglón de hoy (fila null
 let panelSemana = { lunes: null, fila: null };  // el número de la semana vigente
 let panelClaveMostrada = null; // lo que está dibujado ahora, para no redibujar si no cambió
 
-// Tamaño de letra del panel: el máximo se configura en Superadmin → Visual (vale para las dos
-// partes). El número y la descripción se achican solos si no entran (por ejemplo, si el panel
-// se configura más angosto o el texto es largo).
-// OJO: admin.html tiene una copia de esto para "Copiar tablero" — si se cambia acá, cambiarlo allá.
-const PANEL_TAM_DEFECTO = { titulo: 20, numero: 120, descripcion: 30 };
+// Letra y alto del panel de la derecha: se configuran en Superadmin → Visual, cada parte por
+// separado. Las letras son el tamaño máximo: el número y la descripción se achican solos si no
+// entran (por ejemplo, si el panel se configura más angosto o el texto es largo).
+// OJO: admin.html tiene una copia de esto para "Copiar tablero" y las vistas previas — si se
+// cambia acá, cambiarlo allá.
+const PANEL_TAM_DEFECTO = {
+  tituloDia: 20, numeroDia: 120, descripcion: 30, // favorito de hoy
+  tituloSemana: 20, numeroSemana: 120,            // pálpito semanal
+  tituloPoceada: 20,                              // Poceada (el día, los números y los ganadores van en POCEADA_TAM_DEFECTO)
+  margenSemana: 14,                               // espacio arriba y abajo del número del pálpito
+  altoPoceada: 33                                 // porcentaje del alto del panel que ocupa la Poceada
+};
 let panelTam = { ...PANEL_TAM_DEFECTO };
+
+// Los tamaños guardados de esta agencia. Si todavía tiene guardados los de antes (un solo
+// título para las tres partes y un solo número para el favorito y el pálpito), se arranca de esos.
+function panelTamDesdeCfg(cfg) {
+  const D = PANEL_TAM_DEFECTO;
+  const leer = (claves, def, min, max) => {
+    for (const c of claves) {
+      const v = parseInt(cfg[c], 10);
+      if (Number.isFinite(v) && v >= min) return Math.min(v, max);
+    }
+    return def;
+  };
+  return {
+    tituloDia: leer(['panel-titulo-dia', 'panel-titulo'], D.tituloDia, 1, 999),
+    numeroDia: leer(['panel-numero-dia', 'panel-numero'], D.numeroDia, 1, 999),
+    descripcion: leer(['panel-descripcion'], D.descripcion, 1, 999),
+    tituloSemana: leer(['panel-titulo-semana', 'panel-titulo'], D.tituloSemana, 1, 999),
+    numeroSemana: leer(['panel-numero-semana', 'panel-numero'], D.numeroSemana, 1, 999),
+    tituloPoceada: leer(['panel-titulo-poceada', 'panel-titulo'], D.tituloPoceada, 1, 999),
+    margenSemana: leer(['panel-margen-semana'], D.margenSemana, 0, 999),
+    altoPoceada: leer(['panel-alto-poceada'], D.altoPoceada, 10, 90)
+  };
+}
 
 function panelLimites(tam) {
   return { numMax: tam.numero, numMin: Math.min(36, tam.numero), descMax: tam.descripcion, descMin: Math.min(16, tam.descripcion) };
+}
+// Los límites del número y la descripción de una parte ('dia' o 'semana')
+function panelLimitesParte(tam, tipo) {
+  return panelLimites({ numero: tipo === 'semana' ? tam.numeroSemana : tam.numeroDia, descripcion: tam.descripcion });
+}
+
+// Reparte el alto del panel entre sus partes. partes: [{ bloque, cuerpo, tipo }] en el orden en
+// que se ven ('dia', 'semana' o 'poceada'); altoPanel: el alto del panel en px; tam: los tamaños
+// del panel; f: la escala (1 en la TV, menos en las vistas previas del admin).
+// El pálpito semanal ocupa solo lo que necesita (su título, su número y el margen elegido arriba
+// y abajo), la Poceada su porcentaje del alto del panel y el favorito de hoy todo lo que sobra.
+// Si no está el favorito, lo que sobra va al pálpito; si hay una sola parte, ocupa todo el panel.
+// La parte que se queda con lo que sobra nunca baja del 25 % del panel (aunque se configure la
+// Poceada muy alta y el margen del pálpito muy grande): en ese caso cede la Poceada, que achica
+// sola sus letras.
+// Devuelve las partes en el orden en que hay que ajustar sus letras: la que se queda con lo que
+// sobra va al final, porque su alto depende de cómo quedaron las otras.
+// OJO: admin.html tiene esta MISMA copia; si se cambia una, cambiar la otra.
+function repartirAltoPanel(partes, altoPanel, tam, f) {
+  const resto = partes.find(p => p.tipo === 'dia') || partes.find(p => p.tipo === 'semana') || partes[0];
+  partes.forEach(p => {
+    const compacto = p !== resto && p.tipo === 'semana';
+    if (p === resto) p.bloque.style.flex = '1 1 0';
+    else if (compacto) p.bloque.style.flex = '0 0 auto';
+    else p.bloque.style.flex = `0 1 ${Math.round(altoPanel * tam.altoPoceada / 100)}px`;
+    p.bloque.style.minHeight = (p === resto && partes.length > 1) ? Math.round(altoPanel * 0.25) + 'px' : '0px';
+    p.cuerpo.style.flex = compacto ? '0 0 auto' : '1 1 0%';
+    const vertical = Math.round((compacto ? tam.margenSemana : 24) * f) + 'px';
+    p.cuerpo.style.paddingTop = vertical;
+    p.cuerpo.style.paddingBottom = vertical;
+  });
+  return partes.filter(p => p !== resto).concat(resto ? [resto] : []);
 }
 
 function ajustarTextoPanel(cuerpo, contenido, numero, descripcion, lim) {
@@ -877,13 +939,13 @@ function hayAlgunSorteo(fecha) {
 function panelParteDia() {
   const d = panelDia.fila;
   if (!panelMostrarDia || !panelDia.fecha || !d || !hayAlgunSorteo(panelDia.fecha)) return null;
-  const p = { titulo: (d.titulo || '').trim(), numero: (d.numero || '').trim(), descripcion: (d.descripcion || '').trim() };
+  const p = { tipo: 'dia', titulo: (d.titulo || '').trim(), numero: (d.numero || '').trim(), descripcion: (d.descripcion || '').trim() };
   return (p.titulo || p.numero || p.descripcion) ? p : null;
 }
 function panelParteSemana() {
   const s = panelSemana.fila;
   if (!panelMostrarSemana || !panelSemana.lunes || !s) return null;
-  const p = { titulo: (s.titulo || '').trim(), numero: (s.numero || '').trim(), descripcion: '' };
+  const p = { tipo: 'semana', titulo: (s.titulo || '').trim(), numero: (s.numero || '').trim(), descripcion: '' };
   return (p.titulo || p.numero) ? p : null;
 }
 
@@ -897,7 +959,7 @@ function htmlBloquePanel(p) {
     if (p.ganadores) h += `<div class="poceada-ganadores">${escaparHtml(p.ganadores)}</div>`;
     return h + '</div></div></div>';
   }
-  let html = '<div class="panel-bloque">';
+  let html = `<div class="panel-bloque panel-bloque-${p.tipo === 'semana' ? 'semana' : 'dia'}">`;
   if (p.titulo) html += `<div class="panel-titulo">${escaparHtml(p.titulo)}</div>`;
   html += '<div class="panel-cuerpo"><div class="panel-contenido">';
   if (p.numero) html += `<div class="panel-numero">${escaparHtml(p.numero)}</div>`;
@@ -948,18 +1010,22 @@ function ajustarFranjaSorteo() {
   }
 }
 
-// Se vuelve a ajustar en cada ciclo (por si cambió el ancho del panel) y cuando terminan de
-// cargar las letras (con la letra de reemplazo, el número ocupa otro ancho).
+// Se vuelve a ajustar en cada ciclo (por si cambió el ancho o el alto configurado) y cuando
+// terminan de cargar las letras (con la letra de reemplazo, el número ocupa otro ancho).
 function ajustarPanelEnPantalla() {
   const col = document.getElementById('col-panel');
   if (!col || col.style.display === 'none') return;
-  const lim = panelLimites(panelTam);
-  col.querySelectorAll('.panel-bloque').forEach(b => {
-    if (b.classList.contains('panel-bloque-poceada')) {
-      ajustarPoceadaPanel(b.querySelector('.panel-cuerpo'), b.querySelector('.panel-contenido'), b.querySelector('.poceada-fecha'), b.querySelector('.poceada-numeros'), b.querySelector('.poceada-ganadores'), poceadaTam);
+  const partes = Array.from(col.querySelectorAll('.panel-bloque')).map(b => ({
+    bloque: b, cuerpo: b.querySelector('.panel-cuerpo'),
+    tipo: b.classList.contains('panel-bloque-poceada') ? 'poceada' : b.classList.contains('panel-bloque-semana') ? 'semana' : 'dia'
+  }));
+  repartirAltoPanel(partes, col.clientHeight, panelTam, 1).forEach(p => {
+    const b = p.bloque;
+    if (p.tipo === 'poceada') {
+      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.panel-contenido'), b.querySelector('.poceada-fecha'), b.querySelector('.poceada-numeros'), b.querySelector('.poceada-ganadores'), poceadaTam);
       return;
     }
-    ajustarTextoPanel(b.querySelector('.panel-cuerpo'), b.querySelector('.panel-contenido'), b.querySelector('.panel-numero'), b.querySelector('.panel-descripcion'), lim);
+    ajustarTextoPanel(p.cuerpo, b.querySelector('.panel-contenido'), b.querySelector('.panel-numero'), b.querySelector('.panel-descripcion'), panelLimitesParte(panelTam, p.tipo));
   });
 }
 if (document.fonts) {
@@ -1266,11 +1332,7 @@ function aplicarConfigVisualDesdeFilas(rows) {
       }
     });
     aplicarNombresProvinciaAlHeader();
-    panelTam = {
-      titulo: parseInt(cfg['panel-titulo'], 10) || PANEL_TAM_DEFECTO.titulo,
-      numero: parseInt(cfg['panel-numero'], 10) || PANEL_TAM_DEFECTO.numero,
-      descripcion: parseInt(cfg['panel-descripcion'], 10) || PANEL_TAM_DEFECTO.descripcion
-    };
+    panelTam = panelTamDesdeCfg(cfg);
     poceadaTam = {
       fecha: parseInt(cfg['poceada-fecha'], 10) || POCEADA_TAM_DEFECTO.fecha,
       numeros: parseInt(cfg['poceada-numeros'], 10) || POCEADA_TAM_DEFECTO.numeros,
@@ -1295,7 +1357,9 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .cabezas-section-title { font-size: ${cfg['titulo-sorteos'] || '12px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
       .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
-      .panel-titulo { font-size: ${panelTam.titulo}px !important; }
+      .panel-bloque-dia .panel-titulo { font-size: ${panelTam.tituloDia}px !important; }
+      .panel-bloque-semana .panel-titulo { font-size: ${panelTam.tituloSemana}px !important; }
+      .panel-bloque-poceada .panel-titulo { font-size: ${panelTam.tituloPoceada}px !important; }
     `;
   } catch(e) { console.error('Error config visual:', e); }
 }
