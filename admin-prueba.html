@@ -298,7 +298,7 @@
     <div style="margin-bottom:16px;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📌 Panel de la derecha</div>
       <div style="font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5;">
-        Tiene dos partes. Arriba, el <b>favorito del día</b>: se carga por día, de lunes a sábado, y cada día la pantalla muestra lo de esa fecha (los domingos y los feriados sin sorteos no se cargan). Abajo, el <b>número de la semana</b>: vale de lunes a sábado, y desde el domingo ya se ve el de la semana que viene. Si no hay nada para mostrar, el panel no aparece. Lo que ya pasó se borra solo.
+        Tiene tres partes. Arriba, el <b>favorito del día</b>: se carga por día, de lunes a sábado, y cada día la pantalla muestra lo de esa fecha (los domingos y los feriados sin sorteos no se cargan). Después, el <b>número de la semana</b>: vale de lunes a sábado, y desde el domingo ya se ve el de la semana que viene. Abajo de todo, la <b>Poceada</b>, que se arma sola con la Chaqueña. Si no hay nada para mostrar, el panel no aparece. Lo que ya pasó se borra solo.
       </div>
     </div>
 
@@ -330,6 +330,20 @@
           <div class="card-body">
             <div id="panel-semanas"></div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;">Va debajo del favorito del día. También se ve los domingos y los feriados sin sorteos. Si un día no tiene favorito cargado, el panel muestra solo el número de la semana.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;" id="card-poceada">
+          <div class="card-header" style="gap:10px;flex-wrap:wrap;">
+            <div class="card-title">🎱 Poceada</div>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" id="panel-mostrar-poceada" disabled onchange="onCambioMostrarPanel(this, 'poceada')" style="width:16px;height:16px;accent-color:var(--gold);">
+              Mostrar la Poceada
+            </label>
+          </div>
+          <div class="card-body">
+            <div id="poceada-contenido" style="font-size:13px;color:var(--muted);">Cargando...</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">Va debajo del número de la semana. Se arma sola con las dos últimas cifras de la Chaqueña (Nocturna de martes, jueves y sábado), salteando los repetidos. Si por un repetido falta un número, hay que completarlo y confirmar. Se ve hasta las 21 del próximo sorteo.</div>
           </div>
         </div>
       </div>
@@ -580,25 +594,93 @@
               <div>
                 <label class="form-label">1° Premio</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-primero" min="20" max="60" value="34"
+                  <input type="range" id="slider-primero" min="20" max="120" value="34"
                     oninput="actualizarSlider('primero',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-primero" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">34px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-primero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;font-size:34px;">7732</span>
                 </div>
               </div>
               <div>
                 <label class="form-label">Resto de números</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-normal" min="14" max="40" value="22"
+                  <input type="range" id="slider-normal" min="14" max="120" value="22"
                     oninput="actualizarSlider('normal',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-normal" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">22px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-normal" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:22px;">3638</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FRANJA DE ARRIBA Y NOMBRES DE LAS PROVINCIAS -->
+          <div style="margin-bottom:24px;padding-top:20px;border-top:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Franja de arriba y nombres de las provincias</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cada texto de la franja del sorteo tiene su tamaño. Si con letras grandes no entra a lo ancho, en la TV se achica solo; a lo alto, la franja se hace más alta.</div>
+            <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+              <div>
+                <label class="form-label">Nombres de las provincias (fila roja)</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-prov-header" min="12" max="40" value="18"
+                    oninput="actualizarSlider('prov-header',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-prov-header" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">18px</span>
+                </div>
+                <div style="margin-top:8px;background:#8B0000;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-prov-header" style="font-family:'Bebas Neue',sans-serif;color:#ffd700;letter-spacing:1px;font-size:18px;">CHAQUEÑA</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Nombre del sorteo</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-franja-sorteo" min="14" max="60" value="26"
+                    oninput="actualizarSlider('franja-sorteo',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-franja-sorteo" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">26px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-franja-sorteo" style="font-family:'DM Sans',sans-serif;font-weight:900;color:#ffd700;letter-spacing:1px;font-size:26px;">PRIMERA</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Fecha</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-franja-fecha" min="12" max="48" value="20"
+                    oninput="actualizarSlider('franja-fecha',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-franja-fecha" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">20px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-franja-fecha" style="font-family:'DM Sans',sans-serif;color:#fff;font-size:20px;">Lunes, 23 de noviembre</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Número de sorteo</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-franja-numero" min="12" max="48" value="22"
+                    oninput="actualizarSlider('franja-numero',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-franja-numero" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">22px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-franja-numero" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;letter-spacing:2px;font-size:22px;">SORTEO N° 05593</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">SORTEANDO / ✓ FINALIZADO</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-franja-estado" min="12" max="48" value="20"
+                    oninput="actualizarSlider('franja-estado',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-franja-estado" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">20px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-franja-estado" style="font-family:'DM Sans',sans-serif;font-weight:900;color:#44ff88;letter-spacing:1px;font-size:20px;">SORTEANDO</span>
                 </div>
               </div>
             </div>
@@ -607,30 +689,54 @@
           <!-- CABEZAS -->
           <div style="margin-bottom:24px;padding-top:20px;border-top:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Últimas cabezas</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de los números en la columna izquierda</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Tamaño de las letras de la columna izquierda</div>
             <div class="grid2-mobile1" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
               <div>
                 <label class="form-label">Números de cabezas</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-cabeza" min="12" max="32" value="18"
+                  <input type="range" id="slider-cabeza" min="12" max="50" value="18"
                     oninput="actualizarSlider('cabeza',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-cabeza" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">18px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-cabeza" style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:18px;">6772</span>
                 </div>
               </div>
               <div>
                 <label class="form-label">Texto de provincia</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-prov" min="10" max="22" value="14"
+                  <input type="range" id="slider-prov" min="10" max="40" value="14"
                     oninput="actualizarSlider('prov',this.value)"
                     style="flex:1;accent-color:var(--gold);">
                   <span id="val-prov" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">14px</span>
                 </div>
-                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;">
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:center;overflow:hidden;white-space:nowrap;">
                   <span id="preview-prov" style="font-family:'DM Sans',sans-serif;color:rgba(255,255,255,0.65);font-size:14px;">CHAQUEÑA</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Título "Últimas cabezas"</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-titulo-cabezas" min="14" max="40" value="20"
+                    oninput="actualizarSlider('titulo-cabezas',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-titulo-cabezas" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">20px</span>
+                </div>
+                <div style="margin-top:8px;background:#ffd700;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-titulo-cabezas" style="font-family:'Bebas Neue',sans-serif;color:#000;letter-spacing:2px;font-size:20px;">ÚLTIMAS CABEZAS</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Títulos de los sorteos</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-titulo-sorteos" min="10" max="30" value="12"
+                    oninput="actualizarSlider('titulo-sorteos',this.value)"
+                    style="flex:1;accent-color:var(--gold);">
+                  <span id="val-titulo-sorteos" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:50px;text-align:center;">12px</span>
+                </div>
+                <div style="margin-top:8px;background:#050608;border-radius:8px;padding:10px;text-align:left;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-titulo-sorteos" style="display:inline-block;background:rgba(255,215,0,0.1);padding:2px 10px;font-family:'DM Sans',sans-serif;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;font-size:12px;">Previa lunes</span>
                 </div>
               </div>
             </div>
@@ -663,12 +769,12 @@
           <!-- LETRA DEL PANEL DE LA DERECHA (vale para el favorito del día y el número de la semana) -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Letra del panel de la derecha</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Vale para las dos partes: el favorito del día y el número de la semana. Es el tamaño máximo: si un texto no entra, en la TV se achica solo.</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">El título (franja dorada) vale para las tres partes; el número y la descripción, para el favorito del día y el número de la semana; abajo, los de la Poceada. Es el tamaño máximo: si un texto no entra, en la TV se achica solo.</div>
             <div class="grid2-mobile1" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;">
               <div>
                 <label class="form-label">Título (franja dorada)</label>
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <input type="range" id="slider-panel-titulo" min="12" max="40" value="20"
+                  <input type="range" id="slider-panel-titulo" min="12" max="60" value="20"
                     oninput="actualizarSlider('panel-titulo',this.value)"
                     style="flex:1;min-width:0;accent-color:var(--gold);">
                   <span id="val-panel-titulo" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
@@ -701,6 +807,42 @@
                   <span id="preview-panel-descripcion" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;font-size:30px;">Día de la Soberanía</span>
                 </div>
               </div>
+              <div>
+                <label class="form-label">Poceada: día</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-poceada-fecha" min="12" max="48" value="24"
+                    oninput="actualizarSlider('poceada-fecha',this.value)"
+                    style="flex:1;min-width:0;accent-color:var(--gold);">
+                  <span id="val-poceada-fecha" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">24px</span>
+                </div>
+                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-poceada-fecha" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;letter-spacing:1px;font-size:24px;">MARTES 24/11</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Poceada: números</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-poceada-numeros" min="20" max="90" value="44"
+                    oninput="actualizarSlider('poceada-numeros',this.value)"
+                    style="flex:1;min-width:0;accent-color:var(--gold);">
+                  <span id="val-poceada-numeros" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">44px</span>
+                </div>
+                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;white-space:nowrap;">
+                  <span id="preview-poceada-numeros" style="font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.15;font-size:44px;">02 06 09</span>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Poceada: ganadores</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <input type="range" id="slider-poceada-ganadores" min="12" max="48" value="20"
+                    oninput="actualizarSlider('poceada-ganadores',this.value)"
+                    style="flex:1;min-width:0;accent-color:var(--gold);">
+                  <span id="val-poceada-ganadores" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
+                </div>
+                <div style="margin-top:8px;background:#0d0500;border-radius:8px;padding:6px 8px;text-align:center;overflow:hidden;">
+                  <span id="preview-poceada-ganadores" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;font-size:20px;">Sin ganadores</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -710,7 +852,7 @@
             <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
               Solo afecta cómo se ve el admin al cargar números (celular/notebook) — el Smart TV no cambia.
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr));gap:16px;margin-bottom:16px;">
               <div>
                 <label class="form-label">Orden de la grilla</label>
                 <select class="form-input" id="grilla-orden-sel" onchange="document.getElementById('grilla-columnas-wrap').style.display = this.value==='columna' ? 'block' : 'none';">
@@ -726,13 +868,23 @@
                 </select>
               </div>
               <div>
+                <label class="form-label">Al completar la última posición de una provincia</label>
+                <select class="form-input" id="pasar-provincia-sel">
+                  <option value="si">Pasar sola a la siguiente provincia (como ahora)</option>
+                  <option value="no">Quedarse en la misma provincia</option>
+                </select>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                  Las flechas del teclado siguen pasando de provincia igual.
+                </div>
+              </div>
+              <div>
                 <label class="form-label">Vista de provincias al cargar</label>
                 <select class="form-input" id="modo-carga-sel">
                   <option value="clasico">Todas juntas (como ahora)</option>
                   <option value="pestanas">Por pestañas — una provincia a la vez</option>
                 </select>
                 <div style="font-size:11px;color:var(--muted);margin-top:4px;">
-                  Con pestañas, al completar la última posición de una provincia pasa solo a la siguiente.
+                  Con pestañas se ve una provincia a la vez.
                 </div>
               </div>
               <div>
@@ -753,24 +905,11 @@
             </div>
           </div>
 
-          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA (por sorteo) -->
-          <div style="margin-bottom:24px;padding-bottom:20px;padding-top:20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+          <!-- CANTIDAD DE NÚMEROS POR PROVINCIA: ahora se configura SOLO en Programaciones -->
+          <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Cantidad de números por provincia</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Cuántos números se cargan en admin y se muestran en la TV. Se configura sorteo por sorteo, para la agencia seleccionada arriba.</div>
-
-            <div class="tabs" id="tabs-sorteo-numeros" style="margin-bottom:16px;">
-              <div class="tab active" onclick="setTabNumeros('previa',this)">Previa</div>
-              <div class="tab" onclick="setTabNumeros('primera',this)">Primera</div>
-              <div class="tab" onclick="setTabNumeros('matutina',this)">Matutina</div>
-              <div class="tab" onclick="setTabNumeros('vespertina',this)">Vespertina</div>
-              <div class="tab" onclick="setTabNumeros('nocturna',this)">Nocturna</div>
-            </div>
-
-            <div id="grid-cantidad-provincias" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:14px;"></div>
-
-            <button class="btn btn-ghost" style="font-size:12px;" onclick="copiarCantidadATodosLosSorteos()">
-              📋 Copiar estos valores a los 5 sorteos
-            </button>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">Ahora se configura en un solo lugar: <b>⬟ Superadmin → 🔢 Programaciones</b>. Ahí ves cuál rige en cada sorteo y podés programarla en los 5 sorteos de una vez.</div>
+            <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;" onclick="setTabSuperadmin('programaciones', document.querySelector('#tabs-superadmin .tab[onclick*=programaciones]'))">🔢 Ir a Programaciones</button>
           </div>
 
           <!-- DURACIÓN DE "SORTEANDO" POR SORTEO -->
@@ -820,12 +959,12 @@
     <div id="seccion-programaciones" style="display:none;">
       <div style="margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
         <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-programaciones', this, () => { buildProgProvinciasGrid(); cargarAgenciasEnSelectorUnaVez(); })">▸</button>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">📅 Programar Cambios de Cantidad</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">🔢 Cantidad de números por provincia</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
       <div id="contenido-programaciones" style="display:none;">
       <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-        Programá un cambio de cantidad de números para una fecha futura. Si le ponés fecha de fin, al terminar ese rango el sistema vuelve solo a usar la configuración de siempre.
+        Acá se configura cuántos números por provincia se cargan en el admin y se muestran en la TV, en cada sorteo. Rige la programación más nueva que esté en fecha (la que dice <b>ACTIVA AHORA</b>). Para un cambio permanente, marcá "Para siempre"; si le ponés fecha de fin, al terminar vuelve a regir la anterior. Un sorteo sin ninguna programación muestra 20 números por provincia.
       </div>
 
       <div class="card" style="margin-bottom:16px;">
@@ -848,6 +987,11 @@
                 <option value="vespertina">Vespertina</option>
                 <option value="nocturna">Nocturna</option>
               </select>
+              <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;">
+                <input type="checkbox" id="prog-todos-sorteos" onchange="onCambioProgTodosSorteos()"
+                  style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer;">
+                <span style="font-size:13px;">Programar en los 5 sorteos (previa, primera, matutina, vespertina y nocturna)</span>
+              </label>
             </div>
           </div>
 
@@ -871,7 +1015,7 @@
             <span style="font-size:13px;">Para siempre (sin fecha de fin — no vuelve atrás sola)</span>
           </label>
 
-          <button class="btn btn-primary" style="width:100%" onclick="programarCambio()">💾 Programar cambio</button>
+          <button class="btn btn-primary" id="btn-programar-cambio" style="width:100%" onclick="programarCambio()">💾 Programar cambio</button>
         </div>
       </div>
 
@@ -893,7 +1037,7 @@
     <!-- CONFIGURACIÓN DE SORTEOS — solo superadmin -->
     <div id="seccion-config" style="display:none;">
       <div style="margin-top:32px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
-        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this, () => { buildConfigGrids(); buildCantidadProvinciasGrid(); cargarConfiguraciones(); })">▸</button>
+        <button class="seccion-toggle" onclick="toggleSeccionColapsable('contenido-config-sorteos', this, () => { buildConfigGrids(); cargarConfiguraciones(); })">▸</button>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;">⚙️ Configuración de Sorteos</div>
         <span style="background:rgba(124,58,237,0.2);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;">SOLO SUPERADMIN</span>
       </div>
@@ -1310,6 +1454,24 @@ function htmlLineaCartel(cartelId, idx, linea) {
 
 let cartelesColapsados = new Set(); // ids comprimidos — solo estado visual, no se guarda en la base
 
+// Fechas del cartel (opcionales). Vacías = sin límite. El último día se muestra completo.
+function ddmmCartel(iso) { const [a, m, d] = iso.split('-'); return `${d}/${m}/${a}`; }
+function estadoFechasCartel(c) {
+  const hoy = hoyStr();
+  if (c.fecha_hasta && c.fecha_hasta < hoy) return { clase: 'vencido', texto: 'VENCIDO', detalle: `terminó el ${ddmmCartel(c.fecha_hasta)}` };
+  if (c.fecha_desde && c.fecha_desde > hoy) return { clase: 'programado', texto: `EMPIEZA EL ${ddmmCartel(c.fecha_desde).slice(0, 5)}`, detalle: `se muestra desde el ${ddmmCartel(c.fecha_desde)}` };
+  if (c.fecha_hasta) return { clase: 'vigente', texto: `HASTA EL ${ddmmCartel(c.fecha_hasta).slice(0, 5)}`, detalle: `se muestra hasta el ${ddmmCartel(c.fecha_hasta)} inclusive` };
+  return null;
+}
+function htmlEstadoFechasCartel(c) {
+  const e = estadoFechasCartel(c);
+  if (!e) return '';
+  const colores = { vencido: 'background:rgba(255,77,77,0.15);color:var(--red);border:1px solid rgba(255,77,77,0.4);',
+    programado: 'background:rgba(100,160,255,0.12);color:#8ab4ff;border:1px solid rgba(100,160,255,0.35);',
+    vigente: 'background:rgba(255,215,0,0.10);color:var(--gold);border:1px solid rgba(255,215,0,0.35);' };
+  return `<span title="${e.detalle}" style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:6px;white-space:nowrap;flex-shrink:0;${colores[e.clase]}">${e.texto}</span>`;
+}
+
 function htmlCartelCard(c, idx, total) {
   const lineaDefault = { texto:'', tamano:32, color:'#ffffff', fuente:'Bebas Neue', negrita:false, cursiva:false, subrayado:false };
   const lineas = (Array.isArray(c.lineas) && c.lineas.length > 0) ? c.lineas : [lineaDefault];
@@ -1334,6 +1496,18 @@ function htmlCartelCard(c, idx, total) {
         </div>
       </div>
 
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:6px;">
+        <div>
+          <label class="form-label">Mostrar desde</label>
+          <input type="date" class="form-input" id="cartel_desde_${c.id}" value="${c.fecha_desde || ''}">
+        </div>
+        <div>
+          <label class="form-label">Mostrar hasta</label>
+          <input type="date" class="form-input" id="cartel_hasta_${c.id}" value="${c.fecha_hasta || ''}">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Opcional. Vacío = sin límite. El último día se muestra completo; desde el día siguiente queda como <b>VENCIDO</b> y no aparece más en la TV (lo podés reusar cambiando las fechas).</div>
+
       <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Vista previa</div>
       <div id="cartel_preview_${c.id}" style="border-radius:10px;padding:24px;text-align:center;margin-bottom:14px;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;"></div>
 
@@ -1352,6 +1526,7 @@ function htmlCartelCard(c, idx, total) {
           <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},-1)" ${idx===0?'disabled':''}>▲</button>
           <button class="btn btn-ghost" style="padding:4px 8px;" onclick="moverCartel(${c.id},1)" ${idx===total-1?'disabled':''}>▼</button>
           <span style="font-size:12px;color:var(--muted);margin-left:2px;white-space:nowrap;">Posición ${idx+1}</span>
+          <span id="cartel_estado_${c.id}" style="display:inline-flex;margin-left:4px;">${htmlEstadoFechasCartel(c)}</span>
           ${colapsado ? `<span style="font-size:13px;color:var(--text,#fff);margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">— ${primerTexto}</span>` : ''}
         </div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;flex-shrink:0;">
@@ -1526,12 +1701,23 @@ async function crearCartel() {
 }
 
 async function guardarCartel(id) {
+  const desde = document.getElementById(`cartel_desde_${id}`)?.value || null;
+  const hasta = document.getElementById(`cartel_hasta_${id}`)?.value || null;
+  if (desde && hasta && hasta < desde) { showToast('"Mostrar hasta" no puede ser antes que "Mostrar desde"', 'err'); return; }
   const datos = {
     lineas: leerLineasDesdeDOM(id),
     duracion_segundos: parseInt(document.getElementById(`cartel_duracion_${id}`).value, 10) || 5,
     activo: document.getElementById(`cartel_activo_${id}`).checked,
     color_fondo: document.getElementById(`cartel_color_fondo_${id}`).value,
   };
+  // Las fechas se mandan si la base ya tiene esas columnas (se ve en lo que se leyó) o si se
+  // eligió alguna. Así, antes de correr migracion_carteles_fechas.sql, un cartel sin fechas
+  // se sigue guardando como siempre; con fecha, avisa que falta correr el SQL.
+  const enMemoria = cartelesActuales.find(c => c.id === id);
+  if ((enMemoria && 'fecha_desde' in enMemoria) || desde || hasta) {
+    datos.fecha_desde = desde;
+    datos.fecha_hasta = hasta;
+  }
   try {
     const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/carteles?id=eq.${id}`, {
       method: 'PATCH',
@@ -1541,8 +1727,20 @@ async function guardarCartel(id) {
       },
       body: JSON.stringify(datos)
     });
-    if (res.ok || res.status === 204) showToast('✅ Cartel guardado','ok');
-    else showToast('Error al guardar el cartel','err');
+    if (res.ok || res.status === 204) {
+      // Mantener la copia en memoria al día y mostrar el estado de las fechas
+      const cartel = cartelesActuales.find(c => c.id === id);
+      if (cartel) Object.assign(cartel, datos);
+      const est = document.getElementById(`cartel_estado_${id}`);
+      if (est && cartel) est.innerHTML = htmlEstadoFechasCartel(cartel);
+      const e = cartel ? estadoFechasCartel(cartel) : null;
+      showToast(e && e.clase === 'vencido' ? '✅ Cartel guardado — está VENCIDO: no aparece en la TV' : '✅ Cartel guardado', 'ok');
+    } else {
+      let detalle = '';
+      try { detalle = JSON.stringify(await res.json()); } catch (e2) {}
+      if (/fecha_desde|fecha_hasta|PGRST204/.test(detalle)) showToast('Falta correr en Supabase "migracion_carteles_fechas.sql" — no se guardó', 'err');
+      else showToast('Error al guardar el cartel','err');
+    }
   } catch(e) { showToast('Error de conexión','err'); }
 }
 
@@ -1622,6 +1820,296 @@ let panelPreview = { tipo: 'dia', i: 0 }; // qué muestra la vista previa: un d�
 const PANEL_TAM_DEFECTO = { titulo: 20, numero: 120, descripcion: 30 };
 const PANEL_ANCHO_DEFECTO = 340;
 const PANEL_ALTO_TV = 1006;
+
+// =====================
+// POCEADA — reglas (OJO: index.html y admin.html tienen esta MISMA copia; si se cambia una, cambiar la otra)
+// =====================
+// - Se sortea martes, jueves y sábado a las 21, junto con la Nocturna. Si ese día no hay
+//   Nocturna (feriado cargado en Superadmin), no cuenta como sorteo.
+// - Los 10 números: las dos últimas cifras de la Chaqueña desde la ubicación 1 en adelante;
+//   si una ya salió, se saltea y se sigue con la próxima ubicación, hasta juntar 10 distintos.
+// - Sin repetidos (o si las ubicaciones siguientes están cargadas), se arma sola. Si faltan
+//   números porque la ubicación siguiente no está cargada, un empleado los completa según el
+//   extracto oficial y la confirma. Si después se corrige la Chaqueña y cambia lo que se
+//   confirmó, deja de verse hasta que se confirme de nuevo.
+// - Se ve desde que queda armada hasta las 21 del próximo sorteo. Se muestra de menor a mayor.
+const POCEADA_DIAS = [2, 4, 6];             // martes, jueves y sábado
+const POCEADA_MINUTO_SORTEO = 21 * 60;      // 21:00
+const POCEADA_TAM_DEFECTO = { fecha: 24, numeros: 44, ganadores: 20 };
+const POCEADA_NOMBRE_DIA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+
+function poceadaParse(fecha) { const p = fecha.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function poceadaSumarDias(fecha, n) {
+  const d = poceadaParse(fecha);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// "MARTES 24/11"
+function poceadaEtiquetaFecha(fecha) {
+  const p = fecha.split('-');
+  return `${POCEADA_NOMBRE_DIA[poceadaParse(fecha).getDay()]} ${p[2]}/${p[1]}`;
+}
+
+// El sorteo de Poceada que corresponde mostrar: el último martes/jueves/sábado con Nocturna
+// cuyo horario (21 h) ya llegó. hayNocturna(fecha) dice si ese día hubo Nocturna.
+function poceadaSorteoVigente(hoy, minutoAhora, hayNocturna) {
+  for (let i = 0; i <= 28; i++) {
+    const f = poceadaSumarDias(hoy, -i);
+    if (!POCEADA_DIAS.includes(poceadaParse(f).getDay())) continue;
+    if (i === 0 && minutoAhora < POCEADA_MINUTO_SORTEO) continue;
+    if (!hayNocturna(f)) continue;
+    return f;
+  }
+  return null;
+}
+
+// nums: las 20 ubicaciones de la Chaqueña ('1234', o vacío si no está cargada).
+// Hacen falta las ubicaciones 1 a 10 cargadas; después se siguen usando las que estén
+// cargadas una detrás de otra (11, 12...) para reemplazar los repetidos.
+function poceadaCalcular(nums) {
+  const ok = n => typeof n === 'string' && /^\d{4}$/.test(n);
+  for (let i = 0; i < 10; i++) if (!ok(nums[i])) return { cargada: false, completa: false, base: [], faltan: 10, detalle: [] };
+  const base = [], detalle = [];
+  for (let i = 0; i < nums.length && base.length < 10; i++) {
+    if (!ok(nums[i])) break;
+    const dos = nums[i].slice(-2);
+    const repetido = base.includes(dos);
+    detalle.push({ pos: i + 1, numero: nums[i], dos, repetido });
+    if (!repetido) base.push(dos);
+  }
+  return { cargada: true, completa: base.length === 10, base, faltan: 10 - base.length, detalle };
+}
+
+// Los 10 números que se ven (de menor a mayor), o null si todavía no se puede mostrar.
+// fila: el renglón guardado de ese sorteo (confirmación con los faltantes), o null.
+function poceadaResultado(calc, fila) {
+  if (!calc || !calc.cargada) return null;
+  if (calc.completa) return calc.base.slice().sort();
+  if (!fila || !fila.confirmado) return null;
+  const base = Array.isArray(fila.base) ? fila.base : [];
+  const faltantes = Array.isArray(fila.faltantes) ? fila.faltantes : [];
+  // Si se corrigió la Chaqueña después de confirmar y cambió lo que salió, hay que confirmar de nuevo
+  if (base.length !== calc.base.length || base.some((n, i) => n !== calc.base[i])) return null;
+  if (faltantes.length !== calc.faltan) return null;
+  const todos = base.concat(faltantes);
+  if (todos.some(n => !/^\d{2}$/.test(n)) || new Set(todos).size !== 10) return null;
+  return todos.slice().sort();
+}
+
+// Achica la fecha, los números y la línea de ganadores en la misma proporción hasta que entren
+// en su parte del panel (tam = los tamaños máximos, configurados en Superadmin → Visual).
+function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) {
+  if (!cuerpo || !contenido || !numeros) return;
+  const aplicar = f => {
+    if (fecha) fecha.style.fontSize = Math.max(8, Math.round(tam.fecha * f)) + 'px';
+    numeros.style.fontSize = Math.max(10, Math.round(tam.numeros * f)) + 'px';
+    if (ganadores) ganadores.style.fontSize = Math.max(8, Math.round(tam.ganadores * f)) + 'px';
+  };
+  let f = 1;
+  aplicar(f);
+  if (!cuerpo.clientHeight) return; // oculto: no se puede medir
+  const cs = getComputedStyle(cuerpo);
+  const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+  const noEntra = () => contenido.offsetHeight > alto || numeros.scrollWidth > numeros.clientWidth + 1
+    || (fecha && fecha.scrollWidth > fecha.clientWidth + 1);
+  while (f > 0.3 && noEntra()) { f -= 0.04; aplicar(f); }
+}
+
+// =====================
+// POCEADA (admin) — sección "🎱 Poceada" de la pestaña Panel de la derecha
+// =====================
+// El tilde se guarda al instante (tablero_panel.mostrar_poceada, apagado de entrada). Lo demás
+// se guarda en tablero_poceada (un renglón por sorteo, solo si hace falta): la confirmación con
+// los números que faltaban, el día y el turno si el sorteo se pasó a otro día, y los ganadores.
+let panelMostrarPoceada = false;
+let poceadaAdmin = null;      // lo último leído: { sorteo, fila, fechaReal, turno, calc, numeros, hoy } o { error: true }
+let tokenCargaPoceada = 0;
+let guardandoPoceada = false;
+const POCEADA_TURNOS = [['previa', 'Previa'], ['primera', 'Primera'], ['matutina', 'Matutina'], ['vespertina', 'Vespertina'], ['nocturna', 'Nocturna']];
+
+function poceadaTamDesdeCfg(cfg) {
+  return {
+    fecha: parseInt(cfg['poceada-fecha'], 10) || POCEADA_TAM_DEFECTO.fecha,
+    numeros: parseInt(cfg['poceada-numeros'], 10) || POCEADA_TAM_DEFECTO.numeros,
+    ganadores: parseInt(cfg['poceada-ganadores'], 10) || POCEADA_TAM_DEFECTO.ganadores
+  };
+}
+function poceadaFechaTexto(f) { const e = poceadaEtiquetaFecha(f); return e.charAt(0) + e.slice(1).toLowerCase(); } // "Martes 24/11"
+function poceadaTurnoTexto(t) { const x = POCEADA_TURNOS.find(y => y[0] === t); return x ? x[1] : t; }
+function poceadaProximoSorteo(fecha) {
+  for (let i = 1; i <= 7; i++) { const f = poceadaSumarDias(fecha, i); if (POCEADA_DIAS.includes(poceadaParse(f).getDay())) return f; }
+  return null;
+}
+
+// Lee lo necesario para saber qué Poceada corresponde ahora, con las mismas reglas que la TV.
+// Devuelve null si alguna consulta falla.
+async function poceadaLeer(agencia, token, ahora = new Date()) {
+  const ag = encodeURIComponent(agencia);
+  const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+  const minuto = ahora.getHours() * 60 + ahora.getMinutes();
+  const feriados = await consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${poceadaSumarDias(hoy, -28)}&fecha_especial=lte.${hoy}&sorteo=eq.nocturna&select=fecha_especial,activo`, token);
+  if (feriados === null) return null;
+  const sinNocturna = new Set(feriados.filter(r => r.activo === false).map(r => r.fecha_especial));
+  const sorteo = poceadaSorteoVigente(hoy, minuto, f => !sinNocturna.has(f));
+  if (!sorteo) return { sorteo: null, hoy };
+  const filas = await consultarJson(`${SUPABASE_URL}/rest/v1/tablero_poceada?agencia_id=eq.${ag}&fecha=eq.${sorteo}&select=*`, token);
+  if (filas === null) return null;
+  const fila = filas[0] || null;
+  const fechaReal = (fila && fila.fecha_real) || sorteo;
+  const turno = (fila && fila.sorteo_real) || 'nocturna';
+  const rows = await consultarJson(`${SUPABASE_URL}/rest/v1/resultados?fecha=eq.${fechaReal}&sorteo=eq.${turno}&agencia_id=eq.${ag}&provincia=eq.chaquena&order=posicion.asc&select=posicion,numero`, token);
+  if (rows === null) return null;
+  const nums = Array(20).fill(null);
+  rows.forEach(r => { if (r.posicion >= 1 && r.posicion <= 20) nums[r.posicion - 1] = r.numero; });
+  const calc = poceadaCalcular(nums);
+  return { sorteo, fila, fechaReal, turno, calc, numeros: poceadaResultado(calc, fila), hoy };
+}
+
+async function cargarPoceadaAdmin() {
+  if (!usuarioActual) return;
+  const miToken = ++tokenCargaPoceada;
+  const agencia = usuarioActual.agencia_id;
+  const r = await poceadaLeer(agencia, usuarioActual.token);
+  if (miToken !== tokenCargaPoceada || !usuarioActual || usuarioActual.agencia_id !== agencia) return;
+  poceadaAdmin = r || { error: true };
+  renderPoceadaAdmin();
+  actualizarPreviewPanel();
+}
+
+function renderPoceadaAdmin() {
+  const cont = document.getElementById('poceada-contenido');
+  if (!cont) return;
+  const p = poceadaAdmin;
+  if (!p) { cont.innerHTML = 'Cargando...'; return; }
+  const btnActualizar = '<button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="cargarPoceadaAdmin()">🔄 Actualizar</button>';
+  if (p.error) {
+    cont.innerHTML = `<div style="color:var(--red);line-height:1.5;">⚠️ No se pudo leer la Poceada. Si todavía no corriste <b>migracion_poceada.sql</b> en Supabase, corrélo primero.</div><div style="margin-top:8px;">${btnActualizar}</div>`;
+    return;
+  }
+  if (!p.sorteo) { cont.innerHTML = `<div>No hay ningún sorteo de Poceada en las últimas semanas.</div><div style="margin-top:8px;">${btnActualizar}</div>`; return; }
+  const c = p.calc;
+  const movido = !!(p.fila && (p.fila.fecha_real || p.fila.sorteo_real));
+  const proximo = poceadaProximoSorteo(p.sorteo);
+  let h = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    <div style="color:var(--text);font-size:14px;">Sorteo del <b>${poceadaFechaTexto(p.sorteo)}</b>${movido ? ` — se hizo el <b>${poceadaFechaTexto(p.fechaReal)}</b>, <b>${poceadaTurnoTexto(p.turno)}</b>` : ''}</div>${btnActualizar}</div>`;
+
+  // Estado
+  const caja = (color, fondo, texto) => `<div id="poceada-estado" style="border:1px solid ${color};background:${fondo};color:${color};border-radius:10px;padding:10px 12px;line-height:1.45;margin-bottom:10px;font-weight:600;">${texto}</div>`;
+  const verde = ['var(--green,#3ecf8e)', 'rgba(62,207,142,0.08)'], dorado = ['var(--gold)', 'rgba(240,180,41,0.08)'], rojo = ['var(--red)', 'rgba(230,57,70,0.08)'];
+  const hasta = proximo ? ` Se ve en la TV hasta las 21 del próximo sorteo (${poceadaFechaTexto(proximo).toLowerCase()}).` : '';
+  const repetidos = c.detalle ? c.detalle.filter(x => x.repetido).length : 0;
+  if (!c.cargada) {
+    h += caja(...dorado, `⏳ Esperando que se carguen las ubicaciones 1 a 10 de la Chaqueña (${poceadaTurnoTexto(p.turno)} del ${poceadaFechaTexto(p.fechaReal).toLowerCase()}). Cuando estén, si no hay números repetidos, aparece sola en la TV.`);
+  } else if (c.completa) {
+    h += caja(...verde, `✅ Lista: se armó sola${repetidos ? ' (los repetidos se reemplazaron con las ubicaciones siguientes, que están cargadas)' : ', sin números repetidos'}.${hasta}`);
+  } else if (p.numeros) {
+    h += caja(...verde, `✅ Confirmada${p.fila && p.fila.actualizado_por ? ' por ' + tabEsc(p.fila.actualizado_por) : ''}: se ${c.faltan === 1 ? 'completó 1 número' : 'completaron ' + c.faltan + ' números'}.${hasta}`);
+  } else if (p.fila && p.fila.confirmado) {
+    h += caja(...rojo, `⚠️ Se corrigió un número de la Chaqueña después de confirmar. Revisá ${c.faltan === 1 ? 'el número que falta' : 'los números que faltan'} y tocá "Confirmar datos". Mientras tanto NO se ve en la TV.`);
+  } else {
+    h += caja(...dorado, `⚠️ Hay ${repetidos === 1 ? 'un número repetido' : repetidos + ' números repetidos'}: ${c.faltan === 1 ? 'falta 1 número' : 'faltan ' + c.faltan + ' números'}. ${c.faltan === 1 ? 'Escribilo' : 'Escribilos'} según el extracto oficial y tocá "Confirmar datos". Mientras tanto NO se ve en la TV.`);
+  }
+  if (!panelMostrarPoceada) h += '<div style="color:var(--gold);font-size:12px;margin:-4px 0 10px;">El tilde "Mostrar la Poceada" está apagado: aunque esté lista, no se ve en la TV.</div>';
+
+  // De dónde sale cada número
+  if (c.cargada) {
+    h += '<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">De dónde sale cada número (Chaqueña)</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 12px;margin-bottom:12px;font-size:12.5px;">';
+    h += c.detalle.map(x => `<div style="${x.repetido ? 'color:var(--red);' : 'color:var(--text);'}">Ubic. ${String(x.pos).padStart(2, '0')} · ${x.numero} → <b>${x.dos}</b>${x.repetido ? ' (repetido, se saltea)' : ''}</div>`).join('');
+    h += '</div>';
+  }
+  // Los que faltan (solo si hay repetidos y la ubicación siguiente no está cargada)
+  if (c.cargada && !c.completa) {
+    const previos = (p.fila && Array.isArray(p.fila.faltantes) && p.fila.faltantes.length === c.faltan) ? p.fila.faltantes : [];
+    h += `<label class="form-label">${c.faltan === 1 ? 'Número que falta' : 'Números que faltan'} (2 cifras, según el extracto oficial)</label>`;
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">';
+    for (let i = 0; i < c.faltan; i++) h += `<input type="text" inputmode="numeric" maxlength="2" class="form-input poceada-faltante" id="poceada-faltante-${i}" value="${previos[i] || ''}" style="width:70px;text-align:center;font-family:'Oswald',sans-serif;font-size:20px;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">`;
+    h += `<button class="btn btn-primary" id="btn-confirmar-poceada" style="width:auto;padding:10px 16px;" onclick="confirmarPoceada()">✔ Confirmar datos</button></div>`;
+  }
+  // Cómo queda
+  if (c.cargada) {
+    const muestra = p.numeros || c.base.slice().sort().concat(Array(c.faltan).fill('?'));
+    h += '<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Así se ve (de menor a mayor)</div>';
+    h += `<div id="poceada-numeros-admin" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${muestra.map(n => `<span style="font-family:'Oswald',sans-serif;font-weight:700;font-size:20px;min-width:40px;text-align:center;padding:4px 6px;border-radius:8px;${n === '?' ? 'border:1px dashed var(--red);color:var(--red);' : 'background:#0d0500;border:1px solid #3a2a00;color:#ffd700;'}">${n}</span>`).join('')}</div>`;
+  }
+  // Ganadores
+  const gan = (p.fila && p.fila.ganadores) || '';
+  h += `<label class="form-label">Línea de ganadores (opcional, va debajo de los números)</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <input type="text" class="form-input" id="poceada-ganadores" maxlength="80" placeholder="Ej: Sin ganadores · 2 ganadores con 8 aciertos" value="${gan.replace(/"/g, '&quot;')}" style="flex:1;min-width:200px;">
+      <button class="btn btn-ghost" id="btn-guardar-ganadores" style="padding:10px 14px;" onclick="guardarGanadoresPoceada()">💾 Guardar</button>
+    </div>`;
+  // Sorteo suspendido
+  h += `<details ${movido ? 'open' : ''} style="border-top:1px solid var(--border);padding-top:10px;">
+    <summary style="cursor:pointer;font-size:13px;color:var(--text);">¿El sorteo se suspendió y se hizo otro día?</summary>
+    <div style="font-size:12px;color:var(--muted);margin:8px 0;line-height:1.45;">Elegí el día y el turno en que Lotería hizo el sorteo: la Poceada se arma con la Chaqueña de ese turno, y en la TV se ve ese día.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label class="form-label">Día</label><input type="date" class="form-input" id="poceada-fecha-real" value="${p.fechaReal}" min="${p.sorteo}" max="${p.hoy}"></div>
+      <div><label class="form-label">Turno</label><select class="form-input" id="poceada-turno-real">${POCEADA_TURNOS.map(t => `<option value="${t[0]}" ${t[0] === p.turno ? 'selected' : ''}>${t[1]}</option>`).join('')}</select></div>
+      <button class="btn btn-ghost" id="btn-guardar-fecha-poceada" style="padding:10px 14px;" onclick="guardarFechaPoceada()">💾 Guardar día y turno</button>
+      ${movido ? '<button class="btn btn-ghost" id="btn-volver-normal-poceada" style="padding:10px 14px;" onclick="volverNormalPoceada()">↩ Volver a lo normal</button>' : ''}
+    </div>
+  </details>`;
+  cont.innerHTML = h;
+}
+
+async function poceadaGuardar(campos, mensajeOk) {
+  if (guardandoPoceada || !poceadaAdmin || !poceadaAdmin.sorteo || !usuarioActual) return false;
+  guardandoPoceada = true;
+  document.querySelectorAll('#poceada-contenido button').forEach(b => { b.disabled = true; });
+  const agencia = usuarioActual.agencia_id;
+  let ok = false;
+  try {
+    const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/tablero_poceada?on_conflict=agencia_id,fecha`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([{ agencia_id: agencia, fecha: poceadaAdmin.sorteo, ...campos, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre }])
+    });
+    ok = res.ok;
+    if (ok) showToast(mensajeOk, 'ok');
+    else { console.error('No se pudo guardar la Poceada', res.status); showToast('⚠️ No se pudo guardar — probá de nuevo', 'err'); }
+  } catch (e) {
+    console.error(e);
+    showToast('⚠️ Error de conexión — no se guardó', 'err');
+  } finally {
+    guardandoPoceada = false;
+    await cargarPoceadaAdmin();
+  }
+  return ok;
+}
+
+async function confirmarPoceada() {
+  const p = poceadaAdmin;
+  if (!p || !p.calc || !p.calc.cargada || p.calc.completa) return;
+  const valores = Array.from(document.querySelectorAll('.poceada-faltante')).map(i => i.value.trim());
+  if (valores.length !== p.calc.faltan || valores.some(v => !/^\d{2}$/.test(v))) { showToast('Escribí cada número con 2 cifras (de 00 a 99)', 'err'); return; }
+  if (new Set(p.calc.base.concat(valores)).size !== 10) { showToast('Ese número ya está en la Poceada (o lo escribiste dos veces): revisá el extracto oficial', 'err'); return; }
+  await poceadaGuardar({ base: p.calc.base, faltantes: valores, confirmado: true },
+    panelMostrarPoceada ? '✅ Poceada confirmada: ya se ve en la TV' : '✅ Poceada confirmada (el tilde "Mostrar la Poceada" está apagado)');
+}
+
+async function guardarGanadoresPoceada() {
+  const el = document.getElementById('poceada-ganadores');
+  if (!el) return;
+  await poceadaGuardar({ ganadores: el.value.trim() }, el.value.trim() ? '✅ Línea de ganadores guardada' : '✅ Línea de ganadores borrada');
+}
+
+async function guardarFechaPoceada() {
+  const p = poceadaAdmin;
+  if (!p || !p.sorteo) return;
+  const fecha = document.getElementById('poceada-fecha-real').value;
+  const turno = document.getElementById('poceada-turno-real').value;
+  if (!fecha) { showToast('Elegí el día en que se hizo el sorteo', 'err'); return; }
+  if (fecha < p.sorteo || fecha > p.hoy) { showToast(`El día tiene que ser entre el ${poceadaFechaTexto(p.sorteo).toLowerCase()} y hoy`, 'err'); return; }
+  const normal = fecha === p.sorteo && turno === 'nocturna';
+  // Cambia de dónde salen los números: lo que se había confirmado ya no vale
+  await poceadaGuardar({ fecha_real: normal ? null : fecha, sorteo_real: normal ? null : turno, confirmado: false, base: [], faltantes: [] },
+    normal ? '✅ Día y turno normales' : `✅ Guardado: la Poceada se arma con la Chaqueña ${poceadaTurnoTexto(turno)} del ${poceadaFechaTexto(fecha).toLowerCase()}`);
+}
+
+async function volverNormalPoceada() {
+  await poceadaGuardar({ fecha_real: null, sorteo_real: null, confirmado: false, base: [], faltantes: [] }, '✅ Volvió al día y al turno normales');
+}
 
 // Copia de panelLimites de index.html
 function panelLimites(tam) {
@@ -1935,7 +2423,7 @@ function panelLeerSemanas() {
 
 // Bloquea o habilita todo el formulario (mientras carga o guarda)
 function habilitarFormularioPanel(habilitado) {
-  ['panel-mostrar-dia', 'panel-mostrar-semana', 'btn-guardar-panel', 'btn-copiar-primer-dia'].forEach(id => {
+  ['panel-mostrar-dia', 'panel-mostrar-semana', 'panel-mostrar-poceada', 'btn-guardar-panel', 'btn-copiar-primer-dia'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = !habilitado;
   });
@@ -2040,12 +2528,18 @@ function actualizarPreviewPanel() {
   const mostrarSemana = document.getElementById('panel-mostrar-semana').checked;
   const sinSorteos = !!(fecha && panelMotivoSinSorteos(fecha));
   const partes = panelPartes(fecha, filaDia, panelLeerSemanas(), mostrarDia, mostrarSemana, sinSorteos);
+  const mostrarPoceada = document.getElementById('panel-mostrar-poceada').checked;
+  if (mostrarPoceada && poceadaAdmin && poceadaAdmin.numeros) {
+    partes.push({ tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(poceadaAdmin.fechaReal), numeros: poceadaAdmin.numeros, ganadores: ((poceadaAdmin.fila && poceadaAdmin.fila.ganadores) || '').trim() });
+  }
   if (titulo) titulo.textContent = fecha ? `Vista previa — ${panelEtiquetaFecha(fecha)}` : 'Vista previa aproximada';
 
   const notas = [];
   if (!mostrarDia) notas.push('El favorito del día está oculto (tilde destildado).');
   else if (sinSorteos && filaDia && panelTieneTexto(filaDia)) notas.push('Ese día no hay sorteos: el favorito del día no se muestra.');
   if (!mostrarSemana) notas.push('El número de la semana está oculto (tilde destildado).');
+  if (!mostrarPoceada) notas.push('La Poceada está oculta (tilde destildado).');
+  else if (poceadaAdmin && poceadaAdmin.sorteo && !poceadaAdmin.numeros) notas.push('La Poceada todavía no se ve: mirá su sección.');
   if (nota) nota.textContent = notas.join(' ');
 
   if (partes.length === 0) {
@@ -2057,7 +2551,17 @@ function actualizarPreviewPanel() {
   const lim = panelLimites({ numero: px(tam.numero), descripcion: px(tam.descripcion) });
   lim.numMin = Math.min(px(36), lim.numMax);
   lim.descMin = Math.min(px(16), lim.descMax);
+  const tamPc = (panelTamAgencia && panelTamAgencia.tamPoceada) || POCEADA_TAM_DEFECTO;
   cont.innerHTML = partes.map((p, k) => {
+    if (p.tipo === 'poceada') {
+      let h = `<div class="pp-bloque pp-bloque-poceada" style="flex:1 1 0;min-height:0;display:flex;flex-direction:column;${k > 0 ? `border-top:${Math.max(1, px(2))}px solid #ffd700;` : ''}">`;
+      h += `<div style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(tam.titulo)}px;letter-spacing:${px(2)}px;flex-shrink:0;">${tabEsc(p.titulo)}</div>`;
+      h += `<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${px(24)}px ${px(18)}px;overflow:hidden;text-align:center;"><div class="pp-contenido" style="width:100%;">`;
+      h += `<div class="pp-pc-fecha" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;letter-spacing:${px(1)}px;line-height:1.2;white-space:nowrap;margin-bottom:0.45em;">${tabEsc(p.fecha)}</div>`;
+      h += `<div class="pp-pc-numeros" style="display:grid;grid-template-columns:repeat(5,auto);justify-content:center;column-gap:0.4em;row-gap:0.05em;font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.15;">${p.numeros.map(n => `<span>${tabEsc(n)}</span>`).join('')}</div>`;
+      if (p.ganadores) h += `<div class="pp-pc-ganadores" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;margin-top:0.7em;white-space:pre-line;overflow-wrap:break-word;">${tabEsc(p.ganadores)}</div>`;
+      return h + '</div></div></div>';
+    }
     let h = `<div class="pp-bloque" style="flex:1 1 0;min-height:0;display:flex;flex-direction:column;${k > 0 ? `border-top:${Math.max(1, px(2))}px solid #ffd700;` : ''}">`;
     if (p.titulo) h += `<div style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(tam.titulo)}px;letter-spacing:${px(2)}px;flex-shrink:0;">${tabEsc(p.titulo)}</div>`;
     h += `<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${px(24)}px ${px(18)}px;overflow:hidden;text-align:center;">`;
@@ -2068,6 +2572,11 @@ function actualizarPreviewPanel() {
     return h + '</div></div></div>';
   }).join('');
   cont.querySelectorAll('.pp-bloque').forEach(b => {
+    if (b.classList.contains('pp-bloque-poceada')) {
+      ajustarPoceadaPanel(b.querySelector('.pp-cuerpo'), b.querySelector('.pp-contenido'), b.querySelector('.pp-pc-fecha'), b.querySelector('.pp-pc-numeros'), b.querySelector('.pp-pc-ganadores'),
+        { fecha: px(tamPc.fecha), numeros: px(tamPc.numeros), ganadores: px(tamPc.ganadores) });
+      return;
+    }
     ajustarTextoPanel(b.querySelector('.pp-cuerpo'), b.querySelector('.pp-contenido'), b.querySelector('.pp-numero'), b.querySelector('.pp-descripcion'), lim);
   });
 }
@@ -2119,11 +2628,11 @@ async function cargarPanel() {
   estado.textContent = 'Cargando...';
   const tk = usuarioActual.token;
   const [filasMostrar, filasDias, filasSemanas, filasFeriados, filasVisual] = await Promise.all([
-    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${ag}&select=mostrar,mostrar_semana`, tk),
+    consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${ag}&select=*`, tk),
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_dias?agencia_id=eq.${ag}&select=fecha,titulo,numero,descripcion,actualizado_en,actualizado_por&order=fecha.asc`, tk),
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_semanas?agencia_id=eq.${ag}&select=lunes,titulo,numero,actualizado_en,actualizado_por&order=lunes.asc`, tk),
     consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${lunesRef}&select=fecha_especial,sorteo,activo,descripcion`, tk),
-    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}&clave=in.(ancho-panel,panel-titulo,panel-numero,panel-descripcion)&select=clave,valor`, tk)
+    consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}&clave=in.(ancho-panel,panel-titulo,panel-numero,panel-descripcion,poceada-fecha,poceada-numeros,poceada-ganadores)&select=clave,valor`, tk)
   ]);
   // Si mientras tanto se cerró la sesión o se volvió a pedir, esta respuesta quedó vieja
   if (miToken !== tokenCargaPanel || !usuarioActual || usuarioActual.agencia_id !== agencia) return;
@@ -2135,11 +2644,12 @@ async function cargarPanel() {
   panelLunesRef = lunesRef;
   panelMostrarDia = !(filasMostrar[0] && filasMostrar[0].mostrar === false);
   panelMostrarSemana = !(filasMostrar[0] && filasMostrar[0].mostrar_semana === false);
+  panelMostrarPoceada = !!(filasMostrar[0] && filasMostrar[0].mostrar_poceada === true);
   panelFeriados = panelArmarFeriados(filasFeriados);
   // El ancho y la letra solo se usan para la vista previa: si no se pudieron leer, van los de siempre
   const cfgVisual = {};
   (filasVisual || []).forEach(r => { cfgVisual[r.clave] = r.valor; });
-  panelTamAgencia = { tam: panelTamDesdeCfg(cfgVisual), ancho: parseInt(cfgVisual['ancho-panel'], 10) || PANEL_ANCHO_DEFECTO };
+  panelTamAgencia = { tam: panelTamDesdeCfg(cfgVisual), tamPoceada: poceadaTamDesdeCfg(cfgVisual), ancho: parseInt(cfgVisual['ancho-panel'], 10) || PANEL_ANCHO_DEFECTO };
   panelGuardadas = filasDias
     .filter(f => f.fecha >= lunesRef)
     .map(f => ({ ...panelNormalizarDia(f), actualizado_en: f.actualizado_en || null, actualizado_por: f.actualizado_por || '' }))
@@ -2159,6 +2669,8 @@ async function cargarPanel() {
   panelCargado = true;
   document.getElementById('panel-mostrar-dia').checked = panelMostrarDia;
   document.getElementById('panel-mostrar-semana').checked = panelMostrarSemana;
+  document.getElementById('panel-mostrar-poceada').checked = panelMostrarPoceada;
+  cargarPoceadaAdmin();
   const planilla = panelConstruirPlanilla(panelGuardadas);
   panelRenderPlanilla(planilla);
   panelRenderSemanas(panelConstruirSemanas(panelSemanasGuardadas));
@@ -2278,8 +2790,8 @@ async function onCambioMostrarPanel(el, parte) {
   const nuevo = el.checked;
   if (!panelCargado || !usuarioActual) { el.checked = !nuevo; return; }
   const agencia = usuarioActual.agencia_id;
-  const campo = parte === 'semana' ? 'mostrar_semana' : 'mostrar';
-  const nombreParte = parte === 'semana' ? 'Número de la semana' : 'Favorito del día';
+  const campo = parte === 'semana' ? 'mostrar_semana' : parte === 'poceada' ? 'mostrar_poceada' : 'mostrar';
+  const nombreParte = parte === 'semana' ? 'Número de la semana' : parte === 'poceada' ? 'Poceada' : 'Favorito del día';
   el.disabled = true;
   try {
     const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/tablero_panel?on_conflict=agencia_id`, {
@@ -2292,7 +2804,7 @@ async function onCambioMostrarPanel(el, parte) {
     });
     if (res.ok) {
       if (usuarioActual && usuarioActual.agencia_id === agencia) {
-        if (parte === 'semana') panelMostrarSemana = nuevo; else panelMostrarDia = nuevo;
+        if (parte === 'semana') panelMostrarSemana = nuevo; else if (parte === 'poceada') panelMostrarPoceada = nuevo; else panelMostrarDia = nuevo;
       }
       showToast(nuevo ? `✅ ${nombreParte}: visible en la pantalla` : `✅ ${nombreParte}: oculto en la pantalla`, 'ok');
     } else {
@@ -2308,6 +2820,7 @@ async function onCambioMostrarPanel(el, parte) {
     if (usuarioActual && usuarioActual.agencia_id === agencia && panelCargado && !guardandoPanel) el.disabled = false;
     actualizarPreviewPanel();
     actualizarEstadoPanel();
+    if (parte === 'poceada') renderPoceadaAdmin();
   }
 }
 
@@ -2320,6 +2833,13 @@ function reiniciarPanel() {
   panelFeriados = {};
   panelMostrarDia = true;
   panelMostrarSemana = true;
+  panelMostrarPoceada = false;
+  poceadaAdmin = null;
+  tokenCargaPoceada++;
+  const pcCont = document.getElementById('poceada-contenido');
+  if (pcCont) pcCont.innerHTML = 'Cargando...';
+  const pcTilde = document.getElementById('panel-mostrar-poceada');
+  if (pcTilde) pcTilde.checked = false;
   panelLunesRef = null;
   panelTamAgencia = null;
   panelPreview = { tipo: 'dia', i: 0 };
@@ -2723,6 +3243,12 @@ async function cargarDatosTablero(fecha, sorteo) {
   const hoyConSorteos = TAB_SORTEOS.some(k => tabActivoEn(mapa, hoy, k));
   const partesPanel = panelPartes(hoy, panelNormalizarDia(panelHoyFilas[0] || null),
     panelSemanaFilas.map(panelNormalizarSemana), mostrarDia, mostrarSemana, !hoyConSorteos);
+  // Poceada: la misma que muestra la TV ahora (solo se consulta si el tilde está prendido)
+  if (panelMostrarFilas[0] && panelMostrarFilas[0].mostrar_poceada === true) {
+    const pc = await poceadaLeer(usuarioActual.agencia_id);
+    if (pc === null) return null;
+    if (pc.numeros) partesPanel.push({ tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(pc.fechaReal), numeros: pc.numeros, ganadores: ((pc.fila && pc.fila.ganadores) || '').trim() });
+  }
 
   return {
     fecha, sorteo, numeros, cabezas, nombres, cfg, live,
@@ -2731,7 +3257,8 @@ async function cargarDatosTablero(fecha, sorteo) {
     cantidades,
     panel: partesPanel,
     // Letra del panel: igual que index.html, sin configuración guardada van los tamaños de siempre
-    tamPanel: config.length > 0 ? panelTamDesdeCfg(cfg) : { ...PANEL_TAM_DEFECTO }
+    tamPanel: config.length > 0 ? panelTamDesdeCfg(cfg) : { ...PANEL_TAM_DEFECTO },
+    tamPoceada: config.length > 0 ? poceadaTamDesdeCfg(cfg) : { ...POCEADA_TAM_DEFECTO }
   };
 }
 
@@ -2742,20 +3269,23 @@ const TVC_CSS = `
   font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; font-style:normal; line-height:normal;
   letter-spacing:normal; text-transform:none; text-align:left; white-space:normal; display:flex; flex-direction:column;
   overflow:hidden; -webkit-text-size-adjust:100%; text-size-adjust:100%; pointer-events:none; z-index:-1; }
-.tvc-header { background:linear-gradient(90deg,#8B0000,#cc0000,#8B0000); padding:2px 12px; display:grid; grid-template-columns:190px 1fr 100px; align-items:center; gap:10px; border-bottom:3px solid #ffd700; flex-shrink:0; }
-.tvc-marca-box { text-align:left; }
+.tvc-pantalla { flex:1; display:flex; overflow:hidden; min-height:0; }
+.tvc-zona-derecha { flex:1; min-width:0; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto minmax(0,1fr); }
+.tvc-franja-roja { grid-row:1; grid-column:1 / -1; background:linear-gradient(90deg,#8B0000,#cc0000,#8B0000); border-bottom:3px solid #ffd700; }
+.tvc-header-sorteo { grid-row:1; grid-column:1; min-width:0; padding:2px 0 5px; }
+.tvc-header-marca { grid-row:1; grid-column:2; padding:2px 12px 5px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+.tvc-zona-derecha.sin-panel .tvc-tabla { grid-column:1 / -1; }
+.tvc-marca-box { text-align:center; }
 .tvc-marca-principal { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1; }
 .tvc-marca-frase { font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase; }
-.tvc-badge { display:grid; grid-template-columns:auto auto auto auto; align-items:center; justify-content:center; gap:24px; height:44px; padding:0 20px; background:rgba(0,0,0,.30); border:1px solid rgba(255,215,0,.40); border-radius:6px; }
+.tvc-badge { --escala-franja:1; --tam-nombre:26px; --tam-fecha:20px; --tam-nro:22px; --tam-estado:20px; display:grid; grid-template-columns:auto auto auto auto; align-items:center; justify-content:center; gap:calc(24px * var(--escala-franja)); min-height:44px; padding:0 calc(20px * var(--escala-franja)); background:rgba(0,0,0,.30); border:1px solid rgba(255,215,0,.40); border-radius:6px; }
 .tvc-badge.finalizado { background:linear-gradient(90deg,rgba(140,55,0,.95),rgba(210,105,0,.95),rgba(140,55,0,.95)); }
 .tvc-badge.sorteando { background:linear-gradient(90deg,rgba(0,80,0,.95),rgba(0,140,0,.90),rgba(0,80,0,.95)); }
-.tvc-badge-name { font-family:'DM Sans',sans-serif; font-size:26px; font-weight:900; letter-spacing:1px; color:#ffd700; line-height:1; white-space:nowrap; text-transform:uppercase; }
-.tvc-fecha { font-size:20px; color:#fff; white-space:nowrap; }
-.tvc-nsorteo { font-family:'Oswald',sans-serif; font-size:22px; font-weight:700; color:#fff; letter-spacing:2px; white-space:nowrap; }
-.tvc-live { font-size:20px; color:#44ff88; font-weight:900; letter-spacing:1px; white-space:nowrap; }
-.tvc-done { font-size:20px; color:#ffd700; font-weight:900; letter-spacing:1px; white-space:nowrap; }
-.tvc-header-right { display:flex; flex-direction:column; justify-content:center; align-items:flex-end; }
-.tvc-main { flex:1; display:flex; overflow:hidden; }
+.tvc-badge-name { font-family:'DM Sans',sans-serif; font-size:calc(var(--tam-nombre) * var(--escala-franja)); font-weight:900; letter-spacing:1px; color:#ffd700; line-height:1; white-space:nowrap; text-transform:uppercase; }
+.tvc-fecha { font-size:calc(var(--tam-fecha) * var(--escala-franja)); color:#fff; white-space:nowrap; }
+.tvc-nsorteo { font-family:'Oswald',sans-serif; font-size:calc(var(--tam-nro) * var(--escala-franja)); font-weight:700; color:#fff; letter-spacing:2px; white-space:nowrap; }
+.tvc-live { font-size:calc(var(--tam-estado) * var(--escala-franja)); color:#44ff88; font-weight:900; letter-spacing:1px; white-space:nowrap; }
+.tvc-done { font-size:calc(var(--tam-estado) * var(--escala-franja)); color:#ffd700; font-weight:900; letter-spacing:1px; white-space:nowrap; }
 .tvc-cabezas { width:240px; background:#0d0500; border-right:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-cabezas-header { background:#ffd700; color:#000; text-align:center; padding:6px 4px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; flex-shrink:0; }
 .tvc-cab-section { border-bottom:1px solid rgba(255,215,0,0.25); flex-shrink:0; }
@@ -2763,11 +3293,11 @@ const TVC_CSS = `
 .tvc-cab-row { display:flex; align-items:center; justify-content:space-between; padding:0 10px; min-height:25px; border-bottom:1px solid rgba(255,255,255,0.04); }
 .tvc-cab-prov { font-size:16px; color:rgba(255,255,255,0.65); text-transform:uppercase; letter-spacing:1px; }
 .tvc-cab-num { font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; color:#fff; }
-.tvc-tabla { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-tabla { grid-row:2; grid-column:1; min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-prov-header { display:grid; grid-template-columns:70px repeat(5,1fr); background:#8B0000; border-bottom:1px solid #ffd700; flex-shrink:0; }
 .tvc-prov-cell { padding:5px 4px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; color:#ffd700; border-right:1px solid rgba(255,255,255,0.15); }
 .tvc-prov-cell:last-child { border-right:none; }
-.tvc-prov-cell.label { color:rgba(255,255,255,0.4); font-size:11px; display:flex; align-items:center; justify-content:center; }
+.tvc-prov-cell.label { color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; font-size:12px; display:flex; align-items:center; justify-content:center; }
 .tvc-nums-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-nums-grid { flex:1; display:grid; grid-template-columns:70px repeat(5,1fr); }
 .tvc-pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
@@ -2780,7 +3310,7 @@ const TVC_CSS = `
 .tvc-num-cell.primero { color:#ffd700; font-size:34px; font-weight:700; }
 .tvc-num-cell.empty { color:rgba(255,255,255,0.2); font-size:14px; letter-spacing:2px; }
 .tvc-num-cell.filler { visibility:hidden; border-bottom:none; }
-.tvc-panel { width:340px; background:#0d0500; border-left:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
+.tvc-panel { grid-row:2; grid-column:2; width:340px; background:#0d0500; border-left:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-panel-bloque { flex:1 1 0; min-height:0; display:flex; flex-direction:column; }
 .tvc-panel-bloque + .tvc-panel-bloque { border-top:2px solid #ffd700; }
 .tvc-panel-titulo { background:#ffd700; color:#000; text-align:center; padding:6px 8px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; flex-shrink:0; }
@@ -2789,6 +3319,9 @@ const TVC_CSS = `
 .tvc-panel-numero { font-family:'Oswald',sans-serif; font-weight:700; color:#ffd700; font-size:120px; line-height:1.1; letter-spacing:2px; white-space:nowrap; overflow-wrap:break-word; }
 .tvc-panel-separador { width:40%; height:2px; background:rgba(255,215,0,0.45); margin:22px auto; }
 .tvc-panel-descripcion { font-family:'DM Sans',sans-serif; font-weight:700; color:#fff; font-size:30px; line-height:1.25; white-space:pre-line; overflow-wrap:break-word; }
+.tvc-poceada-fecha { font-family:'DM Sans',sans-serif; font-weight:700; color:#fff; font-size:24px; letter-spacing:1px; line-height:1.2; white-space:nowrap; margin-bottom:0.45em; }
+.tvc-poceada-numeros { display:grid; grid-template-columns:repeat(5,auto); justify-content:center; column-gap:0.4em; row-gap:0.05em; font-family:'Oswald',sans-serif; font-weight:700; color:#ffd700; font-size:44px; line-height:1.15; }
+.tvc-poceada-ganadores { font-family:'DM Sans',sans-serif; font-weight:700; color:#fff; font-size:20px; line-height:1.25; margin-top:0.7em; white-space:pre-line; overflow-wrap:break-word; }
 .tvc-footer { background:#0d0500; border-top:1px solid rgba(255,215,0,0.25); padding:4px 16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .tvc-aviso { font-size:11px; color:#ffd700; letter-spacing:1px; font-weight:600; text-align:center; }
 `;
@@ -2801,7 +3334,7 @@ function htmlTablero(d) {
   const maxFilas = Math.max(...TAB_PROVS.map(filasDe));
 
   let grid = '<div class="tvc-pos-col">';
-  for (let i = 1; i <= maxFilas; i++) grid += `<div class="tvc-pos-label">${String(i).padStart(2,'0')}°</div>`;
+  for (let i = 1; i <= maxFilas; i++) grid += `<div class="tvc-pos-label">${String(i).padStart(2,'0')}</div>`;
   grid += '</div>';
   TAB_PROVS.forEach(p => {
     grid += '<div class="tvc-num-col">';
@@ -2829,6 +3362,15 @@ function htmlTablero(d) {
   let panel = '';
   if (d.panel && d.panel.length > 0) {
     panel = '<div class="tvc-panel">' + d.panel.map(p => {
+      if (p.tipo === 'poceada') {
+        let h = '<div class="tvc-panel-bloque tvc-panel-bloque-poceada">';
+        h += `<div class="tvc-panel-titulo">${tabEsc(p.titulo)}</div>`;
+        h += '<div class="tvc-panel-cuerpo"><div class="tvc-panel-contenido">';
+        h += `<div class="tvc-poceada-fecha">${tabEsc(p.fecha)}</div>`;
+        h += `<div class="tvc-poceada-numeros">${p.numeros.map(n => `<span>${tabEsc(n)}</span>`).join('')}</div>`;
+        if (p.ganadores) h += `<div class="tvc-poceada-ganadores">${tabEsc(p.ganadores)}</div>`;
+        return h + '</div></div></div>';
+      }
       let h = '<div class="tvc-panel-bloque">';
       if (p.titulo) h += `<div class="tvc-panel-titulo">${tabEsc(p.titulo)}</div>`;
       h += '<div class="tvc-panel-cuerpo"><div class="tvc-panel-contenido">';
@@ -2839,19 +3381,21 @@ function htmlTablero(d) {
     }).join('') + '</div>';
   }
 
+  // Mismo armado que index.html: cabezas de arriba hasta el pie; a la derecha, la franja del
+  // sorteo (del ancho de la tabla) y la marca centrada arriba; abajo la tabla y el panel.
   return `
-<div class="tvc-header">
-  <div class="tvc-marca-box"><div class="tvc-marca-principal">QUINIELA SAGUIR</div><div class="tvc-marca-frase">Para Saguir Ganando</div></div>
-  <div class="tvc-badge ${d.live ? 'sorteando' : 'finalizado'}"><div class="tvc-badge-name">${TAB_LABELS[d.sorteo]}</div><div class="tvc-fecha">${fechaTxt}</div><div class="tvc-nsorteo">${d.nroSorteo ? 'SORTEO N° ' + tabEsc(d.nroSorteo) : ''}</div><div class="${d.live ? 'tvc-live' : 'tvc-done'}">${d.live ? 'SORTEANDO' : '✓ FINALIZADO'}</div></div>
-  <div class="tvc-header-right"></div>
-</div>
-<div class="tvc-main">
+<div class="tvc-pantalla">
   <div class="tvc-cabezas"><div class="tvc-cabezas-header">ÚLTIMAS CABEZAS</div><div>${cabezas}</div></div>
-  <div class="tvc-tabla">
-    <div class="tvc-prov-header"><div class="tvc-prov-cell label">N°</div>${encabezadoProv}</div>
-    <div class="tvc-nums-wrap"><div class="tvc-nums-grid">${grid}</div></div>
+  <div class="tvc-zona-derecha${panel ? '' : ' sin-panel'}">
+    <div class="tvc-franja-roja"></div>
+    <div class="tvc-header-sorteo"><div class="tvc-badge ${d.live ? 'sorteando' : 'finalizado'}"><div class="tvc-badge-name">${TAB_LABELS[d.sorteo]}</div><div class="tvc-fecha">${fechaTxt}</div><div class="tvc-nsorteo">${d.nroSorteo ? 'SORTEO N° ' + tabEsc(d.nroSorteo) : ''}</div><div class="${d.live ? 'tvc-live' : 'tvc-done'}">${d.live ? 'SORTEANDO' : '✓ FINALIZADO'}</div></div></div>
+    <div class="tvc-header-marca"><div class="tvc-marca-box"><div class="tvc-marca-principal">QUINIELA SAGUIR</div><div class="tvc-marca-frase">Para Saguir Ganando</div></div></div>
+    <div class="tvc-tabla">
+      <div class="tvc-prov-header"><div class="tvc-prov-cell label">N°</div>${encabezadoProv}</div>
+      <div class="tvc-nums-wrap"><div class="tvc-nums-grid">${grid}</div></div>
+    </div>
+    ${panel}
   </div>
-  ${panel}
 </div>
 <div class="tvc-footer"><div class="tvc-aviso">Los resultados son de carácter informativo. No son un Extracto Oficial.</div></div>`;
 }
@@ -2866,6 +3410,10 @@ function cssDinamicoTablero(d) {
 .tvc .tvc-num-cell.primero { font-size: ${c.primero || '34px'} !important; }
 .tvc .tvc-cab-num { font-size: ${c.cabeza || '18px'} !important; }
 .tvc .tvc-cab-prov { font-size: ${c.prov || '14px'} !important; }
+.tvc .tvc-cabezas-header { font-size: ${c['titulo-cabezas'] || '20px'} !important; }
+.tvc .tvc-prov-cell:not(.label) { font-size: ${c['prov-header'] || '18px'} !important; }
+.tvc .tvc-badge { --tam-nombre: ${c['franja-sorteo'] || '26px'}; --tam-fecha: ${c['franja-fecha'] || '20px'}; --tam-nro: ${c['franja-numero'] || '22px'}; --tam-estado: ${c['franja-estado'] || '20px'}; }
+.tvc .tvc-cab-title { font-size: ${c['titulo-sorteos'] || '12px'} !important; }
 .tvc .tvc-cabezas { width: ${c['ancho-cabezas'] || '240px'} !important; }
 .tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }
 .tvc .tvc-panel-titulo { font-size: ${d.tamPanel.titulo}px !important; }`;
@@ -2995,6 +3543,23 @@ function pintarTablero(cont) {
   return canvas;
 }
 
+// Igual que ajustarFranjaSorteo() de index.html: si el texto de la franja del sorteo no entra
+// en el ancho de la tabla, se achica todo en la misma proporción; si entra, queda igual.
+function ajustarFranjaTablero(badge) {
+  if (!badge) return;
+  badge.style.setProperty('--escala-franja', '1');
+  const disponible = badge.clientWidth;
+  if (!disponible) return;
+  const hijos = Array.from(badge.children);
+  const cs = getComputedStyle(badge);
+  const necesario = hijos.reduce((t, h) => t + h.scrollWidth, 0)
+    + (parseFloat(cs.columnGap) || 0) * Math.max(0, hijos.length - 1)
+    + (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  if (necesario > disponible) {
+    badge.style.setProperty('--escala-franja', Math.max(0.5, (disponible - 6) / necesario).toFixed(3));
+  }
+}
+
 function dibujarTablero(d) {
   let estilo = document.getElementById('tvc-estilo');
   if (!estilo) {
@@ -3019,9 +3584,15 @@ function dibujarTablero(d) {
   // Igual que la TV: en cada parte del panel, el número y la descripción se achican si no entran
   const limPanel = panelLimites(d.tamPanel);
   cont.querySelectorAll('.tvc-panel-bloque').forEach(b => {
+    if (b.classList.contains('tvc-panel-bloque-poceada')) {
+      ajustarPoceadaPanel(b.querySelector('.tvc-panel-cuerpo'), b.querySelector('.tvc-panel-contenido'), b.querySelector('.tvc-poceada-fecha'),
+        b.querySelector('.tvc-poceada-numeros'), b.querySelector('.tvc-poceada-ganadores'), d.tamPoceada || POCEADA_TAM_DEFECTO);
+      return;
+    }
     ajustarTextoPanel(b.querySelector('.tvc-panel-cuerpo'), b.querySelector('.tvc-panel-contenido'),
       b.querySelector('.tvc-panel-numero'), b.querySelector('.tvc-panel-descripcion'), limPanel);
   });
+  ajustarFranjaTablero(cont.querySelector('.tvc-badge'));
   try { return pintarTablero(cont); }
   finally { cont.remove(); }
 }
@@ -3234,7 +3805,7 @@ function actualizarTitulos() {
 // =====================
 // Config de disposición de la grilla y modo de avance — se carga por agencia, una sola vez al loguearse
 let gridConfig = { orden: 'fila', columnas: [10, 10] };
-let configTeclado = { modo: 'automatico' };
+let configTeclado = { modo: 'automatico', pasarProvincia: true }; // pasarProvincia: al completar la última posición, ¿pasa sola a la siguiente provincia?
 let modoCarga = 'clasico'; // 'clasico' = todas las provincias juntas | 'pestanas' = una por vez
 let provinciaActivaPestana = PROVINCIAS[0].key;
 
@@ -3256,12 +3827,12 @@ function previsualizarTamanoNumeros(tam) {
 
 async function cargarConfigCarga() {
   gridConfig = { orden: 'fila', columnas: [10, 10] };
-  configTeclado = { modo: 'automatico' };
+  configTeclado = { modo: 'automatico', pasarProvincia: true };
   modoCarga = 'clasico';
   aplicarTamanoNumeros(26); // valor por defecto hasta que se sepa si hay uno guardado
   try {
     const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga,tamano_fuente_numeros)&select=clave,valor`,
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(usuarioActual.agencia_id)}&clave=in.(grilla_orden,grilla_columnas,modo_avance,modo_carga,tamano_fuente_numeros,pasar_provincia)&select=clave,valor`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const rows = await res.json();
@@ -3272,6 +3843,7 @@ async function cargarConfigCarga() {
         if (partes.length > 0) gridConfig.columnas = partes;
       }
       if (r.clave === 'modo_avance' && (r.valor === 'automatico' || r.valor === 'enter')) configTeclado.modo = r.valor;
+      if (r.clave === 'pasar_provincia') configTeclado.pasarProvincia = r.valor !== 'no';
       if (r.clave === 'modo_carga' && (r.valor === 'clasico' || r.valor === 'pestanas')) modoCarga = r.valor;
       if (r.clave === 'tamano_fuente_numeros' && r.valor) aplicarTamanoNumeros(r.valor);
     });
@@ -3440,6 +4012,8 @@ function avanzarSiguiente(el) {
   const pos = parseInt(el.dataset.pos);
   const next = document.getElementById(`n_${prov}_${pos+1}`);
   if (next) { next.focus(); return; }
+  // Última posición de la provincia: si así está configurado, se queda acá (no pasa de provincia)
+  if (!configTeclado.pasarProvincia) return;
   const provIdx = PROVINCIAS.findIndex(p=>p.key===prov);
   if (provIdx < PROVINCIAS.length-1) {
     const siguienteProv = PROVINCIAS[provIdx+1].key;
@@ -4426,7 +5000,7 @@ async function cargarActividad() {
 // =====================
 // CONFIGURACIÓN VISUAL
 // =====================
-const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'ancho-cabezas':'240', 'ancho-panel':'340',
+const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'prov-header':'18', 'franja-sorteo':'26', 'franja-fecha':'20', 'franja-numero':'22', 'franja-estado':'20', 'poceada-fecha':'24', 'poceada-numeros':'44', 'poceada-ganadores':'20', 'ancho-cabezas':'240', 'ancho-panel':'340',
   'panel-titulo':'20', 'panel-numero':'120', 'panel-descripcion':'30', tv:'1.0' };
 
 function aplicarMultiplicadorTV() {
@@ -4575,17 +5149,6 @@ function actualizarSlider(tipo, valor) {
   if (previewEl) previewEl.style.fontSize = valor + 'px';
 }
 
-function buildCantidadProvinciasGrid() {
-  const cont = document.getElementById('grid-cantidad-provincias');
-  if (!cont) return;
-  cont.innerHTML = PROVINCIAS.map(p => `
-    <div>
-      <label class="form-label">${p.label}</label>
-      <input type="number" min="1" max="20" class="form-input" id="cant_${p.key}" value="20">
-    </div>
-  `).join('');
-}
-
 function buildProgProvinciasGrid() {
   const cont = document.getElementById('grid-prog-provincias');
   if (!cont) return;
@@ -4608,34 +5171,6 @@ function buildNombresProvinciaGrid() {
   `).join('');
 }
 
-let sorteoNumerosSeleccionado = 'previa';
-
-function setTabNumeros(sorteo, el) {
-  sorteoNumerosSeleccionado = sorteo;
-  document.querySelectorAll('#tabs-sorteo-numeros .tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  cargarCantidadesSorteo();
-}
-
-// Trae SOLO la cantidad por provincia del sorteo seleccionado (independiente de los sliders)
-async function cargarCantidadesSorteo() {
-  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  PROVINCIAS.forEach(p => { const el = document.getElementById(`cant_${p.key}`); if (el) el.value = 20; });
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}&clave=eq.numeros_${sorteoNumerosSeleccionado}&select=numeros_por_provincia`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const rows = await res.json();
-    if (rows && rows[0] && rows[0].numeros_por_provincia) {
-      Object.entries(rows[0].numeros_por_provincia).forEach(([k, v]) => {
-        const el = document.getElementById(`cant_${k}`);
-        if (el) el.value = v;
-      });
-    }
-  } catch(e) { console.error(e); }
-}
-
 async function cargarConfigVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
   Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
@@ -4652,17 +5187,14 @@ async function cargarConfigVisual() {
   { const el = document.getElementById('grilla-orden-sel'); if (el) { el.value = 'fila'; el.dispatchEvent(new Event('change')); } }
   { const el = document.getElementById('grilla-columnas-input'); if (el) el.value = '10,10'; }
   { const el = document.getElementById('modo-avance-sel'); if (el) el.value = 'automatico'; }
+  { const el = document.getElementById('pasar-provincia-sel'); if (el) el.value = 'si'; }
   { const el = document.getElementById('modo-carga-sel'); if (el) el.value = 'clasico'; }
   { const el = document.getElementById('tamano-numeros-sel'); if (el) { el.value = '26'; document.getElementById('tamano-numeros-valor').textContent = '26px'; } }
   try {
-    const [resConfig] = await Promise.all([
-      fetchConRenovacion(
-        `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-      ),
-      cargarCantidadesSorteo() // independiente del resto — antes se esperaba a que
-                                 // terminara todo lo de arriba para recién arrancarla
-    ]);
+    const resConfig = await fetchConRenovacion(
+      `${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${encodeURIComponent(agencia)}`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
     const rows = await resConfig.json();
     if (rows && rows.length > 0) {
       rows.forEach(r => {
@@ -4684,6 +5216,9 @@ async function cargarConfigVisual() {
         } else if (r.clave === 'modo_avance') {
           const el = document.getElementById('modo-avance-sel');
           if (el) el.value = r.valor;
+        } else if (r.clave === 'pasar_provincia') {
+          const el = document.getElementById('pasar-provincia-sel');
+          if (el) el.value = r.valor === 'no' ? 'no' : 'si';
         } else if (r.clave === 'modo_carga') {
           const el = document.getElementById('modo-carga-sel');
           if (el) el.value = r.valor;
@@ -4704,21 +5239,9 @@ async function cargarConfigVisual() {
   } catch(e) { console.error(e); }
 }
 
-function leerCantidadesDeLosInputs() {
-  const obj = {};
-  PROVINCIAS.forEach(p => {
-    const el = document.getElementById(`cant_${p.key}`);
-    let v = parseInt(el?.value, 10);
-    if (isNaN(v)) v = 20;
-    v = Math.min(20, Math.max(1, v));
-    obj[p.key] = v;
-  });
-  return obj;
-}
-
 async function guardarVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const claves = ['primero','normal','cabeza','prov','ancho-cabezas','ancho-panel','panel-titulo','panel-numero','panel-descripcion'];
+  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-fecha','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel','panel-titulo','panel-numero','panel-descripcion'];
   const rows = claves.map(c => ({
     agencia_id: agencia, clave: c,
     valor: document.getElementById(`slider-${c}`).value,
@@ -4729,14 +5252,6 @@ async function guardarVisual() {
     valor: document.getElementById('visual-tv-size').value,
     numeros_por_provincia: null,
     actualizado_por: usuarioActual.nombre });
-
-  // Cantidad de números por provincia — solo del sorteo seleccionado en las tabs
-  rows.push({
-    agencia_id: agencia, clave: `numeros_${sorteoNumerosSeleccionado}`,
-    valor: '1',
-    numeros_por_provincia: leerCantidadesDeLosInputs(),
-    actualizado_por: usuarioActual.nombre
-  });
 
   // Duración de SORTEANDO por sorteo (en minutos)
   SORTEOS.forEach(s => {
@@ -4781,6 +5296,7 @@ async function guardarVisual() {
   const ordenGrilla = document.getElementById('grilla-orden-sel')?.value || 'fila';
   const columnasGrilla = (document.getElementById('grilla-columnas-input')?.value || '10,10').trim() || '10,10';
   const modoAvance = document.getElementById('modo-avance-sel')?.value || 'automatico';
+  const pasarProvincia = document.getElementById('pasar-provincia-sel')?.value === 'no' ? 'no' : 'si';
   const modoCargaSel = document.getElementById('modo-carga-sel')?.value || 'clasico';
   const tamanoNumerosSel = document.getElementById('tamano-numeros-sel')?.value || '26';
   rows.push({
@@ -4794,6 +5310,10 @@ async function guardarVisual() {
   rows.push({
     agencia_id: agencia, clave: 'modo_avance',
     valor: modoAvance, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
+  });
+  rows.push({
+    agencia_id: agencia, clave: 'pasar_provincia',
+    valor: pasarProvincia, numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
   });
   rows.push({
     agencia_id: agencia, clave: 'modo_carga',
@@ -4826,34 +5346,6 @@ async function guardarVisual() {
   } catch(e) { showToast('Error de conexión','err'); }
 }
 
-// Copia los valores actuales de los inputs a los 5 sorteos de una sola vez
-async function copiarCantidadATodosLosSorteos() {
-  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const valores = leerCantidadesDeLosInputs();
-  const rows = SORTEOS.map(s => ({
-    agencia_id: agencia, clave: `numeros_${s}`,
-    valor: '1',
-    numeros_por_provincia: valores,
-    actualizado_por: usuarioActual.nombre
-  }));
-  try {
-    const res = await fetchConRenovacion(
-      `${SUPABASE_URL}/rest/v1/configuracion_visual?on_conflict=agencia_id,clave`,
-      { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
-        'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify(rows) }
-    );
-    if (res.ok || res.status === 201) {
-      showToast(`✅ Copiado a los 5 sorteos de ${agencia}`,'ok');
-      if (usuarioActual && agencia === usuarioActual.agencia_id) {
-        await cargarNumerosPorProvincia();
-        buildForm();
-        cargarExistentes();
-      }
-    } else { showToast('Error al copiar','err'); }
-  } catch(e) { showToast('Error de conexión','err'); }
-}
-
 async function resetearVisual() {
   Object.entries(DEFAULTS_VISUAL).forEach(([k,v]) => {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
@@ -4865,9 +5357,26 @@ async function resetearVisual() {
 // =====================
 // PROGRAMACIONES DE CANTIDAD (con fecha)
 // =====================
+// Tilde "Programar en los 5 sorteos": deja el selector de sorteo de lado y avisa en el botón
+function onCambioProgTodosSorteos() {
+  const todos = document.getElementById('prog-todos-sorteos').checked;
+  const sel = document.getElementById('prog-sorteo-sel');
+  sel.disabled = todos;
+  sel.style.opacity = todos ? 0.4 : 1;
+  document.getElementById('btn-programar-cambio').innerHTML = todos ? '💾 Programar cambio en los 5 sorteos' : '💾 Programar cambio';
+}
+
+let programandoCambio = false; // evita que un doble clic cree la programación dos veces
+
+// Crea la programación para el sorteo elegido, o para los 5 si está marcado el tilde.
+// Si para alguno de esos sorteos ya hay una programación que empieza el MISMO día, se
+// reemplaza (previo aviso): si quedaran dos empatadas, no habría forma segura de saber cuál
+// usa la TV. Las que empiezan otro día no se tocan: rige siempre la que empezó más tarde.
 async function programarCambio() {
+  if (programandoCambio) return;
   const agencia = document.getElementById('prog-agencia-sel').value;
-  const sorteo = document.getElementById('prog-sorteo-sel').value;
+  const todos = document.getElementById('prog-todos-sorteos').checked;
+  const sorteos = todos ? SORTEOS.slice() : [document.getElementById('prog-sorteo-sel').value];
   const fechaDesde = document.getElementById('prog-fecha-desde').value;
   const paraSiempre = document.getElementById('prog-para-siempre').checked;
   const fechaHasta = paraSiempre ? null : document.getElementById('prog-fecha-hasta').value;
@@ -4885,31 +5394,76 @@ async function programarCambio() {
     numerosPorProvinciaProg[p.key] = v;
   });
 
+  const nombresSorteo = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
+  const btn = document.getElementById('btn-programar-cambio');
+  const textoBtn = btn.innerHTML;
+  programandoCambio = true;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Guardando...';
   try {
+    // 1) ¿Hay programaciones de esos sorteos que empiecen el mismo día?
+    const ag = encodeURIComponent(agencia);
+    const mismas = await consultarJson(
+      `${SUPABASE_URL}/rest/v1/programaciones_numeros?agencia_id=eq.${ag}&fecha_desde=eq.${fechaDesde}&sorteo=in.(${sorteos.join(',')})&select=id,sorteo`,
+      usuarioActual.token
+    );
+    if (mismas === null) { showToast('⚠️ No se pudo revisar lo ya programado — no se guardó nada. Probá de nuevo','err'); return; }
+    if (mismas.length > 0) {
+      const lista = [...new Set(mismas.map(m => nombresSorteo[m.sorteo] || m.sorteo))].join(', ');
+      const [a, m, d] = fechaDesde.split('-');
+      if (!confirm(`Ya hay una programación que empieza el ${d}/${m}/${a} para: ${lista}.\n\n¿Reemplazarla por esta nueva?`)) return;
+    }
+
+    // 2) Se guardan las nuevas (todas juntas, en un solo pedido: o se guardan todas o ninguna)
     const res = await fetchConRenovacion(`${SUPABASE_URL}/rest/v1/programaciones_numeros`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}`,
         'Content-Type': 'application/json', 'Prefer': 'return=minimal'
       },
-      body: JSON.stringify([{
+      body: JSON.stringify(sorteos.map(sorteo => ({
         agencia_id: agencia,
         sorteo: sorteo,
         numeros_por_provincia: numerosPorProvinciaProg,
         fecha_desde: fechaDesde,
         fecha_hasta: fechaHasta,
         creado_por: usuarioActual.nombre
-      }])
+      })))
     });
-    if (res.ok || res.status === 201) {
-      showToast('✅ Programación guardada','ok');
-      cargarProgramaciones();
-    } else {
-      const err = await res.text();
-      console.error(err);
-      showToast('Error al programar','err');
+    if (!(res.ok || res.status === 201)) {
+      console.error(await res.text().catch(() => ''));
+      showToast('⚠️ Error al programar — no se guardó nada','err');
+      return;
     }
-  } catch(e) { showToast('Error de conexión','err'); }
+
+    // 3) Recién con las nuevas ya guardadas, se borran las que reemplazan (así nunca queda
+    //    un sorteo sin programación por una falla en el medio)
+    let reemplazoOk = true;
+    if (mismas.length > 0) {
+      try {
+        const resDel = await fetchConRenovacion(
+          `${SUPABASE_URL}/rest/v1/programaciones_numeros?id=in.(${mismas.map(m => m.id).join(',')})`,
+          { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${usuarioActual.token}` } }
+        );
+        reemplazoOk = resDel.ok;
+      } catch(e) { reemplazoOk = false; }
+    }
+    if (!reemplazoOk) {
+      showToast('⚠️ Se programó, pero no se pudo quitar la anterior del mismo día. Eliminala con 🗑 en la lista de abajo','err');
+    } else if (todos) {
+      showToast('✅ Programación guardada en los 5 sorteos','ok');
+    } else {
+      showToast('✅ Programación guardada','ok');
+    }
+    cargarProgramaciones();
+  } catch(e) {
+    console.error(e);
+    showToast('Error de conexión','err');
+  } finally {
+    programandoCambio = false;
+    btn.disabled = false;
+    btn.innerHTML = textoBtn;
+  }
 }
 
 async function cargarProgramaciones() {
@@ -4926,18 +5480,30 @@ async function cargarProgramaciones() {
     }
     const hoy = hoyStr();
     const nombresSorteo = {previa:'Previa',primera:'Primera',matutina:'Matutina',vespertina:'Vespertina',nocturna:'Nocturna'};
+    // Igual que la TV: de las que están en fecha para una misma agencia y sorteo, rige solo la
+    // que empezó más tarde. Las demás figuran como "Reemplazada".
+    const vigente = {};
+    rows.forEach(r => {
+      const enFecha = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      if (!enFecha) return;
+      const k = `${r.agencia_id}|${r.sorteo}`;
+      const actual = vigente[k];
+      if (!actual || r.fecha_desde > actual.fecha_desde || (r.fecha_desde === actual.fecha_desde && r.id > actual.id)) vigente[k] = r;
+    });
     lista.innerHTML = rows.map(r => {
-      const activa = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      const enFecha = r.fecha_desde <= hoy && (!r.fecha_hasta || r.fecha_hasta >= hoy);
+      const activa = enFecha && vigente[`${r.agencia_id}|${r.sorteo}`] === r;
+      const reemplazada = enFecha && !activa;
       const vencida = r.fecha_hasta && r.fecha_hasta < hoy;
-      const estado = activa ? 'ACTIVA AHORA' : vencida ? 'Vencida' : 'Programada a futuro';
-      const colorEstado = activa ? 'var(--green)' : vencida ? 'var(--muted)' : 'var(--gold)';
+      const estado = activa ? 'ACTIVA AHORA' : reemplazada ? 'Reemplazada (rige una más nueva)' : vencida ? 'Vencida' : 'Programada a futuro';
+      const colorEstado = activa ? 'var(--green)' : (vencida || reemplazada) ? 'var(--muted)' : 'var(--gold)';
       const rango = r.fecha_hasta ? `${r.fecha_desde} → ${r.fecha_hasta}` : `${r.fecha_desde} → para siempre`;
       const numeros = Object.entries(r.numeros_por_provincia || {}).map(([k,v]) => `${k}: ${v}`).join(' · ');
       return `
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;${reemplazada ? 'opacity:0.6;' : ''}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
             <div style="font-weight:600;font-size:14px;">${r.agencia_id} — ${nombresSorteo[r.sorteo] || r.sorteo}</div>
-            <span style="padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;color:${colorEstado};background:rgba(255,255,255,0.06);">${estado}</span>
+            <span style="padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;color:${colorEstado};background:rgba(255,255,255,0.06);text-align:right;">${estado}</span>
           </div>
           <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${rango} · Creado por ${r.creado_por || '—'}</div>
           <div style="font-size:12px;color:var(--text);margin-bottom:10px;">${numeros}</div>
@@ -5000,7 +5566,7 @@ function setVista(nombre) {
   document.getElementById('tabs-superadmin-wrap').style.display = nombre === 'superadmin' ? 'block' : 'none';
   document.querySelectorAll('#vistas .vista-btn').forEach(b => b.classList.toggle('activa', b.dataset.vista === nombre));
   // La vista previa del panel se mide con el tamaño real de la pantalla: se redibuja al quedar visible
-  if (nombre === 'panel' && panelCargado) { actualizarPreviewPanel(); alinearPreviewPanel(); }
+  if (nombre === 'panel' && panelCargado) { actualizarPreviewPanel(); alinearPreviewPanel(); cargarPoceadaAdmin(); }
   window.scrollTo(0, 0);
 }
 
