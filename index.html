@@ -436,13 +436,14 @@ async function cargarMapaSorteosActivos(hastaFecha) {
   // Si no se pudo consultar, se sigue usando el mapa anterior. Antes se vaciaba primero y,
   // en un día feriado, la pantalla saltaba por un ciclo al sorteo del día como si fuera un
   // día normal (con todo en guiones) y volvía en el ciclo siguiente.
-  if (rows === null) return;
+  if (rows === null) return false;
   const nuevo = {};
   rows.forEach(r => {
     if (!nuevo[r.fecha_especial]) nuevo[r.fecha_especial] = {};
     nuevo[r.fecha_especial][r.sorteo] = r.activo;
   });
   mapaSorteosActivos = nuevo;
+  return true;
 }
 
 // ¿Ese sorteo, en esa fecha, está activo? Domingo es SIEMPRE inactivo (regla estructural,
@@ -797,15 +798,36 @@ function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) 
 let poceadaMostrar = false;                    // tilde "Mostrar la Poceada" (apagado si nunca se configuró)
 let poceadaTam = { ...POCEADA_TAM_DEFECTO };   // tamaños máximos (Superadmin → Visual)
 let poceadaVista = { sorteo: null, parte: null }; // lo último armado, y de qué sorteo es
+// Lo último traído: de qué sorteo, su renglón guardado y los números de la Chaqueña de donde sale
+let poceadaDatos = { sorteo: null, fila: null, fechaReal: null, turno: null, nums: null };
 
-// Trae lo necesario y arma la Poceada que corresponde ahora. Solo consulta si el tilde está
-// prendido. Si una consulta falla, queda lo último armado DEL MISMO sorteo (nunca el anterior).
-async function cargarPoceada(hoy) {
-  if (!poceadaMostrar) { poceadaVista = { sorteo: null, parte: null }; return; }
+function poceadaSorteoVigenteAhora(hoy) {
   const ahora = new Date();
-  const sorteo = poceadaSorteoVigente(hoy, ahora.getHours() * 60 + ahora.getMinutes(), f => activoEn(f, 'nocturna'));
-  if (!sorteo) { poceadaVista = { sorteo: null, parte: null }; return; }
-  const falla = () => { if (poceadaVista.sorteo !== sorteo) poceadaVista = { sorteo, parte: null }; };
+  return poceadaSorteoVigente(hoy, ahora.getHours() * 60 + ahora.getMinutes(), f => activoEn(f, 'nocturna'));
+}
+
+// Arma lo que se ve con lo último traído (no consulta nada)
+function armarPoceada() {
+  const d = poceadaDatos;
+  const numeros = (poceadaMostrar && d.sorteo && d.nums) ? poceadaResultado(poceadaCalcular(d.nums), d.fila) : null;
+  poceadaVista = { sorteo: d.sorteo, parte: numeros ? {
+    tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(d.fechaReal), numeros,
+    ganadores: ((d.fila && d.fila.ganadores) || '').trim()
+  } : null };
+}
+
+// Trae lo necesario para la Poceada que corresponde ahora. Solo consulta si el tilde está
+// prendido. Si una consulta falla, queda lo último traído DEL MISMO sorteo (nunca el anterior).
+// Devuelve false si algo falló (para reintentar pronto).
+async function cargarPoceada(hoy) {
+  const sorteo = poceadaMostrar ? poceadaSorteoVigenteAhora(hoy) : null;
+  if (!sorteo) { poceadaDatos = { sorteo: null, fila: null, fechaReal: null, turno: null, nums: null }; armarPoceada(); return true; }
+  const otroSorteo = poceadaDatos.sorteo !== sorteo;
+  const falla = () => {
+    if (otroSorteo) poceadaDatos = { sorteo, fila: null, fechaReal: null, turno: null, nums: null };
+    armarPoceada();
+    return false;
+  };
   const filas = await consultarSupabase(`tablero_poceada?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha=eq.${sorteo}&select=*`);
   if (filas === null) return falla();
   const fila = filas[0] || null;
@@ -816,11 +838,21 @@ async function cargarPoceada(hoy) {
   if (rows === null) return falla();
   const nums = Array(20).fill(null);
   rows.forEach(r => { if (r.posicion >= 1 && r.posicion <= 20) nums[r.posicion - 1] = r.numero; });
-  const numeros = poceadaResultado(poceadaCalcular(nums), fila);
-  poceadaVista = { sorteo, parte: numeros ? {
-    tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(fechaReal), numeros,
-    ganadores: ((fila && fila.ganadores) || '').trim()
-  } : null };
+  poceadaDatos = { sorteo, fila, fechaReal, turno, nums };
+  armarPoceada();
+  return true;
+}
+
+// Si la Poceada sale del mismo sorteo que está en pantalla (por ejemplo, el martes a la noche con
+// la Nocturna), usa los números que la TV ya trae cada 30 segundos: aparece apenas se cargan las
+// 10 de la Chaqueña, sin esperar ni hacer otra consulta.
+function actualizarPoceadaConNumerosEnPantalla(fecha, key) {
+  const d = poceadaDatos;
+  if (!d.sorteo || d.fechaReal !== fecha || d.turno !== key) return;
+  const enPantalla = cacheNumeros[`${fecha}_${key}`];
+  if (!enPantalla) return;
+  d.nums = enPantalla.nums.chaquena.slice();
+  armarPoceada();
 }
 function panelPartePoceada() {
   return (poceadaMostrar && poceadaVista.parte) ? poceadaVista.parte : null;
@@ -955,6 +987,7 @@ async function cargarPanel(hoy) {
   else if (panelDia.fecha !== hoy) panelDia = { fecha: hoy, fila: null };
   if (filasSemana !== null) panelSemana = { lunes, fila: filasSemana[0] || null };
   else if (panelSemana.lunes !== lunes) panelSemana = { lunes, fila: null };
+  return filasMostrar !== null && filasDia !== null && filasSemana !== null;
 }
 
 // =====================
@@ -1049,13 +1082,19 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
   const slotsAMostrar = sorteoKeys.filter(s => s !== sorteoEfectivo);
   const clavesVigentes = new Set();
 
-  // Las 4 consultas corren al mismo tiempo (antes iban una detrás de la otra).
-  // Promise.all respeta el orden de la lista, así que el orden en pantalla no cambia.
-  const datosPorSlot = await Promise.all(slotsAMostrar.map(async slot => {
-    const fecha = fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo);
+  // Las cabezas de los 4 sorteos se traen en UNA sola consulta (antes eran 4, una por
+  // sorteo): cada consulta queda registrada en Supabase y cuenta para el límite del plan.
+  // Puede traer de más (todas las combinaciones de esas fechas y sorteos); acá se queda
+  // con la fecha justa de cada sorteo.
+  const pedidos = slotsAMostrar.map(slot => ({ slot, fecha: fechaMasRecienteParaSlot(slot, fechaEfectiva, sorteoEfectivo) }));
+  const fechas = [...new Set(pedidos.map(p => p.fecha))];
+  const todas = await consultarSupabase(`resultados?agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1&fecha=in.(${fechas.join(',')})&sorteo=in.(${slotsAMostrar.join(',')})&select=fecha,sorteo,provincia,numero`);
+
+  // El orden de la lista no cambia: Previa, Primera, Matutina, Vespertina, Nocturna (sin el de pantalla)
+  const datosPorSlot = pedidos.map(({ slot, fecha }) => {
     const claveCache = `${fecha}_${slot}`;
     clavesVigentes.add(claveCache);
-    const rows = await consultarSupabase(`resultados?fecha=eq.${fecha}&sorteo=eq.${slot}&agencia_id=eq.${URL_AGENCIA_ENCODED}&posicion=eq.1&select=provincia,numero`);
+    const rows = todas === null ? null : todas.filter(r => r.fecha === fecha && r.sorteo === slot);
     let entrada;
     if (rows !== null) {
       const traido = {};
@@ -1078,7 +1117,7 @@ async function cargarCabezasReales(fechaEfectiva, sorteoEfectivo) {
     const labelSorteo = LABELS_SORTEO[slot];
     const labelCapitalizado = labelSorteo.charAt(0) + labelSorteo.slice(1).toLowerCase();
     return { sorteo: `${labelCapitalizado} ${diasNombres[d.getDay()]}`, ...entrada };
-  }));
+  });
 
   Object.keys(ultimasCabezasConocidas).forEach(k => { if (!clavesVigentes.has(k)) delete ultimasCabezasConocidas[k]; });
   cabezasParaMostrar = datosPorSlot;
@@ -1312,26 +1351,54 @@ function calcularSlotEfectivo() {
 // una detrás de la otra: (1) configuración + feriados, que hacen falta para saber qué
 // sorteo toca mostrar; (2) todo lo de ese sorteo, al mismo tiempo. El ciclo dura una
 // fracción de lo que duraba, y la pantalla se redibuja una sola vez, al final.
-async function actualizarPantalla() {
-  const hoy = fechaLocalStr(new Date());
-  const [filasConfig] = await Promise.all([
+// =====================
+// CADA CUÁNTO SE CONSULTA (cada consulta queda registrada en Supabase y cuenta para el plan)
+// =====================
+// - Cada 30 segundos, lo que cambia seguido: los números del sorteo en pantalla, las últimas
+//   cabezas y el número de sorteo.
+// - Cada 5 minutos, lo que cambia poco: la configuración de la pantalla (letras, anchos,
+//   horarios), los feriados, el panel de la derecha, la cantidad de números por provincia
+//   (de los 5 sorteos, así al cambiar de sorteo ya está) y la Poceada. También al instante
+//   cuando cambia el día (a la medianoche). Si algo de esto falla, se reintenta al minuto.
+// - La Poceada se trae al instante cuando le toca un sorteo nuevo (martes, jueves y sábado a
+//   las 21); y si sale del sorteo que está en pantalla, se arma con esos mismos números.
+const CARGA_LENTA_CADA_MS = 5 * 60 * 1000;
+const CARGA_LENTA_REINTENTO_MS = 60 * 1000;
+let cargaLenta = { hoy: null, proxima: 0 };   // de qué día es lo traído, y cuándo toca traerlo de nuevo
+
+async function cargarLento(hoy) {
+  const [filasConfig, okFeriados, okPanel, filasProg] = await Promise.all([
     consultarSupabase(`configuracion_visual?agencia_id=eq.${URL_AGENCIA_ENCODED}`),
     cargarMapaSorteosActivos(hoy),
-    cargarPanel(hoy)
+    cargarPanel(hoy),
+    consultarSupabase(`programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&select=sorteo,numeros_por_provincia,fecha_desde`)
   ]);
   if (filasConfig !== null) aplicarFilasConfig(filasConfig);
+  // Cantidad por provincia de los 5 sorteos: la programación vigente más nueva de cada uno
+  sorteoKeys.forEach(k => resolverCantidadTV(k, filasProg === null ? null : filasProg.filter(p => p.sorteo === k).slice(0, 1), filasConfig));
+  const okPoceada = await cargarPoceada(hoy); // va después: necesita los feriados y el tilde
+  return filasConfig !== null && okFeriados && okPanel && filasProg !== null && okPoceada;
+}
+
+async function actualizarPantalla() {
+  const hoy = fechaLocalStr(new Date());
+  const ahoraMs = Date.now();
+  if (cargaLenta.hoy !== hoy || ahoraMs >= cargaLenta.proxima || cargaLenta.proxima - ahoraMs > CARGA_LENTA_CADA_MS) {
+    const ok = await cargarLento(hoy);
+    cargaLenta = { hoy, proxima: ahoraMs + (ok ? CARGA_LENTA_CADA_MS : CARGA_LENTA_REINTENTO_MS) };
+  } else if (poceadaMostrar && poceadaSorteoVigenteAhora(hoy) !== poceadaDatos.sorteo) {
+    await cargarPoceada(hoy); // le tocó un sorteo nuevo a la Poceada: se trae ya
+  }
 
   calcularSlotEfectivo();
   const { fecha, key } = slotEfectivo;
-  const resultados = await Promise.all([
+  await Promise.all([
     cargarDatosReales(fecha, key),
     cargarCabezasReales(fecha, key),
-    cargarNumeroSorteo(fecha, key),
-    consultarSupabase(`programaciones_numeros?agencia_id=eq.${URL_AGENCIA_ENCODED}&sorteo=eq.${key}&fecha_desde=lte.${hoy}&or=(fecha_hasta.is.null,fecha_hasta.gte.${hoy})&order=fecha_desde.desc&limit=1`),
-    cargarPoceada(hoy)
+    cargarNumeroSorteo(fecha, key)
   ]);
-  resolverCantidadTV(key, resultados[3], filasConfig);
   cantidadTV = cacheCantidadTV[key] || {};
+  actualizarPoceadaConNumerosEnPantalla(fecha, key);
   render();
 }
 
