@@ -58,12 +58,14 @@
 
   .sorteo-badge {
     --escala-franja: 1;
+    /* Tamaño de cada texto de la franja (Superadmin → Visual los cambia) */
+    --tam-nombre: 26px; --tam-fecha: 20px; --tam-nro: 22px; --tam-estado: 20px;
     display: grid;
     grid-template-columns: auto auto auto auto;
     align-items: center;
     justify-content: center;
     gap: calc(24px * var(--escala-franja));
-    height: 44px;
+    min-height: 44px; /* con letras más grandes, la franja se hace más alta */
     padding: 0 calc(20px * var(--escala-franja));
     background: rgba(0,0,0,.30);
     border: 1px solid rgba(255,215,0,.40);
@@ -79,7 +81,7 @@
   /* NOMBRE SORTEO — más chico para dar espacio a números */
   .sorteo-badge-name {
     font-family: 'DM Sans', sans-serif;
-    font-size: calc(26px * var(--escala-franja));
+    font-size: calc(var(--tam-nombre) * var(--escala-franja));
     font-weight: 900;
     letter-spacing: 1px;
     color: #ffd700;
@@ -88,18 +90,18 @@
     text-transform: uppercase;
   }
 
-  .sorteo-fecha { font-size:calc(20px * var(--escala-franja)); color:#fff; white-space:nowrap; }
+  .sorteo-fecha { font-size:calc(var(--tam-fecha) * var(--escala-franja)); color:#fff; white-space:nowrap; }
   .sorteo-nro {
-    font-family:'Oswald',sans-serif; font-size:calc(22px * var(--escala-franja)); font-weight:700;
+    font-family:'Oswald',sans-serif; font-size:calc(var(--tam-nro) * var(--escala-franja)); font-weight:700;
     color:#fff; letter-spacing:2px; white-space:nowrap;
   }
 
   .live-label {
-    font-size: calc(20px * var(--escala-franja)); color: #44ff88; font-weight: 900;
+    font-size: calc(var(--tam-estado) * var(--escala-franja)); color: #44ff88; font-weight: 900;
     letter-spacing: 1px; white-space: nowrap;
   }
   .done-label {
-    font-size: calc(20px * var(--escala-franja)); color: #ffd700; font-weight: 900;
+    font-size: calc(var(--tam-estado) * var(--escala-franja)); color: #ffd700; font-weight: 900;
     letter-spacing: 1px; white-space: nowrap;
   }
 
@@ -972,8 +974,12 @@ async function cargarConfigCarteles() {
     cartelesConfig.frecuenciaMin = (filasFrec[0] && parseInt(filasFrec[0].valor, 10)) || 60;
   }
   if (filasCarteles !== null) {
-    // Un cartel sin ninguna línea con texto no entra en la rotación
-    cartelesConfig.lista = filasCarteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== ''));
+    // Un cartel sin ninguna línea con texto no entra en la rotación; tampoco uno que todavía
+    // no empezó o que ya venció (las fechas son opcionales: vacías = sin límite; el último día
+    // se muestra completo, hasta la medianoche).
+    const hoy = fechaLocalStr(new Date());
+    cartelesConfig.lista = filasCarteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== '')
+      && (!c.fecha_desde || c.fecha_desde <= hoy) && (!c.fecha_hasta || c.fecha_hasta >= hoy));
   }
 }
 
@@ -1080,6 +1086,8 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .cabeza-num { font-size: ${cfg.cabeza || '18px'} !important; }
       .cabeza-prov { font-size: ${cfg.prov || '14px'} !important; }
       .cabezas-header { font-size: ${cfg['titulo-cabezas'] || '20px'} !important; }
+      .prov-cell:not(.label) { font-size: ${cfg['prov-header'] || '18px'} !important; }
+      #sorteo-badge { --tam-nombre: ${cfg['franja-sorteo'] || '26px'}; --tam-fecha: ${cfg['franja-fecha'] || '20px'}; --tam-nro: ${cfg['franja-numero'] || '22px'}; --tam-estado: ${cfg['franja-estado'] || '20px'}; }
       .cabezas-section-title { font-size: ${cfg['titulo-sorteos'] || '12px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
       .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
