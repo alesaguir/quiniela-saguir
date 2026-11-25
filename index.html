@@ -1349,6 +1349,17 @@ function aplicarMarca(mostrar) {
   if (zona) zona.classList.toggle('sin-marca', !mostrar);
 }
 
+// Ancho de la columna N° de la tabla (la de las ubicaciones 01, 02...): se configura en
+// Superadmin → Visual. Lo que se le saca se reparte entre las 5 provincias. Entre 30 y 100 px;
+// si no hay nada guardado (o algo que no es un número), 70 px como siempre.
+// OJO: admin.html tiene esta MISMA copia (para "Copiar tablero"); si se cambia una, cambiar la otra.
+const ANCHO_COLUMNA_N = { defecto: 70, min: 30, max: 100 };
+function anchoColumnaN(cfg) {
+  const v = parseInt(cfg && cfg['ancho-columna-n'], 10);
+  if (isNaN(v)) return ANCHO_COLUMNA_N.defecto;
+  return Math.max(ANCHO_COLUMNA_N.min, Math.min(ANCHO_COLUMNA_N.max, v));
+}
+
 function aplicarConfigVisualDesdeFilas(rows) {
   try {
     // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
@@ -1397,6 +1408,7 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .cabezas-section-title { font-size: ${cfg['titulo-sorteos'] || '12px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
       .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
+      .provincias-header, .numeros-grid { grid-template-columns: ${anchoColumnaN(cfg)}px repeat(5,1fr) !important; }
     `;
   } catch(e) { console.error('Error config visual:', e); }
 }
