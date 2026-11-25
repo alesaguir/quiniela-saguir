@@ -46,6 +46,11 @@
   .col-tabla { grid-row:2; grid-column:1; min-width:0; min-height:0; }
   .col-panel { grid-row:2; grid-column:2; }
   .zona-derecha.sin-panel .col-tabla { grid-column:1 / -1; }
+  /* Sin la marca (Superadmin → Visual): el fondo rojo y la franja del sorteo quedan solo arriba
+     de la tabla, y el panel de la derecha ocupa todo el alto, como las últimas cabezas */
+  .zona-derecha.sin-marca .header-marca { display:none; }
+  .zona-derecha.sin-marca .franja-roja { grid-column:1; }
+  .zona-derecha.sin-marca .col-panel { grid-row:1 / -1; }
 
   .marca-box { text-align:center; } /* centrada arriba a la derecha, encima del panel */
   .marca-principal {
@@ -222,10 +227,13 @@
     flex-direction: column;
     overflow: hidden;
   }
+  /* Franja dorada de cada parte: siempre en un renglón; si el título no entra a lo ancho, la
+     letra se achica sola (ajustarTituloPanel) */
   .panel-titulo {
     background: #ffd700; color: #000; text-align: center;
     padding: 6px 8px;
     font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
+    white-space: nowrap; overflow: hidden;
     flex-shrink: 0;
   }
   /* Cada parte del panel (favorito de hoy, pálpito semanal y Poceada) es un bloque. El alto de
@@ -251,13 +259,9 @@
     font-size: 30px; line-height: 1.25;
     white-space: pre-line; overflow-wrap: break-word;
   }
-  /* POCEADA (tercera parte del panel): el día, los 10 números en 2 filas de 5 y, si se
-     cargó, la línea de ganadores. Los tamaños los cambia Superadmin → Visual. */
-  .poceada-fecha {
-    font-family: 'DM Sans', sans-serif; font-weight: 700; color: #fff;
-    font-size: 24px; letter-spacing: 1px; line-height: 1.2; white-space: nowrap;
-    margin-bottom: 0.45em;
-  }
+  /* POCEADA (tercera parte del panel): el día va en la franja dorada ("POCEADA - MARTES 24/11");
+     abajo, los 10 números en 2 filas de 5 y, si se cargó, la línea de ganadores. Los tamaños
+     los cambia Superadmin → Visual. */
   .poceada-numeros {
     display: grid; grid-template-columns: repeat(5, auto); justify-content: center;
     column-gap: 0.4em; row-gap: 0.05em;
@@ -663,9 +667,11 @@ let panelClaveMostrada = null; // lo que está dibujado ahora, para no redibujar
 const PANEL_TAM_DEFECTO = {
   tituloDia: 20, numeroDia: 120, descripcion: 30, // favorito de hoy
   tituloSemana: 20, numeroSemana: 120,            // pálpito semanal
-  tituloPoceada: 20,                              // Poceada (el día, los números y los ganadores van en POCEADA_TAM_DEFECTO)
+  tituloPoceada: 20,                              // Poceada: la franja con el día (los números y los ganadores van en POCEADA_TAM_DEFECTO)
   margenSemana: 14,                               // espacio arriba y abajo del número del pálpito
-  altoPoceada: 33                                 // porcentaje del alto del panel que ocupa la Poceada
+  poceadaJusta: true,                             // la Poceada ocupa solo lo que necesita (false: un porcentaje fijo)
+  margenPoceada: 14,                              // si ocupa solo lo que necesita: espacio arriba y abajo
+  altoPoceada: 33                                 // si va con porcentaje fijo: % del alto del panel
 };
 let panelTam = { ...PANEL_TAM_DEFECTO };
 
@@ -688,6 +694,8 @@ function panelTamDesdeCfg(cfg) {
     numeroSemana: leer(['panel-numero-semana', 'panel-numero'], D.numeroSemana, 1, 999),
     tituloPoceada: leer(['panel-titulo-poceada', 'panel-titulo'], D.tituloPoceada, 1, 999),
     margenSemana: leer(['panel-margen-semana'], D.margenSemana, 0, 999),
+    poceadaJusta: leer(['panel-poceada-justa'], D.poceadaJusta ? 1 : 0, 0, 1) === 1,
+    margenPoceada: leer(['panel-margen-poceada'], D.margenPoceada, 0, 999),
     altoPoceada: leer(['panel-alto-poceada'], D.altoPoceada, 10, 90)
   };
 }
@@ -704,8 +712,10 @@ function panelLimitesParte(tam, tipo) {
 // que se ven ('dia', 'semana' o 'poceada'); altoPanel: el alto del panel en px; tam: los tamaños
 // del panel; f: la escala (1 en la TV, menos en las vistas previas del admin).
 // El pálpito semanal ocupa solo lo que necesita (su título, su número y el margen elegido arriba
-// y abajo), la Poceada su porcentaje del alto del panel y el favorito de hoy todo lo que sobra.
-// Si no está el favorito, lo que sobra va al pálpito; si hay una sola parte, ocupa todo el panel.
+// y abajo); la Poceada, según Superadmin → Visual, también solo lo que necesita (su franja, sus
+// números y, si hay, la línea de ganadores, con el margen elegido) o un porcentaje fijo del alto
+// del panel; y el favorito de hoy todo lo que sobra. Si no está el favorito, lo que sobra va al
+// pálpito; si hay una sola parte, ocupa todo el panel.
 // La parte que se queda con lo que sobra nunca baja del 25 % del panel (aunque se configure la
 // Poceada muy alta y el margen del pálpito muy grande): en ese caso cede la Poceada, que achica
 // sola sus letras.
@@ -715,17 +725,37 @@ function panelLimitesParte(tam, tipo) {
 function repartirAltoPanel(partes, altoPanel, tam, f) {
   const resto = partes.find(p => p.tipo === 'dia') || partes.find(p => p.tipo === 'semana') || partes[0];
   partes.forEach(p => {
-    const compacto = p !== resto && p.tipo === 'semana';
+    const semanaJusta = p !== resto && p.tipo === 'semana';
+    const poceadaJusta = p !== resto && p.tipo === 'poceada' && tam.poceadaJusta;
     if (p === resto) p.bloque.style.flex = '1 1 0';
-    else if (compacto) p.bloque.style.flex = '0 0 auto';
+    else if (semanaJusta) p.bloque.style.flex = '0 0 auto';
+    else if (poceadaJusta) p.bloque.style.flex = '0 1 auto'; // si no hay lugar, cede y achica sus letras
     else p.bloque.style.flex = `0 1 ${Math.round(altoPanel * tam.altoPoceada / 100)}px`;
     p.bloque.style.minHeight = (p === resto && partes.length > 1) ? Math.round(altoPanel * 0.25) + 'px' : '0px';
-    p.cuerpo.style.flex = compacto ? '0 0 auto' : '1 1 0%';
-    const vertical = Math.round((compacto ? tam.margenSemana : 24) * f) + 'px';
+    p.cuerpo.style.flex = semanaJusta ? '0 0 auto' : (poceadaJusta ? '1 1 auto' : '1 1 0%');
+    const vertical = Math.round((semanaJusta ? tam.margenSemana : poceadaJusta ? tam.margenPoceada : 24) * f) + 'px';
     p.cuerpo.style.paddingTop = vertical;
     p.cuerpo.style.paddingBottom = vertical;
   });
   return partes.filter(p => p !== resto).concat(resto ? [resto] : []);
+}
+
+// La franja dorada de cada parte va en un solo renglón: si el título no entra a lo ancho, la
+// letra se achica sola (de a 1 px, hasta tamMin). Devuelve el tamaño con que quedó.
+// OJO: admin.html tiene esta MISMA copia; si se cambia una, cambiar la otra.
+function ajustarTituloPanel(titulo, tamMax, tamMin) {
+  let tam = tamMax;
+  titulo.style.fontSize = tam + 'px';
+  if (!titulo.clientWidth) return tam; // oculto: no se puede medir
+  while (tam > tamMin && titulo.scrollWidth > titulo.clientWidth + 1) {
+    tam -= 1;
+    titulo.style.fontSize = tam + 'px';
+  }
+  return tam;
+}
+// El tamaño elegido para la franja de cada parte
+function panelTamTitulo(tam, tipo) {
+  return tipo === 'poceada' ? tam.tituloPoceada : (tipo === 'semana' ? tam.tituloSemana : tam.tituloDia);
 }
 
 function ajustarTextoPanel(cuerpo, contenido, numero, descripcion, lim) {
@@ -776,7 +806,7 @@ function ajustarTextoPanel(cuerpo, contenido, numero, descripcion, lim) {
 // - Se ve desde que queda armada hasta las 21 del próximo sorteo. Se muestra de menor a mayor.
 const POCEADA_DIAS = [2, 4, 6];             // martes, jueves y sábado
 const POCEADA_MINUTO_SORTEO = 21 * 60;      // 21:00
-const POCEADA_TAM_DEFECTO = { fecha: 24, numeros: 44, ganadores: 20 };
+const POCEADA_TAM_DEFECTO = { numeros: 44, ganadores: 20 };
 const POCEADA_NOMBRE_DIA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 
 function poceadaParse(fecha) { const p = fecha.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
@@ -837,12 +867,11 @@ function poceadaResultado(calc, fila) {
   return todos.slice().sort();
 }
 
-// Achica la fecha, los números y la línea de ganadores en la misma proporción hasta que entren
-// en su parte del panel (tam = los tamaños máximos, configurados en Superadmin → Visual).
-function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) {
+// Achica los números y la línea de ganadores en la misma proporción hasta que entren en su parte
+// del panel (tam = los tamaños máximos, configurados en Superadmin → Visual).
+function ajustarPoceadaPanel(cuerpo, contenido, numeros, ganadores, tam) {
   if (!cuerpo || !contenido || !numeros) return;
   const aplicar = f => {
-    if (fecha) fecha.style.fontSize = Math.max(8, Math.round(tam.fecha * f)) + 'px';
     numeros.style.fontSize = Math.max(10, Math.round(tam.numeros * f)) + 'px';
     if (ganadores) ganadores.style.fontSize = Math.max(8, Math.round(tam.ganadores * f)) + 'px';
   };
@@ -851,8 +880,7 @@ function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) 
   if (!cuerpo.clientHeight) return; // oculto: no se puede medir
   const cs = getComputedStyle(cuerpo);
   const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-  const noEntra = () => contenido.offsetHeight > alto || numeros.scrollWidth > numeros.clientWidth + 1
-    || (fecha && fecha.scrollWidth > fecha.clientWidth + 1);
+  const noEntra = () => contenido.offsetHeight > alto || numeros.scrollWidth > numeros.clientWidth + 1;
   while (f > 0.3 && noEntra()) { f -= 0.04; aplicar(f); }
 }
 
@@ -873,7 +901,7 @@ function armarPoceada() {
   const d = poceadaDatos;
   const numeros = (poceadaMostrar && d.sorteo && d.nums) ? poceadaResultado(poceadaCalcular(d.nums), d.fila) : null;
   poceadaVista = { sorteo: d.sorteo, parte: numeros ? {
-    tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(d.fechaReal), numeros,
+    tipo: 'poceada', titulo: 'POCEADA - ' + poceadaEtiquetaFecha(d.fechaReal), numeros,
     ganadores: ((d.fila && d.fila.ganadores) || '').trim()
   } : null };
 }
@@ -954,7 +982,6 @@ function htmlBloquePanel(p) {
     let h = '<div class="panel-bloque panel-bloque-poceada">';
     h += `<div class="panel-titulo">${escaparHtml(p.titulo)}</div>`;
     h += '<div class="panel-cuerpo"><div class="panel-contenido">';
-    h += `<div class="poceada-fecha">${escaparHtml(p.fecha)}</div>`;
     h += `<div class="poceada-numeros">${p.numeros.map(n => `<span>${escaparHtml(n)}</span>`).join('')}</div>`;
     if (p.ganadores) h += `<div class="poceada-ganadores">${escaparHtml(p.ganadores)}</div>`;
     return h + '</div></div></div>';
@@ -1019,10 +1046,15 @@ function ajustarPanelEnPantalla() {
     bloque: b, cuerpo: b.querySelector('.panel-cuerpo'),
     tipo: b.classList.contains('panel-bloque-poceada') ? 'poceada' : b.classList.contains('panel-bloque-semana') ? 'semana' : 'dia'
   }));
+  // Primero las franjas doradas (su alto cuenta para repartir el resto)
+  partes.forEach(p => {
+    const titulo = p.bloque.querySelector('.panel-titulo');
+    if (titulo) ajustarTituloPanel(titulo, panelTamTitulo(panelTam, p.tipo), 8);
+  });
   repartirAltoPanel(partes, col.clientHeight, panelTam, 1).forEach(p => {
     const b = p.bloque;
     if (p.tipo === 'poceada') {
-      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.panel-contenido'), b.querySelector('.poceada-fecha'), b.querySelector('.poceada-numeros'), b.querySelector('.poceada-ganadores'), poceadaTam);
+      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.panel-contenido'), b.querySelector('.poceada-numeros'), b.querySelector('.poceada-ganadores'), poceadaTam);
       return;
     }
     ajustarTextoPanel(p.cuerpo, b.querySelector('.panel-contenido'), b.querySelector('.panel-numero'), b.querySelector('.panel-descripcion'), panelLimitesParte(panelTam, p.tipo));
@@ -1310,12 +1342,20 @@ async function intentarMostrarBloqueCarteles() {
   bloqueCartelesEnCurso = false;
 }
 
+// Marca "QUINIELA SAGUIR" arriba a la derecha: se prende o se apaga en Superadmin → Visual
+// (prendida si nunca se configuró). Apagada, el panel de la derecha ocupa todo el alto.
+function aplicarMarca(mostrar) {
+  const zona = document.getElementById('zona-derecha');
+  if (zona) zona.classList.toggle('sin-marca', !mostrar);
+}
+
 function aplicarConfigVisualDesdeFilas(rows) {
   try {
     // Nombres de provincia: reset a los de siempre, y se pisan si hay algo personalizado guardado
     nombresProvinciaTV = { chaquena:'Chaqueña', ciudad:'Ciudad', provincia:'Provincia', corrientes:'Corrientes', cordoba:'Córdoba' };
     panelTam = { ...PANEL_TAM_DEFECTO };
     poceadaTam = { ...POCEADA_TAM_DEFECTO };
+    aplicarMarca(true);
 
     if (!rows || rows.length === 0) { aplicarNombresProvinciaAlHeader(); return; }
 
@@ -1334,10 +1374,10 @@ function aplicarConfigVisualDesdeFilas(rows) {
     aplicarNombresProvinciaAlHeader();
     panelTam = panelTamDesdeCfg(cfg);
     poceadaTam = {
-      fecha: parseInt(cfg['poceada-fecha'], 10) || POCEADA_TAM_DEFECTO.fecha,
       numeros: parseInt(cfg['poceada-numeros'], 10) || POCEADA_TAM_DEFECTO.numeros,
       ganadores: parseInt(cfg['poceada-ganadores'], 10) || POCEADA_TAM_DEFECTO.ganadores
     };
+    aplicarMarca(parseInt(cfg['mostrar-marca'], 10) !== 0);
 
     let style = document.getElementById('estilo-dinamico');
     if (!style) {
@@ -1357,9 +1397,6 @@ function aplicarConfigVisualDesdeFilas(rows) {
       .cabezas-section-title { font-size: ${cfg['titulo-sorteos'] || '12px'} !important; }
       .col-cabezas { width: ${cfg['ancho-cabezas'] || '240px'} !important; }
       .col-panel { width: ${cfg['ancho-panel'] || '340px'} !important; }
-      .panel-bloque-dia .panel-titulo { font-size: ${panelTam.tituloDia}px !important; }
-      .panel-bloque-semana .panel-titulo { font-size: ${panelTam.tituloSemana}px !important; }
-      .panel-bloque-poceada .panel-titulo { font-size: ${panelTam.tituloPoceada}px !important; }
     `;
   } catch(e) { console.error('Error config visual:', e); }
 }
