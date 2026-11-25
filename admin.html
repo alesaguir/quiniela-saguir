@@ -787,6 +787,18 @@
             </div>
           </div>
 
+          <!-- ANCHO DE LA COLUMNA N° DE LA TABLA -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Ancho de la columna N° de la tabla</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">La primera columna de la tabla, la de las ubicaciones (01, 02...). Lo que le saques se reparte entre las 5 provincias: así podés ensanchar las últimas cabezas o el panel de la derecha sin que las provincias pierdan ancho.</div>
+            <div style="display:flex;align-items:center;gap:12px;max-width:400px;">
+              <input type="range" id="slider-ancho-columna-n" min="30" max="100" value="70"
+                oninput="actualizarSlider('ancho-columna-n',this.value)"
+                style="flex:1;accent-color:var(--gold);">
+              <span id="val-ancho-columna-n" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:60px;text-align:center;">70px</span>
+            </div>
+          </div>
+
           <!-- MARCA ARRIBA A LA DERECHA -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Marca "QUINIELA SAGUIR" arriba a la derecha</div>
@@ -3608,6 +3620,9 @@ const TVC_CSS = `
 .tvc-prov-cell.label { color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; font-size:12px; display:flex; align-items:center; justify-content:center; }
 .tvc-nums-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-nums-grid { flex:1; display:grid; grid-template-columns:70px repeat(5,1fr); }
+/* Solo para "¿Entra todo?" (no para la imagen): cada provincia queda con el ancho que le toca, así
+   un nombre o un número que no entra se nota (si no, la columna se estira sola y parece que entra) */
+.tvc.tvc-midiendo .tvc-prov-cell, .tvc.tvc-midiendo .tvc-num-col { min-width:0; }
 .tvc-pos-col { display:flex; flex-direction:column; border-right:1px solid rgba(255,215,0,0.15); }
 .tvc-pos-label { flex:1; display:flex; align-items:center; justify-content:center; font-size:12px; color:rgba(255,255,255,0.45); border-bottom:1px solid rgba(255,255,255,0.04); letter-spacing:1px; }
 .tvc-pos-label:last-child { border-bottom:none; }
@@ -3709,6 +3724,17 @@ function htmlTablero(d) {
 
 // Tamaños configurados desde Visual — igual que el estilo dinámico de index.html (si la
 // agencia no tiene ninguna configuración guardada, la TV usa los tamaños de base).
+// Ancho de la columna N° de la tabla (la de las ubicaciones 01, 02...): se configura en
+// Superadmin → Visual. Lo que se le saca se reparte entre las 5 provincias. Entre 30 y 100 px;
+// si no hay nada guardado (o algo que no es un número), 70 px como siempre.
+// OJO: index.html tiene esta MISMA copia (la TV); si se cambia una, cambiar la otra.
+const ANCHO_COLUMNA_N = { defecto: 70, min: 30, max: 100 };
+function anchoColumnaN(cfg) {
+  const v = parseInt(cfg && cfg['ancho-columna-n'], 10);
+  if (isNaN(v)) return ANCHO_COLUMNA_N.defecto;
+  return Math.max(ANCHO_COLUMNA_N.min, Math.min(ANCHO_COLUMNA_N.max, v));
+}
+
 function cssDinamicoTablero(d) {
   if (!d.conConfig) return '';
   const c = d.cfg;
@@ -3722,7 +3748,8 @@ function cssDinamicoTablero(d) {
 .tvc .tvc-badge { --tam-nombre: ${c['franja-sorteo'] || '26px'}; --tam-fecha: ${c['franja-fecha'] || '20px'}; --tam-nro: ${c['franja-numero'] || '22px'}; --tam-estado: ${c['franja-estado'] || '20px'}; }
 .tvc .tvc-cab-title { font-size: ${c['titulo-sorteos'] || '12px'} !important; }
 .tvc .tvc-cabezas { width: ${c['ancho-cabezas'] || '240px'} !important; }
-.tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }`;
+.tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }
+.tvc .tvc-prov-header, .tvc .tvc-nums-grid { grid-template-columns: ${anchoColumnaN(c)}px repeat(5,1fr) !important; }`;
 }
 
 // Las letras de la TV (algunas no las usa admin). Se cargan una sola vez, la primera vez que
@@ -5329,7 +5356,7 @@ async function cargarActividad() {
 // =====================
 // CONFIGURACIÓN VISUAL
 // =====================
-const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'prov-header':'18', 'franja-sorteo':'26', 'franja-fecha':'20', 'franja-numero':'22', 'franja-estado':'20', 'poceada-numeros':'44', 'poceada-ganadores':'20', 'ancho-cabezas':'240', 'ancho-panel':'340',
+const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'prov-header':'18', 'franja-sorteo':'26', 'franja-fecha':'20', 'franja-numero':'22', 'franja-estado':'20', 'poceada-numeros':'44', 'poceada-ganadores':'20', 'ancho-cabezas':'240', 'ancho-panel':'340', 'ancho-columna-n':'70',
   'panel-titulo-dia':'20', 'panel-numero-dia':'120', 'panel-descripcion':'30',
   'panel-titulo-semana':'20', 'panel-numero-semana':'120', 'panel-margen-semana':'14',
   'panel-titulo-poceada':'20', 'panel-margen-poceada':'14', 'panel-alto-poceada':'33', tv:'1.0' };
@@ -5677,11 +5704,24 @@ function revisionPonerTam(elementos, px) {
 function revisionSacarTam(elementos) {
   elementos.forEach(el => el.style.removeProperty('font-size'));
 }
+// ¿El texto entra a lo ancho, adentro de su caja (sin contar el margen interno)? Se mide el texto
+// mismo: scrollWidth no sirve, porque no cuenta el margen interno de la derecha y, si el texto va
+// centrado, solo cuenta la mitad de lo que se pasa (decía que entraba cuando en la TV no entra).
+function revisionTextoEntra(el) {
+  const rango = document.createRange();
+  rango.selectNodeContents(el);
+  const texto = rango.getBoundingClientRect();
+  if (!texto.width) return true; // sin texto
+  const caja = el.getBoundingClientRect(), cs = getComputedStyle(el);
+  const izquierda = caja.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+  const derecha = caja.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+  return texto.left >= izquierda - 0.05 && texto.right <= derecha + 0.05;
+}
 // ¿El texto entra en un renglón a lo ancho de su lugar?
 function revisionEnUnRenglon(el) {
   const antes = el.style.whiteSpace;
   el.style.whiteSpace = 'nowrap';
-  const entra = el.scrollWidth <= el.clientWidth + 1;
+  const entra = revisionTextoEntra(el);
   el.style.whiteSpace = antes;
   return entra;
 }
@@ -5692,6 +5732,7 @@ function calcularRevision(datos) {
   const avisos = {};      // clave → texto del aviso
   const noSeMuestra = {}; // clave → true (esa parte del panel hoy no se ve)
   const cont = armarTableroEnPantalla(d);
+  cont.classList.add('tvc-midiendo'); // cada provincia con el ancho que le toca (ver TVC_CSS)
   try {
     const rangoDe = k => { const el = document.getElementById(`slider-${k}`); return el ? [parseInt(el.min, 10), parseInt(el.max, 10)] : [8, 200]; };
     // Lo que no se achica solo: si no entra, busca hasta qué tamaño entraría con lo demás como está.
@@ -5714,7 +5755,7 @@ function calcularRevision(datos) {
       const abajo = wrap.getBoundingClientRect().bottom;
       return {
         abajo: celdas.some(c => c.getBoundingClientRect().bottom > abajo + 1),
-        ancho: celdas.some(c => c.scrollWidth > c.clientWidth + 1)
+        ancho: celdas.some(c => !revisionTextoEntra(c))
       };
     };
     const tablaEntra = () => { const t = tablaCortes(); return !t.abajo && !t.ancho; };
@@ -5736,7 +5777,7 @@ function calcularRevision(datos) {
     const titulosCab = Array.from(cont.querySelectorAll('.tvc-cab-title'));
     const encabezado = cont.querySelector('.tvc-cabezas-header');
     const cabAlto = () => colCab.scrollHeight <= colCab.clientHeight + 1;
-    const filasAncho = () => filasCab.every(f => f.scrollWidth <= f.clientWidth + 1);
+    const filasAncho = () => filasCab.every(revisionTextoEntra);
     const problemaCab = (propio) => {
       const partes = [];
       if (!propio()) partes.push('no entra a lo ancho de la columna');
@@ -6001,7 +6042,7 @@ async function cargarConfigVisual() {
 
 async function guardarVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel',
+  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel','ancho-columna-n',
     'panel-titulo-dia','panel-numero-dia','panel-descripcion','panel-titulo-semana','panel-numero-semana','panel-margen-semana','panel-titulo-poceada','panel-margen-poceada','panel-alto-poceada'];
   const rows = claves.map(c => ({
     agencia_id: agencia, clave: c,
