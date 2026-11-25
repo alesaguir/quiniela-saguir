@@ -1510,7 +1510,7 @@ function recalcularTicket() {
   document.querySelectorAll('.premio-input').forEach(i => {
     const v = parseMonto(i.value);
     premiosTotal += v;
-    if (v !== 0) premioItems.push({label:'Premio (otra sucursal)', amount:v});
+    if (v !== 0) premioItems.push({label:'Premio (otra subagencia)', amount:v});
   });
 
   let juegosTotal = 0;
@@ -2104,7 +2104,7 @@ async function guardarReporteDesdeFormulario() {
 // Reconstruye la lista de líneas (label + monto) a partir de una fila ya guardada en reportes_diarios
 function itemsDesdeRegistro(row) {
   const items = [{label:'Reporte (Lotería Chaqueña)', amount: row.monto_reporte_loteria || 0}];
-  (row.premios || []).forEach(p => items.push({label:'Premio (otra sucursal)', amount: p.monto}));
+  (row.premios || []).forEach(p => items.push({label:'Premio (otra subagencia)', amount: p.monto}));
   (row.a_favor_detalle || []).forEach(f => items.push({label:'A favor del subagente', amount: -f.monto}));
   (row.juegos || []).forEach(j => {
     const juego = juegosCache.find(g => g.clave === j.clave) || juegosConfigCache.find(g => g.clave === j.clave);
@@ -2210,7 +2210,7 @@ function previsualizarDiseno() {
     fecha: fechaLocalHoy(),
     items: [
       {label:'Reporte (Lotería Chaqueña)', amount: 250000},
-      {label:'Premio (otra sucursal)', amount: 5000},
+      {label:'Premio (otra subagencia)', amount: 5000},
       {label:'A favor del subagente', amount: -3000},
     ],
     subtotal: 252000, redondeo: -2000, montoFinal: 250000, color: 'negro'
