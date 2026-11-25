@@ -75,6 +75,9 @@
     /* En el celular, cada campo en su propio renglón: así el título se lee entero */
     .pd-campos, .ps-campos{grid-template-columns:minmax(0,1fr);}
   }
+  /* SUPERADMIN → VISUAL: aviso debajo de un control cuando, con los datos de hoy, no entra */
+  .aviso-tam{margin-top:6px;font-size:11.5px;line-height:1.4;color:var(--gold);background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.35);border-radius:8px;padding:6px 8px;}
+  .aviso-tam.aviso-tam-gris{color:var(--muted);background:transparent;border-color:var(--border);}
   /* SUPERADMIN → VISUAL: alto y letra del panel de la derecha, con su vista previa al costado */
   .visual-panel-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:20px;}
   .visual-panel-grilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 18px;}
@@ -594,6 +597,16 @@
             </div>
           </div>
 
+          <!-- ¿ENTRA TODO CON LOS TAMAÑOS ELEGIDOS? (con los datos de hoy) -->
+          <div id="revision-tamanos" style="margin-bottom:24px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.02);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="font-size:13px;font-weight:600;">¿Entra todo con los tamaños elegidos?</div>
+              <button class="btn btn-ghost" id="btn-revisar-tamanos" style="font-size:12px;padding:6px 10px;" onclick="revisarTamanos(true)">🔄 Revisar de nuevo</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--muted);margin:4px 0 8px;line-height:1.45;">Con los datos de hoy de esta agencia, para una TV de 1920 × 1080, y con los tamaños tal como están acá (antes de guardar). Al lado de cada control aparece el aviso.</div>
+            <div id="revision-tamanos-resultado" style="font-size:13px;line-height:1.5;">—</div>
+          </div>
+
           <!-- NÚMEROS SORTEO ACTUAL -->
           <div style="margin-bottom:24px;">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Números del sorteo actual</div>
@@ -774,10 +787,20 @@
             </div>
           </div>
 
+          <!-- MARCA ARRIBA A LA DERECHA -->
+          <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Marca "QUINIELA SAGUIR" arriba a la derecha</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.45;">Si la apagás, la franja del sorteo sigue arriba de la tabla y el panel de la derecha ocupa todo el alto de la pantalla, como la columna de las últimas cabezas.</div>
+            <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;">
+              <input type="checkbox" id="opt-mostrar-marca" checked onchange="onCambioOpcionVisual()" style="width:18px;height:18px;accent-color:var(--gold);">
+              Mostrar la marca
+            </label>
+          </div>
+
           <!-- PANEL DE LA DERECHA: ALTO Y LETRA DE CADA PARTE (favorito de hoy, pálpito semanal y Poceada) -->
           <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Panel de la derecha: alto y letra de cada parte</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.45;">El pálpito semanal ocupa solo lo que necesita (su título, su número y el espacio que elijas arriba y abajo); la Poceada, el porcentaje del alto del panel que elijas; y el favorito de hoy se queda con todo lo que sobra. Si no está el favorito, lo que sobra va al pálpito; si se ve una sola parte, ocupa todo el panel. Aunque la Poceada y el pálpito se configuren muy altos, el favorito conserva al menos el 25 % del panel. Las letras son el tamaño máximo: si un texto no entra, en la TV se achica solo.</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.45;">El pálpito semanal ocupa solo lo que necesita (su título, su número y el espacio que elijas arriba y abajo). La Poceada, a elección: solo lo que necesita (su franja con el día, sus números y, si hay, la línea de ganadores) o un porcentaje fijo del alto del panel. El favorito de hoy se queda con todo lo que sobra. Si no está el favorito, lo que sobra va al pálpito; si se ve una sola parte, ocupa todo el panel. Aunque la Poceada y el pálpito se configuren muy altos, el favorito conserva al menos el 25 % del panel. Las franjas doradas van siempre en un renglón. Las letras son el tamaño máximo: si un texto no entra, en la TV se achica solo.</div>
             <div class="visual-panel-layout">
               <div>
                 <div style="margin-bottom:18px;">
@@ -847,7 +870,23 @@
                 <div style="margin-bottom:0px;">
                   <div style="font-size:12.5px;font-weight:700;color:var(--gold);letter-spacing:0.5px;margin-bottom:4px;">Poceada</div>
                   <div class="visual-panel-grilla">
-                  <div>
+                  <div style="grid-column:1 / -1;max-width:320px;">
+                    <label class="form-label">Alto</label>
+                    <select id="opt-panel-poceada-justa" class="form-input" onchange="onCambioOpcionVisual()">
+                      <option value="1">Solo lo que necesita</option>
+                      <option value="0">Porcentaje fijo del panel</option>
+                    </select>
+                  </div>
+                  <div id="wrap-panel-margen-poceada">
+                    <label class="form-label">Espacio arriba y abajo</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <input type="range" id="slider-panel-margen-poceada" min="0" max="80" value="14"
+                        oninput="actualizarSlider('panel-margen-poceada',this.value)"
+                        style="flex:1;min-width:0;accent-color:var(--gold);">
+                      <span id="val-panel-margen-poceada" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">14px</span>
+                    </div>
+                  </div>
+                  <div id="wrap-panel-alto-poceada" style="display:none;">
                     <label class="form-label">Alto (% del panel)</label>
                     <div style="display:flex;align-items:center;gap:12px;">
                       <input type="range" id="slider-panel-alto-poceada" min="15" max="70" value="33"
@@ -857,21 +896,12 @@
                     </div>
                   </div>
                   <div>
-                    <label class="form-label">Título (franja dorada)</label>
+                    <label class="form-label">Título y día (franja dorada)</label>
                     <div style="display:flex;align-items:center;gap:12px;">
                       <input type="range" id="slider-panel-titulo-poceada" min="12" max="60" value="20"
                         oninput="actualizarSlider('panel-titulo-poceada',this.value)"
                         style="flex:1;min-width:0;accent-color:var(--gold);">
                       <span id="val-panel-titulo-poceada" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">20px</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label class="form-label">Día</label>
-                    <div style="display:flex;align-items:center;gap:12px;">
-                      <input type="range" id="slider-poceada-fecha" min="12" max="48" value="24"
-                        oninput="actualizarSlider('poceada-fecha',this.value)"
-                        style="flex:1;min-width:0;accent-color:var(--gold);">
-                      <span id="val-poceada-fecha" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);width:56px;text-align:center;">24px</span>
                     </div>
                   </div>
                   <div>
@@ -1877,17 +1907,23 @@ let panelPreview = { tipo: 'dia', i: 0 }; // qué muestra la vista previa: un d�
 const PANEL_TAM_DEFECTO = {
   tituloDia: 20, numeroDia: 120, descripcion: 30, // favorito de hoy
   tituloSemana: 20, numeroSemana: 120,            // pálpito semanal
-  tituloPoceada: 20,                              // Poceada (el día, los números y los ganadores van en POCEADA_TAM_DEFECTO)
+  tituloPoceada: 20,                              // Poceada: la franja con el día (los números y los ganadores van en POCEADA_TAM_DEFECTO)
   margenSemana: 14,                               // espacio arriba y abajo del número del pálpito
-  altoPoceada: 33                                 // porcentaje del alto del panel que ocupa la Poceada
+  poceadaJusta: true,                             // la Poceada ocupa solo lo que necesita (false: un porcentaje fijo)
+  margenPoceada: 14,                              // si ocupa solo lo que necesita: espacio arriba y abajo
+  altoPoceada: 33                                 // si va con porcentaje fijo: % del alto del panel
 };
 const PANEL_ANCHO_DEFECTO = 340;
+// Alto del panel en una TV de 1920 × 1080: con la marca arriba a la derecha (1080 menos la franja
+// de arriba y el pie) y sin la marca (el panel ocupa todo el alto, 1080 menos el pie)
 const PANEL_ALTO_TV = 1006;
+const PANEL_ALTO_TV_SIN_MARCA = 1057;
 // Las claves de configuracion_visual que usa el panel (en la vista previa de la pestaña Panel se
 // leen solo estas). 'panel-titulo' y 'panel-numero' son las de antes, por si todavía están guardadas.
 const PANEL_CLAVES_VISUAL = ['ancho-panel', 'panel-titulo', 'panel-numero', 'panel-descripcion',
   'panel-titulo-dia', 'panel-numero-dia', 'panel-titulo-semana', 'panel-numero-semana', 'panel-titulo-poceada',
-  'panel-margen-semana', 'panel-alto-poceada', 'poceada-fecha', 'poceada-numeros', 'poceada-ganadores'];
+  'panel-margen-semana', 'panel-poceada-justa', 'panel-margen-poceada', 'panel-alto-poceada',
+  'poceada-numeros', 'poceada-ganadores', 'mostrar-marca'];
 
 // =====================
 // POCEADA — reglas (OJO: index.html y admin.html tienen esta MISMA copia; si se cambia una, cambiar la otra)
@@ -1903,7 +1939,7 @@ const PANEL_CLAVES_VISUAL = ['ancho-panel', 'panel-titulo', 'panel-numero', 'pan
 // - Se ve desde que queda armada hasta las 21 del próximo sorteo. Se muestra de menor a mayor.
 const POCEADA_DIAS = [2, 4, 6];             // martes, jueves y sábado
 const POCEADA_MINUTO_SORTEO = 21 * 60;      // 21:00
-const POCEADA_TAM_DEFECTO = { fecha: 24, numeros: 44, ganadores: 20 };
+const POCEADA_TAM_DEFECTO = { numeros: 44, ganadores: 20 };
 const POCEADA_NOMBRE_DIA = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 
 function poceadaParse(fecha) { const p = fecha.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
@@ -1964,12 +2000,11 @@ function poceadaResultado(calc, fila) {
   return todos.slice().sort();
 }
 
-// Achica la fecha, los números y la línea de ganadores en la misma proporción hasta que entren
-// en su parte del panel (tam = los tamaños máximos, configurados en Superadmin → Visual).
-function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) {
+// Achica los números y la línea de ganadores en la misma proporción hasta que entren en su parte
+// del panel (tam = los tamaños máximos, configurados en Superadmin → Visual).
+function ajustarPoceadaPanel(cuerpo, contenido, numeros, ganadores, tam) {
   if (!cuerpo || !contenido || !numeros) return;
   const aplicar = f => {
-    if (fecha) fecha.style.fontSize = Math.max(8, Math.round(tam.fecha * f)) + 'px';
     numeros.style.fontSize = Math.max(10, Math.round(tam.numeros * f)) + 'px';
     if (ganadores) ganadores.style.fontSize = Math.max(8, Math.round(tam.ganadores * f)) + 'px';
   };
@@ -1978,8 +2013,7 @@ function ajustarPoceadaPanel(cuerpo, contenido, fecha, numeros, ganadores, tam) 
   if (!cuerpo.clientHeight) return; // oculto: no se puede medir
   const cs = getComputedStyle(cuerpo);
   const alto = cuerpo.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-  const noEntra = () => contenido.offsetHeight > alto || numeros.scrollWidth > numeros.clientWidth + 1
-    || (fecha && fecha.scrollWidth > fecha.clientWidth + 1);
+  const noEntra = () => contenido.offsetHeight > alto || numeros.scrollWidth > numeros.clientWidth + 1;
   while (f > 0.3 && noEntra()) { f -= 0.04; aplicar(f); }
 }
 
@@ -1993,11 +2027,61 @@ let panelMostrarPoceada = false;
 let poceadaAdmin = null;      // lo último leído: { sorteo, fila, fechaReal, turno, calc, numeros, hoy } o { error: true }
 let tokenCargaPoceada = 0;
 let guardandoPoceada = false;
+
+// Lo que se está escribiendo en la sección de la Poceada y todavía no se guardó: la línea de
+// ganadores, los números que faltan y el día y turno. La sección se vuelve a dibujar entera en
+// varios momentos (al abrir la pestaña Panel, al tocar el tilde, después de guardar cualquier cosa
+// de la Poceada, con "Actualizar", si se corta internet): sin esto, cada vez volvía a lo último
+// guardado y se perdía lo escrito. Cada dato se olvida recién cuando ESE dato se guarda bien; si
+// el guardado falla, queda para volver a intentar. Si cambia el sorteo de la Poceada, se descarta
+// todo (no se guarda en el sorteo equivocado); los números que faltan, también si cambia cuáles son.
+function poceadaBorradorVacio(sorteo) {
+  return { sorteo: sorteo || null, ganadores: null, faltantes: null, faltantesClave: null, fecha: null, turno: null };
+}
+let poceadaBorrador = poceadaBorradorVacio(null);
+// Identifica qué números faltan (si cambia la Chaqueña, cambian y lo escrito ya no vale)
+function poceadaClaveFaltantes(p) {
+  return (p && p.calc && p.calc.cargada && !p.calc.completa) ? `${p.calc.base.join(',')}|${p.calc.faltan}` : null;
+}
+// Los números que faltan tal como se muestran al dibujar (lo confirmado, si es para estos mismos)
+function poceadaFaltantesGuardados(p) {
+  const f = p && p.fila;
+  return (f && Array.isArray(f.faltantes) && p.calc && f.faltantes.length === p.calc.faltan) ? f.faltantes : [];
+}
+// Se llama al escribir o elegir algo en la sección (un solo escuchador para toda la sección)
+function poceadaAnotarBorrador(e) {
+  const p = poceadaAdmin, t = e && e.target;
+  if (!p || !p.sorteo || !t) return;
+  if (poceadaBorrador.sorteo !== p.sorteo) poceadaBorrador = poceadaBorradorVacio(p.sorteo);
+  if (t.id === 'poceada-ganadores') {
+    poceadaBorrador.ganadores = t.value;
+  } else if (t.classList && t.classList.contains('poceada-faltante')) {
+    poceadaBorrador.faltantes = Array.from(document.querySelectorAll('#poceada-contenido .poceada-faltante')).map(i => i.value);
+    poceadaBorrador.faltantesClave = poceadaClaveFaltantes(p);
+  } else if (t.id === 'poceada-fecha-real' || t.id === 'poceada-turno-real') {
+    poceadaBorrador.fecha = document.getElementById('poceada-fecha-real').value;
+    poceadaBorrador.turno = document.getElementById('poceada-turno-real').value;
+  } else {
+    return;
+  }
+  poceadaMarcarSinGuardar();
+}
+// Muestra "Sin guardar" al lado de lo que tiene cambios que todavía no se guardaron
+function poceadaMarcarSinGuardar() {
+  const p = poceadaAdmin, b = poceadaBorrador;
+  const poner = (id, mostrar) => { const el = document.getElementById(id); if (el) el.style.display = mostrar ? 'inline' : 'none'; };
+  const mismo = p && p.sorteo && b.sorteo === p.sorteo;
+  const ganGuardado = ((p && p.fila && p.fila.ganadores) || '').trim();
+  poner('poceada-ganadores-sin-guardar', !!(mismo && b.ganadores !== null && b.ganadores.trim() !== ganGuardado));
+  poner('poceada-fecha-sin-guardar', !!(mismo && b.fecha !== null && (b.fecha !== p.fechaReal || b.turno !== p.turno)));
+  const previos = poceadaFaltantesGuardados(p);
+  poner('poceada-faltantes-sin-guardar', !!(mismo && b.faltantes !== null && b.faltantesClave === poceadaClaveFaltantes(p)
+    && b.faltantes.some((v, i) => v.trim() !== (previos[i] || ''))));
+}
 const POCEADA_TURNOS = [['previa', 'Previa'], ['primera', 'Primera'], ['matutina', 'Matutina'], ['vespertina', 'Vespertina'], ['nocturna', 'Nocturna']];
 
 function poceadaTamDesdeCfg(cfg) {
   return {
-    fecha: parseInt(cfg['poceada-fecha'], 10) || POCEADA_TAM_DEFECTO.fecha,
     numeros: parseInt(cfg['poceada-numeros'], 10) || POCEADA_TAM_DEFECTO.numeros,
     ganadores: parseInt(cfg['poceada-ganadores'], 10) || POCEADA_TAM_DEFECTO.ganadores
   };
@@ -2047,7 +2131,18 @@ async function cargarPoceadaAdmin() {
 function renderPoceadaAdmin() {
   const cont = document.getElementById('poceada-contenido');
   if (!cont) return;
+  // Un solo escuchador para toda la sección (sigue andando aunque se redibuje lo de adentro)
+  cont.oninput = poceadaAnotarBorrador;
+  cont.onchange = poceadaAnotarBorrador;
+  // Dónde estaba el cursor y si "¿El sorteo se suspendió...?" estaba abierto, para dejarlos igual
+  const activo = document.activeElement;
+  const foco = (activo && activo.id && cont.contains(activo)) ? { id: activo.id, ini: null, fin: null } : null;
+  if (foco) { try { foco.ini = activo.selectionStart; foco.fin = activo.selectionEnd; } catch (e) { /* fecha o lista: no tienen cursor */ } }
+  const detallesAntes = cont.querySelector('details');
+  const detallesAbiertos = detallesAntes ? detallesAntes.open : false;
   const p = poceadaAdmin;
+  // Lo escrito para otro sorteo de la Poceada no vale para este
+  if (p && !p.error && poceadaBorrador.sorteo !== (p.sorteo || null)) poceadaBorrador = poceadaBorradorVacio(p.sorteo);
   if (!p) { cont.innerHTML = 'Cargando...'; return; }
   const btnActualizar = '<button class="btn btn-ghost" style="font-size:12px;padding:6px 10px;" onclick="cargarPoceadaAdmin()">🔄 Actualizar</button>';
   if (p.error) {
@@ -2092,7 +2187,8 @@ function renderPoceadaAdmin() {
     h += `<label class="form-label">${c.faltan === 1 ? 'Número que falta' : 'Números que faltan'} (2 cifras, según el extracto oficial)</label>`;
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">';
     for (let i = 0; i < c.faltan; i++) h += `<input type="text" inputmode="numeric" maxlength="2" class="form-input poceada-faltante" id="poceada-faltante-${i}" value="${previos[i] || ''}" style="width:70px;text-align:center;font-family:'Oswald',sans-serif;font-size:20px;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">`;
-    h += `<button class="btn btn-primary" id="btn-confirmar-poceada" style="width:auto;padding:10px 16px;" onclick="confirmarPoceada()">✔ Confirmar datos</button></div>`;
+    h += `<button class="btn btn-primary" id="btn-confirmar-poceada" style="width:auto;padding:10px 16px;" onclick="confirmarPoceada()">✔ Confirmar datos</button>`;
+    h += '<span id="poceada-faltantes-sin-guardar" style="display:none;color:var(--gold);font-size:12px;font-weight:600;">✏️ Sin confirmar</span></div>';
   }
   // Cómo queda
   if (c.cargada) {
@@ -2106,6 +2202,7 @@ function renderPoceadaAdmin() {
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" class="form-input" id="poceada-ganadores" maxlength="80" placeholder="Ej: Sin ganadores · 2 ganadores con 8 aciertos" value="${gan.replace(/"/g, '&quot;')}" style="flex:1;min-width:200px;">
       <button class="btn btn-ghost" id="btn-guardar-ganadores" style="padding:10px 14px;" onclick="guardarGanadoresPoceada()">💾 Guardar</button>
+      <span id="poceada-ganadores-sin-guardar" style="display:none;align-self:center;color:var(--gold);font-size:12px;font-weight:600;">✏️ Sin guardar</span>
     </div>`;
   // Sorteo suspendido
   h += `<details ${movido ? 'open' : ''} style="border-top:1px solid var(--border);padding-top:10px;">
@@ -2116,12 +2213,42 @@ function renderPoceadaAdmin() {
       <div><label class="form-label">Turno</label><select class="form-input" id="poceada-turno-real">${POCEADA_TURNOS.map(t => `<option value="${t[0]}" ${t[0] === p.turno ? 'selected' : ''}>${t[1]}</option>`).join('')}</select></div>
       <button class="btn btn-ghost" id="btn-guardar-fecha-poceada" style="padding:10px 14px;" onclick="guardarFechaPoceada()">💾 Guardar día y turno</button>
       ${movido ? '<button class="btn btn-ghost" id="btn-volver-normal-poceada" style="padding:10px 14px;" onclick="volverNormalPoceada()">↩ Volver a lo normal</button>' : ''}
+      <span id="poceada-fecha-sin-guardar" style="display:none;align-self:center;color:var(--gold);font-size:12px;font-weight:600;">✏️ Sin guardar</span>
     </div>
   </details>`;
   cont.innerHTML = h;
+  poceadaRestaurarBorrador(p, foco, detallesAbiertos);
 }
 
-async function poceadaGuardar(campos, mensajeOk) {
+// Después de redibujar: vuelve a poner lo que se estaba escribiendo y todavía no se guardó, y
+// deja el cursor donde estaba (así, si se redibuja mientras alguien escribe, no pierde nada)
+function poceadaRestaurarBorrador(p, foco, detallesAbiertos) {
+  const b = poceadaBorrador;
+  if (p && p.sorteo && b.sorteo === p.sorteo) {
+    const gan = document.getElementById('poceada-ganadores');
+    if (gan && b.ganadores !== null) gan.value = b.ganadores;
+    const faltantes = document.querySelectorAll('#poceada-contenido .poceada-faltante');
+    if (b.faltantes !== null && b.faltantesClave === poceadaClaveFaltantes(p) && faltantes.length === b.faltantes.length) {
+      faltantes.forEach((el, i) => { el.value = b.faltantes[i]; });
+    }
+    const fecha = document.getElementById('poceada-fecha-real'), turno = document.getElementById('poceada-turno-real');
+    if (fecha && turno && b.fecha !== null) { fecha.value = b.fecha; turno.value = b.turno; }
+  }
+  const detalles = document.querySelector('#poceada-contenido details');
+  if (detalles && (detallesAbiertos || (p && p.sorteo && b.sorteo === p.sorteo && b.fecha !== null))) detalles.open = true;
+  if (foco) {
+    const el = document.getElementById(foco.id);
+    if (el) {
+      el.focus({ preventScroll: true });
+      if (foco.ini !== null && foco.ini !== undefined) { try { el.setSelectionRange(foco.ini, foco.fin); } catch (e) { /* sin cursor */ } }
+    }
+  }
+  poceadaMarcarSinGuardar();
+}
+
+// alGuardar: se llama solo si se guardó bien, antes de volver a leer (para olvidar lo escrito de
+// lo que se acaba de guardar; si falló, lo escrito queda en su casillero para volver a intentar)
+async function poceadaGuardar(campos, mensajeOk, alGuardar) {
   if (guardandoPoceada || !poceadaAdmin || !poceadaAdmin.sorteo || !usuarioActual) return false;
   guardandoPoceada = true;
   document.querySelectorAll('#poceada-contenido button').forEach(b => { b.disabled = true; });
@@ -2134,7 +2261,7 @@ async function poceadaGuardar(campos, mensajeOk) {
       body: JSON.stringify([{ agencia_id: agencia, fecha: poceadaAdmin.sorteo, ...campos, actualizado_en: new Date().toISOString(), actualizado_por: usuarioActual.nombre }])
     });
     ok = res.ok;
-    if (ok) showToast(mensajeOk, 'ok');
+    if (ok) { if (alGuardar) alGuardar(); showToast(mensajeOk, 'ok'); }
     else { console.error('No se pudo guardar la Poceada', res.status); showToast('⚠️ No se pudo guardar — probá de nuevo', 'err'); }
   } catch (e) {
     console.error(e);
@@ -2153,13 +2280,21 @@ async function confirmarPoceada() {
   if (valores.length !== p.calc.faltan || valores.some(v => !/^\d{2}$/.test(v))) { showToast('Escribí cada número con 2 cifras (de 00 a 99)', 'err'); return; }
   if (new Set(p.calc.base.concat(valores)).size !== 10) { showToast('Ese número ya está en la Poceada (o lo escribiste dos veces): revisá el extracto oficial', 'err'); return; }
   await poceadaGuardar({ base: p.calc.base, faltantes: valores, confirmado: true },
-    panelMostrarPoceada ? '✅ Poceada confirmada: ya se ve en la TV' : '✅ Poceada confirmada (el tilde "Mostrar la Poceada" está apagado)');
+    panelMostrarPoceada ? '✅ Poceada confirmada: ya se ve en la TV' : '✅ Poceada confirmada (el tilde "Mostrar la Poceada" está apagado)',
+    () => {
+      const b = poceadaBorrador;
+      if (b.faltantes !== null && b.faltantes.map(v => v.trim()).join(',') === valores.join(',')) { b.faltantes = null; b.faltantesClave = null; }
+    });
 }
 
 async function guardarGanadoresPoceada() {
   const el = document.getElementById('poceada-ganadores');
   if (!el) return;
-  await poceadaGuardar({ ganadores: el.value.trim() }, el.value.trim() ? '✅ Línea de ganadores guardada' : '✅ Línea de ganadores borrada');
+  const texto = el.value.trim();
+  await poceadaGuardar({ ganadores: texto }, texto ? '✅ Línea de ganadores guardada' : '✅ Línea de ganadores borrada', () => {
+    const b = poceadaBorrador;
+    if (b.ganadores !== null && b.ganadores.trim() === texto) b.ganadores = null;
+  });
 }
 
 async function guardarFechaPoceada() {
@@ -2170,13 +2305,22 @@ async function guardarFechaPoceada() {
   if (!fecha) { showToast('Elegí el día en que se hizo el sorteo', 'err'); return; }
   if (fecha < p.sorteo || fecha > p.hoy) { showToast(`El día tiene que ser entre el ${poceadaFechaTexto(p.sorteo).toLowerCase()} y hoy`, 'err'); return; }
   const normal = fecha === p.sorteo && turno === 'nocturna';
-  // Cambia de dónde salen los números: lo que se había confirmado ya no vale
+  // Cambia de dónde salen los números: lo que se había confirmado ya no vale (ni lo escrito en
+  // "números que faltan", que era para los números de antes)
   await poceadaGuardar({ fecha_real: normal ? null : fecha, sorteo_real: normal ? null : turno, confirmado: false, base: [], faltantes: [] },
-    normal ? '✅ Día y turno normales' : `✅ Guardado: la Poceada se arma con la Chaqueña ${poceadaTurnoTexto(turno)} del ${poceadaFechaTexto(fecha).toLowerCase()}`);
+    normal ? '✅ Día y turno normales' : `✅ Guardado: la Poceada se arma con la Chaqueña ${poceadaTurnoTexto(turno)} del ${poceadaFechaTexto(fecha).toLowerCase()}`,
+    () => {
+      const b = poceadaBorrador;
+      if (b.fecha === fecha && b.turno === turno) { b.fecha = null; b.turno = null; }
+      b.faltantes = null; b.faltantesClave = null;
+    });
 }
 
 async function volverNormalPoceada() {
-  await poceadaGuardar({ fecha_real: null, sorteo_real: null, confirmado: false, base: [], faltantes: [] }, '✅ Volvió al día y al turno normales');
+  await poceadaGuardar({ fecha_real: null, sorteo_real: null, confirmado: false, base: [], faltantes: [] }, '✅ Volvió al día y al turno normales', () => {
+    const b = poceadaBorrador;
+    b.fecha = null; b.turno = null; b.faltantes = null; b.faltantesClave = null;
+  });
 }
 
 // Copia de panelLimites de index.html
@@ -2205,6 +2349,8 @@ function panelTamDesdeCfg(cfg) {
     numeroSemana: leer(['panel-numero-semana', 'panel-numero'], D.numeroSemana, 1, 999),
     tituloPoceada: leer(['panel-titulo-poceada', 'panel-titulo'], D.tituloPoceada, 1, 999),
     margenSemana: leer(['panel-margen-semana'], D.margenSemana, 0, 999),
+    poceadaJusta: leer(['panel-poceada-justa'], D.poceadaJusta ? 1 : 0, 0, 1) === 1,
+    margenPoceada: leer(['panel-margen-poceada'], D.margenPoceada, 0, 999),
     altoPoceada: leer(['panel-alto-poceada'], D.altoPoceada, 10, 90)
   };
 }
@@ -2219,8 +2365,10 @@ function panelLimitesParte(tam, tipo) {
 // que se ven ('dia', 'semana' o 'poceada'); altoPanel: el alto del panel en px; tam: los tamaños
 // del panel; f: la escala (1 en la TV, menos en las vistas previas del admin).
 // El pálpito semanal ocupa solo lo que necesita (su título, su número y el margen elegido arriba
-// y abajo), la Poceada su porcentaje del alto del panel y el favorito de hoy todo lo que sobra.
-// Si no está el favorito, lo que sobra va al pálpito; si hay una sola parte, ocupa todo el panel.
+// y abajo); la Poceada, según Superadmin → Visual, también solo lo que necesita (su franja, sus
+// números y, si hay, la línea de ganadores, con el margen elegido) o un porcentaje fijo del alto
+// del panel; y el favorito de hoy todo lo que sobra. Si no está el favorito, lo que sobra va al
+// pálpito; si hay una sola parte, ocupa todo el panel.
 // La parte que se queda con lo que sobra nunca baja del 25 % del panel (aunque se configure la
 // Poceada muy alta y el margen del pálpito muy grande): en ese caso cede la Poceada, que achica
 // sola sus letras.
@@ -2229,17 +2377,37 @@ function panelLimitesParte(tam, tipo) {
 function repartirAltoPanel(partes, altoPanel, tam, f) {
   const resto = partes.find(p => p.tipo === 'dia') || partes.find(p => p.tipo === 'semana') || partes[0];
   partes.forEach(p => {
-    const compacto = p !== resto && p.tipo === 'semana';
+    const semanaJusta = p !== resto && p.tipo === 'semana';
+    const poceadaJusta = p !== resto && p.tipo === 'poceada' && tam.poceadaJusta;
     if (p === resto) p.bloque.style.flex = '1 1 0';
-    else if (compacto) p.bloque.style.flex = '0 0 auto';
+    else if (semanaJusta) p.bloque.style.flex = '0 0 auto';
+    else if (poceadaJusta) p.bloque.style.flex = '0 1 auto'; // si no hay lugar, cede y achica sus letras
     else p.bloque.style.flex = `0 1 ${Math.round(altoPanel * tam.altoPoceada / 100)}px`;
     p.bloque.style.minHeight = (p === resto && partes.length > 1) ? Math.round(altoPanel * 0.25) + 'px' : '0px';
-    p.cuerpo.style.flex = compacto ? '0 0 auto' : '1 1 0%';
-    const vertical = Math.round((compacto ? tam.margenSemana : 24) * f) + 'px';
+    p.cuerpo.style.flex = semanaJusta ? '0 0 auto' : (poceadaJusta ? '1 1 auto' : '1 1 0%');
+    const vertical = Math.round((semanaJusta ? tam.margenSemana : poceadaJusta ? tam.margenPoceada : 24) * f) + 'px';
     p.cuerpo.style.paddingTop = vertical;
     p.cuerpo.style.paddingBottom = vertical;
   });
   return partes.filter(p => p !== resto).concat(resto ? [resto] : []);
+}
+
+// La franja dorada de cada parte va en un solo renglón: si el título no entra a lo ancho, la
+// letra se achica sola (de a 1 px, hasta tamMin). Devuelve el tamaño con que quedó.
+// Copia de ajustarTituloPanel de index.html (OJO: si se cambia una, cambiar la otra).
+function ajustarTituloPanel(titulo, tamMax, tamMin) {
+  let tam = tamMax;
+  titulo.style.fontSize = tam + 'px';
+  if (!titulo.clientWidth) return tam; // oculto: no se puede medir
+  while (tam > tamMin && titulo.scrollWidth > titulo.clientWidth + 1) {
+    tam -= 1;
+    titulo.style.fontSize = tam + 'px';
+  }
+  return tam;
+}
+// El tamaño elegido para la franja de cada parte
+function panelTamTitulo(tam, tipo) {
+  return tipo === 'poceada' ? tam.tituloPoceada : (tipo === 'semana' ? tam.tituloSemana : tam.tituloDia);
 }
 
 // Copia de ajustarTextoPanel de index.html: el número va en un renglón, lo más grande que
@@ -2638,7 +2806,8 @@ function actualizarPreviewPanel() {
   const ancho = (panelTamAgencia && panelTamAgencia.ancho) || PANEL_ANCHO_DEFECTO;
   const ancho_preview = cont.clientWidth || 220;
   const f = ancho_preview / ancho;
-  cont.style.height = Math.max(360, Math.min(680, Math.round(PANEL_ALTO_TV * f))) + 'px';
+  const altoTV = (panelTamAgencia && panelTamAgencia.sinMarca) ? PANEL_ALTO_TV_SIN_MARCA : PANEL_ALTO_TV;
+  cont.style.height = Math.max(360, Math.min(680, Math.round(altoTV * f))) + 'px';
 
   const { fecha, filaDia } = panelDatosPreview();
   const mostrarDia = document.getElementById('panel-mostrar-dia').checked;
@@ -2647,7 +2816,7 @@ function actualizarPreviewPanel() {
   const partes = panelPartes(fecha, filaDia, panelLeerSemanas(), mostrarDia, mostrarSemana, sinSorteos);
   const mostrarPoceada = document.getElementById('panel-mostrar-poceada').checked;
   if (mostrarPoceada && poceadaAdmin && poceadaAdmin.numeros) {
-    partes.push({ tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(poceadaAdmin.fechaReal), numeros: poceadaAdmin.numeros, ganadores: ((poceadaAdmin.fila && poceadaAdmin.fila.ganadores) || '').trim() });
+    partes.push({ tipo: 'poceada', titulo: 'POCEADA - ' + poceadaEtiquetaFecha(poceadaAdmin.fechaReal), numeros: poceadaAdmin.numeros, ganadores: ((poceadaAdmin.fila && poceadaAdmin.fila.ganadores) || '').trim() });
   }
   if (titulo) titulo.textContent = fecha ? `Vista previa — ${panelEtiquetaFecha(fecha)}` : 'Vista previa aproximada';
 
@@ -2671,17 +2840,16 @@ function actualizarPreviewPanel() {
 // Superadmin → Visual): el mismo armado, el mismo reparto del alto y las mismas letras que la
 // TV, todo multiplicado por f. partes: como las de la TV ({ tipo: 'dia' | 'semana', titulo,
 // numero, descripcion } o la Poceada); tam: letra y alto de cada parte (panelTamDesdeCfg);
-// tamPc: letra de la Poceada (día, números y ganadores).
+// tamPc: letra de la Poceada (números y ganadores).
 function dibujarPanelEscalado(cont, partes, tam, tamPc, f) {
   const px = v => Math.max(1, Math.round(v * f));
-  const titulo = (texto, t) => `<div style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(t)}px;letter-spacing:${px(2)}px;flex-shrink:0;">${tabEsc(texto)}</div>`;
+  const titulo = (texto, t) => `<div class="pp-titulo" style="background:#ffd700;color:#000;text-align:center;padding:${px(6)}px ${px(8)}px;font-family:'Bebas Neue',sans-serif;font-size:${px(t)}px;letter-spacing:${px(2)}px;white-space:nowrap;overflow:hidden;flex-shrink:0;">${tabEsc(texto)}</div>`;
   const cuerpo = `<div class="pp-cuerpo" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${px(24)}px ${px(18)}px;overflow:hidden;text-align:center;"><div class="pp-contenido" style="width:100%;">`;
   cont.innerHTML = partes.map((p, k) => {
     const tipo = p.tipo === 'poceada' ? 'poceada' : (p.tipo === 'semana' ? 'semana' : 'dia');
     let h = `<div class="pp-bloque pp-bloque-${tipo}" data-tipo="${tipo}" style="flex:1 1 0;min-height:0;display:flex;flex-direction:column;${k > 0 ? `border-top:${Math.max(1, px(2))}px solid #ffd700;` : ''}">`;
     if (tipo === 'poceada') {
       h += titulo(p.titulo, tam.tituloPoceada) + cuerpo;
-      h += `<div class="pp-pc-fecha" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;letter-spacing:${px(1)}px;line-height:1.2;white-space:nowrap;margin-bottom:0.45em;">${tabEsc(p.fecha)}</div>`;
       h += `<div class="pp-pc-numeros" style="display:grid;grid-template-columns:repeat(5,auto);justify-content:center;column-gap:0.4em;row-gap:0.05em;font-family:'Oswald',sans-serif;font-weight:700;color:#ffd700;line-height:1.15;">${p.numeros.map(n => `<span>${tabEsc(n)}</span>`).join('')}</div>`;
       if (p.ganadores) h += `<div class="pp-pc-ganadores" style="font-family:'DM Sans',sans-serif;font-weight:700;color:#fff;line-height:1.25;margin-top:0.7em;white-space:pre-line;overflow-wrap:break-word;">${tabEsc(p.ganadores)}</div>`;
       return h + '</div></div></div>';
@@ -2694,11 +2862,16 @@ function dibujarPanelEscalado(cont, partes, tam, tamPc, f) {
     return h + '</div></div></div>';
   }).join('');
   const bloques = Array.from(cont.querySelectorAll('.pp-bloque')).map(b => ({ bloque: b, cuerpo: b.querySelector('.pp-cuerpo'), tipo: b.dataset.tipo }));
+  // Igual que la TV: primero las franjas doradas (en un renglón; si no entran, se achican)
+  bloques.forEach(p => {
+    const t = p.bloque.querySelector('.pp-titulo');
+    if (t) ajustarTituloPanel(t, px(panelTamTitulo(tam, p.tipo)), px(8));
+  });
   repartirAltoPanel(bloques, cont.clientHeight, tam, f).forEach(p => {
     const b = p.bloque;
     if (p.tipo === 'poceada') {
-      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.pp-contenido'), b.querySelector('.pp-pc-fecha'), b.querySelector('.pp-pc-numeros'), b.querySelector('.pp-pc-ganadores'),
-        { fecha: px(tamPc.fecha), numeros: px(tamPc.numeros), ganadores: px(tamPc.ganadores) });
+      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.pp-contenido'), b.querySelector('.pp-pc-numeros'), b.querySelector('.pp-pc-ganadores'),
+        { numeros: px(tamPc.numeros), ganadores: px(tamPc.ganadores) });
       return;
     }
     const lim = panelLimitesParte({ numeroDia: px(tam.numeroDia), numeroSemana: px(tam.numeroSemana), descripcion: px(tam.descripcion) }, p.tipo);
@@ -2776,7 +2949,8 @@ async function cargarPanel() {
   // El ancho y la letra solo se usan para la vista previa: si no se pudieron leer, van los de siempre
   const cfgVisual = {};
   (filasVisual || []).forEach(r => { cfgVisual[r.clave] = r.valor; });
-  panelTamAgencia = { tam: panelTamDesdeCfg(cfgVisual), tamPoceada: poceadaTamDesdeCfg(cfgVisual), ancho: parseInt(cfgVisual['ancho-panel'], 10) || PANEL_ANCHO_DEFECTO };
+  panelTamAgencia = { tam: panelTamDesdeCfg(cfgVisual), tamPoceada: poceadaTamDesdeCfg(cfgVisual), ancho: parseInt(cfgVisual['ancho-panel'], 10) || PANEL_ANCHO_DEFECTO,
+    sinMarca: parseInt(cfgVisual['mostrar-marca'], 10) === 0 };
   panelGuardadas = filasDias
     .filter(f => f.fecha >= lunesRef)
     .map(f => ({ ...panelNormalizarDia(f), actualizado_en: f.actualizado_en || null, actualizado_por: f.actualizado_por || '' }))
@@ -2962,6 +3136,7 @@ function reiniciarPanel() {
   panelMostrarSemana = true;
   panelMostrarPoceada = false;
   poceadaAdmin = null;
+  poceadaBorrador = poceadaBorradorVacio(null);
   tokenCargaPoceada++;
   const pcCont = document.getElementById('poceada-contenido');
   if (pcCont) pcCont.innerHTML = 'Cargando...';
@@ -3287,8 +3462,9 @@ function tabFechaNatural(now) {
 
 // Trae todo lo que muestra la TV para esa fecha y sorteo. Devuelve null si alguna consulta
 // falla: así nunca se arma una imagen con datos incompletos para mandarle a un cliente.
-async function cargarDatosTablero(fecha, sorteo) {
-  const ag = encodeURIComponent(usuarioActual.agencia_id);
+// agencia: la de quien está logueado ("Copiar tablero") u otra (Superadmin → Visual).
+async function cargarDatosTablero(fecha, sorteo, agencia = usuarioActual.agencia_id) {
+  const ag = encodeURIComponent(agencia);
   const hoy = hoyStr();
   const desde = tabSumarDias(fecha < hoy ? fecha : hoy, -35);
   const hasta = fecha > hoy ? fecha : hoy;
@@ -3298,7 +3474,7 @@ async function cargarDatosTablero(fecha, sorteo) {
     consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${fecha}&sorteo=eq.${sorteo}&agencia_id=eq.${ag}&select=numero_sorteo`),
     consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_visual?agencia_id=eq.${ag}`),
     consultarJson(`${SUPABASE_URL}/rest/v1/configuracion_sorteos?fecha_especial=gte.${desde}&fecha_especial=lte.${hasta}&select=fecha_especial,sorteo,activo`),
-    resolverCantidadPorProvincia(usuarioActual.agencia_id, sorteo, usuarioActual.token),
+    resolverCantidadPorProvincia(agencia, sorteo, usuarioActual.token),
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel?agencia_id=eq.${ag}&select=*`),
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_dias?agencia_id=eq.${ag}&fecha=eq.${hoy}&select=titulo,numero,descripcion`),
     consultarJson(`${SUPABASE_URL}/rest/v1/tablero_panel_semanas?agencia_id=eq.${ag}&lunes=eq.${lunesVigente}&select=lunes,titulo,numero`)
@@ -3372,14 +3548,16 @@ async function cargarDatosTablero(fecha, sorteo) {
     panelSemanaFilas.map(panelNormalizarSemana), mostrarDia, mostrarSemana, !hoyConSorteos);
   // Poceada: la misma que muestra la TV ahora (solo se consulta si el tilde está prendido)
   if (panelMostrarFilas[0] && panelMostrarFilas[0].mostrar_poceada === true) {
-    const pc = await poceadaLeer(usuarioActual.agencia_id);
+    const pc = await poceadaLeer(agencia);
     if (pc === null) return null;
-    if (pc.numeros) partesPanel.push({ tipo: 'poceada', titulo: 'POCEADA', fecha: poceadaEtiquetaFecha(pc.fechaReal), numeros: pc.numeros, ganadores: ((pc.fila && pc.fila.ganadores) || '').trim() });
+    if (pc.numeros) partesPanel.push({ tipo: 'poceada', titulo: 'POCEADA - ' + poceadaEtiquetaFecha(pc.fechaReal), numeros: pc.numeros, ganadores: ((pc.fila && pc.fila.ganadores) || '').trim() });
   }
 
   return {
-    fecha, sorteo, numeros, cabezas, nombres, cfg, live,
+    fecha, sorteo, numeros, cabezas, nombres, cfg, live, mapa,
     conConfig: config.length > 0,
+    // Marca arriba a la derecha: prendida si no se configuró (igual que index.html)
+    mostrarMarca: parseInt(cfg['mostrar-marca'], 10) !== 0,
     nroSorteo: (info[0] && info[0].numero_sorteo) ? info[0].numero_sorteo : '',
     cantidades,
     panel: partesPanel,
@@ -3402,6 +3580,9 @@ const TVC_CSS = `
 .tvc-header-sorteo { grid-row:1; grid-column:1; min-width:0; padding:2px 0 5px; }
 .tvc-header-marca { grid-row:1; grid-column:2; padding:2px 12px 5px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
 .tvc-zona-derecha.sin-panel .tvc-tabla { grid-column:1 / -1; }
+.tvc-zona-derecha.sin-marca .tvc-header-marca { display:none; }
+.tvc-zona-derecha.sin-marca .tvc-franja-roja { grid-column:1; }
+.tvc-zona-derecha.sin-marca .tvc-panel { grid-row:1 / -1; }
 .tvc-marca-box { text-align:center; }
 .tvc-marca-principal { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:#ffd700; line-height:1; }
 .tvc-marca-frase { font-size:9px; color:#fff; letter-spacing:1px; text-transform:uppercase; }
@@ -3440,13 +3621,12 @@ const TVC_CSS = `
 .tvc-panel { grid-row:2; grid-column:2; width:340px; background:#0d0500; border-left:2px solid #ffd700; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
 .tvc-panel-bloque { flex:1 1 0; min-height:0; display:flex; flex-direction:column; }
 .tvc-panel-bloque + .tvc-panel-bloque { border-top:2px solid #ffd700; }
-.tvc-panel-titulo { background:#ffd700; color:#000; text-align:center; padding:6px 8px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; flex-shrink:0; }
+.tvc-panel-titulo { background:#ffd700; color:#000; text-align:center; padding:6px 8px; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; white-space:nowrap; overflow:hidden; flex-shrink:0; }
 .tvc-panel-cuerpo { flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px 18px; overflow:hidden; text-align:center; }
 .tvc-panel-contenido { width:100%; }
 .tvc-panel-numero { font-family:'Oswald',sans-serif; font-weight:700; color:#ffd700; font-size:120px; line-height:1.1; letter-spacing:2px; white-space:nowrap; overflow-wrap:break-word; }
 .tvc-panel-separador { width:40%; height:2px; background:rgba(255,215,0,0.45); margin:22px auto; }
 .tvc-panel-descripcion { font-family:'DM Sans',sans-serif; font-weight:700; color:#fff; font-size:30px; line-height:1.25; white-space:pre-line; overflow-wrap:break-word; }
-.tvc-poceada-fecha { font-family:'DM Sans',sans-serif; font-weight:700; color:#fff; font-size:24px; letter-spacing:1px; line-height:1.2; white-space:nowrap; margin-bottom:0.45em; }
 .tvc-poceada-numeros { display:grid; grid-template-columns:repeat(5,auto); justify-content:center; column-gap:0.4em; row-gap:0.05em; font-family:'Oswald',sans-serif; font-weight:700; color:#ffd700; font-size:44px; line-height:1.15; }
 .tvc-poceada-ganadores { font-family:'DM Sans',sans-serif; font-weight:700; color:#fff; font-size:20px; line-height:1.25; margin-top:0.7em; white-space:pre-line; overflow-wrap:break-word; }
 .tvc-footer { background:#0d0500; border-top:1px solid rgba(255,215,0,0.25); padding:4px 16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -3493,7 +3673,6 @@ function htmlTablero(d) {
         let h = '<div class="tvc-panel-bloque tvc-panel-bloque-poceada">';
         h += `<div class="tvc-panel-titulo">${tabEsc(p.titulo)}</div>`;
         h += '<div class="tvc-panel-cuerpo"><div class="tvc-panel-contenido">';
-        h += `<div class="tvc-poceada-fecha">${tabEsc(p.fecha)}</div>`;
         h += `<div class="tvc-poceada-numeros">${p.numeros.map(n => `<span>${tabEsc(n)}</span>`).join('')}</div>`;
         if (p.ganadores) h += `<div class="tvc-poceada-ganadores">${tabEsc(p.ganadores)}</div>`;
         return h + '</div></div></div>';
@@ -3509,11 +3688,12 @@ function htmlTablero(d) {
   }
 
   // Mismo armado que index.html: cabezas de arriba hasta el pie; a la derecha, la franja del
-  // sorteo (del ancho de la tabla) y la marca centrada arriba; abajo la tabla y el panel.
+  // sorteo (del ancho de la tabla) y la marca centrada arriba (si está apagada, el panel ocupa
+  // todo el alto); abajo la tabla y el panel.
   return `
 <div class="tvc-pantalla">
   <div class="tvc-cabezas"><div class="tvc-cabezas-header">ÚLTIMAS CABEZAS</div><div>${cabezas}</div></div>
-  <div class="tvc-zona-derecha${panel ? '' : ' sin-panel'}">
+  <div class="tvc-zona-derecha${panel ? '' : ' sin-panel'}${d.mostrarMarca === false ? ' sin-marca' : ''}">
     <div class="tvc-franja-roja"></div>
     <div class="tvc-header-sorteo"><div class="tvc-badge ${d.live ? 'sorteando' : 'finalizado'}"><div class="tvc-badge-name">${TAB_LABELS[d.sorteo]}</div><div class="tvc-fecha">${fechaTxt}</div><div class="tvc-nsorteo">${d.nroSorteo ? 'SORTEO N° ' + tabEsc(d.nroSorteo) : ''}</div><div class="${d.live ? 'tvc-live' : 'tvc-done'}">${d.live ? 'SORTEANDO' : '✓ FINALIZADO'}</div></div></div>
     <div class="tvc-header-marca"><div class="tvc-marca-box"><div class="tvc-marca-principal">QUINIELA SAGUIR</div><div class="tvc-marca-frase">Para Saguir Ganando</div></div></div>
@@ -3542,10 +3722,7 @@ function cssDinamicoTablero(d) {
 .tvc .tvc-badge { --tam-nombre: ${c['franja-sorteo'] || '26px'}; --tam-fecha: ${c['franja-fecha'] || '20px'}; --tam-nro: ${c['franja-numero'] || '22px'}; --tam-estado: ${c['franja-estado'] || '20px'}; }
 .tvc .tvc-cab-title { font-size: ${c['titulo-sorteos'] || '12px'} !important; }
 .tvc .tvc-cabezas { width: ${c['ancho-cabezas'] || '240px'} !important; }
-.tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }
-.tvc .tvc-panel-bloque-dia .tvc-panel-titulo { font-size: ${d.tamPanel.tituloDia}px !important; }
-.tvc .tvc-panel-bloque-semana .tvc-panel-titulo { font-size: ${d.tamPanel.tituloSemana}px !important; }
-.tvc .tvc-panel-bloque-poceada .tvc-panel-titulo { font-size: ${d.tamPanel.tituloPoceada}px !important; }`;
+.tvc .tvc-panel { width: ${c['ancho-panel'] || '340px'} !important; }`;
 }
 
 // Las letras de la TV (algunas no las usa admin). Se cargan una sola vez, la primera vez que
@@ -3556,11 +3733,12 @@ function cargarFuentesTablero() {
     fuentesTableroPromise = (async () => {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&display=swap';
+      link.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700;900&family=Oswald:wght@700&family=JetBrains+Mono:wght@400;700&display=swap';
       await new Promise(res => { link.onload = res; link.onerror = res; setTimeout(res, 5000); document.head.appendChild(link); });
       try {
         await Promise.race([
-          Promise.all(['20px "Bebas Neue"', '400 20px "DM Sans"', '600 11px "DM Sans"', '700 12px "DM Sans"', '900 26px "DM Sans"', '700 22px "Oswald"']
+          Promise.all(['20px "Bebas Neue"', '400 20px "DM Sans"', '600 11px "DM Sans"', '700 12px "DM Sans"', '900 26px "DM Sans"', '700 22px "Oswald"',
+            '400 20px "JetBrains Mono"', '700 20px "JetBrains Mono"']
             .map(f => document.fonts.load(f))),
           new Promise(res => setTimeout(res, 5000))
         ]);
@@ -3689,7 +3867,9 @@ function ajustarFranjaTablero(badge) {
   }
 }
 
-function dibujarTablero(d) {
+// Arma la copia de la pantalla (1920 × 1080, fuera de la vista) con los mismos ajustes que la
+// TV, y la deja puesta para medirla o pintarla. Quien la pide la tiene que sacar (cont.remove()).
+function armarTableroEnPantalla(d) {
   let estilo = document.getElementById('tvc-estilo');
   if (!estilo) {
     estilo = document.createElement('style');
@@ -3710,17 +3890,21 @@ function dibujarTablero(d) {
   cont.setAttribute('aria-hidden', 'true');
   cont.innerHTML = htmlTablero(d);
   document.body.appendChild(cont);
-  // Igual que la TV: se reparte el alto entre las partes del panel y en cada una el número y la
-  // descripción se achican si no entran
+  // Igual que la TV: las franjas doradas en un renglón (se achican si no entran), se reparte el
+  // alto entre las partes del panel y en cada una el número y la descripción se achican si no entran
   const colPanel = cont.querySelector('.tvc-panel');
   const partesPanel = Array.from(cont.querySelectorAll('.tvc-panel-bloque')).map(b => ({
     bloque: b, cuerpo: b.querySelector('.tvc-panel-cuerpo'),
     tipo: b.classList.contains('tvc-panel-bloque-poceada') ? 'poceada' : b.classList.contains('tvc-panel-bloque-semana') ? 'semana' : 'dia'
   }));
+  partesPanel.forEach(p => {
+    const titulo = p.bloque.querySelector('.tvc-panel-titulo');
+    if (titulo) ajustarTituloPanel(titulo, panelTamTitulo(d.tamPanel, p.tipo), 8);
+  });
   repartirAltoPanel(partesPanel, colPanel ? colPanel.clientHeight : 0, d.tamPanel, 1).forEach(p => {
     const b = p.bloque;
     if (p.tipo === 'poceada') {
-      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.tvc-panel-contenido'), b.querySelector('.tvc-poceada-fecha'),
+      ajustarPoceadaPanel(p.cuerpo, b.querySelector('.tvc-panel-contenido'),
         b.querySelector('.tvc-poceada-numeros'), b.querySelector('.tvc-poceada-ganadores'), d.tamPoceada || POCEADA_TAM_DEFECTO);
       return;
     }
@@ -3728,6 +3912,11 @@ function dibujarTablero(d) {
       b.querySelector('.tvc-panel-numero'), b.querySelector('.tvc-panel-descripcion'), panelLimitesParte(d.tamPanel, p.tipo));
   });
   ajustarFranjaTablero(cont.querySelector('.tvc-badge'));
+  return cont;
+}
+
+function dibujarTablero(d) {
+  const cont = armarTableroEnPantalla(d);
   try { return pintarTablero(cont); }
   finally { cont.remove(); }
 }
@@ -4477,7 +4666,11 @@ async function guardarTodoInterno() {
 // =====================
 let cargarExistentesToken = 0; // se usa para detectar y descartar respuestas
                                  // desactualizadas cuando se cambia de pestaña rápido
-async function cargarExistentes() {
+// silencioso = true: no muestra ningún aviso (ni "📋 Datos existentes cargados" ni el de error).
+// Se usa cuando la carga se recarga por detrás después de guardar en Superadmin → Visual, para
+// no tapar el "✅ ... guardada"; ahí quien llama se fija si devolvió false (no se pudo traer).
+async function cargarExistentes(silencioso = false) {
+  silencioso = silencioso === true; // desde un botón llega el evento: eso no es "silencioso"
   if (bloqueoActual.bloqueado) return; // no mostrar nada mientras esté bloqueado
   const fecha = document.getElementById('fecha-sel').value;
   const sorteoDeEstaLlamada = sorteoActual; // se congela ACÁ, no se vuelve a leer después del await
@@ -4499,8 +4692,8 @@ async function cargarExistentes() {
     // "00000" como si no hubiera nada — y alguien podía ponerse a cargar todo de nuevo.
     // Ahora se avisa y no se toca nada (valoresAlCargar queda vacío: un guardado en este
     // estado nunca borra posiciones que no se ven).
-    showToast('⚠️ No se pudieron traer los datos publicados — tocá "🔄 Cargar existentes" en unos segundos', 'err');
-    return;
+    if (!silencioso) showToast('⚠️ No se pudieron traer los datos publicados — tocá "🔄 Cargar existentes" en unos segundos', 'err');
+    return false;
   }
 
   valoresAlCargar = {};
@@ -4515,7 +4708,8 @@ async function cargarExistentes() {
   // grilla con "----"), para dejar claro que todavía no se cargó uno real.
   document.getElementById('num-sorteo').value = (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) ? sorteoInfo[0].numero_sorteo : '';
   if (sorteoInfo[0] && sorteoInfo[0].numero_sorteo) numeroSorteoGuardado[`${fecha}_${sorteoDeEstaLlamada}`] = sorteoInfo[0].numero_sorteo;
-  if (rows.length > 0 || sorteoInfo.length > 0) showToast('📋 Datos existentes cargados','ok');
+  if (!silencioso && (rows.length > 0 || sorteoInfo.length > 0)) showToast('📋 Datos existentes cargados','ok');
+  return true;
 }
 
 // =====================
@@ -5135,10 +5329,41 @@ async function cargarActividad() {
 // =====================
 // CONFIGURACIÓN VISUAL
 // =====================
-const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'prov-header':'18', 'franja-sorteo':'26', 'franja-fecha':'20', 'franja-numero':'22', 'franja-estado':'20', 'poceada-fecha':'24', 'poceada-numeros':'44', 'poceada-ganadores':'20', 'ancho-cabezas':'240', 'ancho-panel':'340',
+const DEFAULTS_VISUAL = { primero:'34', normal:'22', cabeza:'18', prov:'14', 'titulo-cabezas':'20', 'titulo-sorteos':'12', 'prov-header':'18', 'franja-sorteo':'26', 'franja-fecha':'20', 'franja-numero':'22', 'franja-estado':'20', 'poceada-numeros':'44', 'poceada-ganadores':'20', 'ancho-cabezas':'240', 'ancho-panel':'340',
   'panel-titulo-dia':'20', 'panel-numero-dia':'120', 'panel-descripcion':'30',
   'panel-titulo-semana':'20', 'panel-numero-semana':'120', 'panel-margen-semana':'14',
-  'panel-titulo-poceada':'20', 'panel-alto-poceada':'33', tv:'1.0' };
+  'panel-titulo-poceada':'20', 'panel-margen-poceada':'14', 'panel-alto-poceada':'33', tv:'1.0' };
+
+// Opciones de Visual que no son barritas: se guardan como '1' (sí) o '0' (no). Si una agencia
+// nunca las guardó, la TV usa el valor "defecto".
+const OPCIONES_VISUAL = {
+  'panel-poceada-justa': { id: 'opt-panel-poceada-justa', defecto: '1' }, // Poceada: solo lo que necesita ('1') o porcentaje fijo ('0')
+  'mostrar-marca': { id: 'opt-mostrar-marca', defecto: '1' }               // marca "QUINIELA SAGUIR" arriba a la derecha
+};
+function leerOpcionVisual(clave) {
+  const o = OPCIONES_VISUAL[clave], el = document.getElementById(o.id);
+  if (!el) return o.defecto;
+  if (el.type === 'checkbox') return el.checked ? '1' : '0';
+  return el.value === '0' ? '0' : '1';
+}
+function ponerOpcionVisual(clave, valor) {
+  const el = document.getElementById(OPCIONES_VISUAL[clave].id);
+  if (!el) return;
+  const v = String(valor) === '0' ? '0' : '1';
+  if (el.type === 'checkbox') el.checked = v === '1';
+  else el.value = v;
+}
+// Al cambiar una opción (o al cargarlas): muestra el control de la Poceada que corresponde
+// (espacio arriba y abajo, o porcentaje) y redibuja la vista previa y los avisos
+function onCambioOpcionVisual() {
+  const justa = leerOpcionVisual('panel-poceada-justa') === '1';
+  const margen = document.getElementById('wrap-panel-margen-poceada');
+  const alto = document.getElementById('wrap-panel-alto-poceada');
+  if (margen) margen.style.display = justa ? '' : 'none';
+  if (alto) alto.style.display = justa ? 'none' : '';
+  actualizarPreviewVisualPanel();
+  programarRevisionTamanos();
+}
 
 function aplicarMultiplicadorTV() {
   const mult = parseFloat(document.getElementById('visual-tv-size').value);
@@ -5285,6 +5510,7 @@ function actualizarSlider(tipo, valor) {
   const previewEl = document.getElementById(`preview-${tipo}`);
   if (previewEl) previewEl.style.fontSize = valor + 'px';
   if (PANEL_CLAVES_VISUAL.includes(tipo)) actualizarPreviewVisualPanel();
+  programarRevisionTamanos();
 }
 
 // Vista previa del panel de la derecha en Superadmin → Visual: datos de ejemplo con los valores
@@ -5292,20 +5518,374 @@ function actualizarSlider(tipo, valor) {
 const PANEL_EJEMPLO = [
   { tipo: 'dia', titulo: 'FAVORITO DE HOY', numero: '1845', descripcion: 'Día de la Soberanía' },
   { tipo: 'semana', titulo: 'PÁLPITO SEMANAL', numero: '2832', descripcion: '' },
-  { tipo: 'poceada', titulo: 'POCEADA', fecha: 'MARTES 24/11', numeros: ['02', '06', '09', '13', '41', '50', '59', '81', '89', '90'], ganadores: 'Sin ganadores' }
+  { tipo: 'poceada', titulo: 'POCEADA - MARTES 24/11', numeros: ['02', '06', '09', '13', '41', '50', '59', '81', '89', '90'], ganadores: 'Sin ganadores' }
 ];
 function actualizarPreviewVisualPanel() {
   const cont = document.getElementById('visual-panel-preview');
   if (!cont || !cont.offsetParent) return; // oculta: se dibuja cuando queda a la vista
   const cfg = {};
   PANEL_CLAVES_VISUAL.forEach(k => { const el = document.getElementById(`slider-${k}`); if (el) cfg[k] = el.value; });
+  Object.keys(OPCIONES_VISUAL).forEach(k => { cfg[k] = leerOpcionVisual(k); });
   const ancho = parseInt(cfg['ancho-panel'], 10) || PANEL_ANCHO_DEFECTO;
   const f = (cont.clientWidth || 220) / ancho;
-  cont.style.height = Math.max(360, Math.min(680, Math.round(PANEL_ALTO_TV * f))) + 'px';
+  const altoTV = cfg['mostrar-marca'] === '0' ? PANEL_ALTO_TV_SIN_MARCA : PANEL_ALTO_TV;
+  cont.style.height = Math.max(360, Math.min(680, Math.round(altoTV * f))) + 'px';
   dibujarPanelEscalado(cont, PANEL_EJEMPLO, panelTamDesdeCfg(cfg), poceadaTamDesdeCfg(cfg), f);
 }
 window.addEventListener('resize', actualizarPreviewVisualPanel);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(actualizarPreviewVisualPanel).catch(() => {});
+
+// =====================
+// SUPERADMIN → VISUAL: ¿ENTRA TODO CON LOS TAMAÑOS ELEGIDOS?
+// =====================
+// Arma la pantalla igual que la TV (la misma copia que usa "Copiar tablero", para una TV de
+// 1920 × 1080) con los datos de hoy de la agencia elegida y los tamaños tal como están en los
+// controles (antes de guardar), y se fija qué no entra:
+//  - lo que la TV achica sola (franja del sorteo, franjas doradas, número y descripción del
+//    favorito, número del pálpito, Poceada): "en la TV se ve en X px (elegiste Y)";
+//  - lo que no se achica y queda cortado o pasa a dos renglones (números de la tabla, nombres de
+//    las provincias, últimas cabezas): "con lo demás como está, entra hasta X px";
+//  - los carteles que se ven hoy, si alguno no entra en la pantalla.
+// Los datos se traen solo al abrir Visual, al cambiar de agencia, con "Revisar de nuevo" o si
+// pasaron más de 10 minutos; al mover un control se vuelve a calcular sin consultar nada.
+// Las TV no mandan nada.
+const REVISION_VIGENCIA_MS = 10 * 60 * 1000;
+const REVISION_ETIQUETAS = {
+  primero: '1° Premio', normal: 'Resto de números', 'prov-header': 'Nombres de las provincias (fila roja)',
+  'franja-sorteo': 'Franja: nombre del sorteo', 'franja-fecha': 'Franja: fecha', 'franja-numero': 'Franja: número de sorteo', 'franja-estado': 'Franja: SORTEANDO / ✓ FINALIZADO',
+  cabeza: 'Últimas cabezas: números', prov: 'Últimas cabezas: texto de provincia', 'titulo-cabezas': 'Título "Últimas cabezas"', 'titulo-sorteos': 'Últimas cabezas: títulos de los sorteos',
+  'panel-titulo-dia': 'Favorito de hoy: título', 'panel-numero-dia': 'Favorito de hoy: número', 'panel-descripcion': 'Favorito de hoy: descripción',
+  'panel-titulo-semana': 'Pálpito semanal: título', 'panel-numero-semana': 'Pálpito semanal: número',
+  'panel-titulo-poceada': 'Poceada: título y día', 'poceada-numeros': 'Poceada: números', 'poceada-ganadores': 'Poceada: ganadores'
+};
+// Controles del panel según la parte (para avisar cuando esa parte hoy no se muestra)
+const REVISION_PARTES = {
+  dia: ['panel-titulo-dia', 'panel-numero-dia', 'panel-descripcion'],
+  semana: ['panel-titulo-semana', 'panel-numero-semana'],
+  poceada: ['panel-titulo-poceada', 'poceada-numeros', 'poceada-ganadores']
+};
+let revisionDatos = null;    // { agencia, cuando, d, numerosSorteo, carteles } — lo traído para revisar
+let revisionTrayendo = null; // la agencia que se está trayendo ahora
+let revisionToken = 0;       // descarta respuestas viejas (por ejemplo, si se cambió de agencia)
+let revisionTimer = null;
+
+// Trae los datos de hoy (lo mismo que "Copiar tablero", más los números de sorteo del día y los
+// carteles) y después calcula. forzar: traerlos aunque ya estén.
+async function revisarTamanos(forzar) {
+  const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+  if (!forzar && revisionDatos && revisionDatos.agencia === agencia && Date.now() - revisionDatos.cuando < REVISION_VIGENCIA_MS) {
+    calcularYPintarRevision();
+    return;
+  }
+  if (!usuarioActual) return;
+  const miToken = ++revisionToken;
+  revisionTrayendo = agencia;
+  revisionDatos = null;
+  pintarRevisionTamanos(null, 'Revisando con los datos de hoy...');
+  const btn = document.getElementById('btn-revisar-tamanos');
+  if (btn) btn.disabled = true;
+  let datos = null;
+  try {
+    const ag = encodeURIComponent(agencia);
+    // Lo que muestra la TV ahora (si hoy es feriado, el sorteo anterior que corresponda)
+    const ahora = new Date();
+    const natural = tabSorteoNatural(ahora, { previa: 60, primera: 60, matutina: 60, vespertina: 60, nocturna: 60 });
+    const [d0] = await Promise.all([cargarDatosTablero(tabFechaNatural(ahora), natural.key, agencia), cargarFuentesTablero()]);
+    let d = d0;
+    if (d) {
+      const slot = tabResolverSlot(d.mapa, d.fecha, d.sorteo);
+      if (slot.fecha !== d.fecha || slot.sorteoKey !== d.sorteo) d = await cargarDatosTablero(slot.fecha, slot.sorteoKey, agencia);
+    }
+    if (d) {
+      const [infoDia, carteles] = await Promise.all([
+        consultarJson(`${SUPABASE_URL}/rest/v1/sorteos_info?fecha=eq.${d.fecha}&agencia_id=eq.${ag}&select=sorteo,numero_sorteo`),
+        consultarJson(`${SUPABASE_URL}/rest/v1/carteles?agencia_id=eq.${ag}&activo=eq.true&order=posicion.asc`)
+      ]);
+      if (infoDia !== null && carteles !== null) {
+        const numerosSorteo = {};
+        infoDia.forEach(r => { if (r.numero_sorteo) numerosSorteo[r.sorteo] = r.numero_sorteo; });
+        // Los carteles que la TV pasa hoy: con algún renglón escrito y dentro de sus fechas
+        const hoy = hoyStr();
+        const deHoy = carteles.filter(c => Array.isArray(c.lineas) && c.lineas.some(l => l.texto && l.texto.trim() !== '')
+          && (!c.fecha_desde || c.fecha_desde <= hoy) && (!c.fecha_hasta || c.fecha_hasta >= hoy));
+        datos = { agencia, cuando: Date.now(), d, numerosSorteo, carteles: deHoy };
+      }
+    }
+  } catch (e) { console.error('Revisión de tamaños:', e); }
+  if (miToken !== revisionToken) return; // ya se pidió otra (por ejemplo, otra agencia)
+  revisionTrayendo = null;
+  if (btn) btn.disabled = false;
+  if (!datos) { pintarRevisionTamanos(null, '⚠️ No se pudieron traer los datos de hoy. Tocá "Revisar de nuevo".'); return; }
+  revisionDatos = datos;
+  calcularYPintarRevision();
+}
+
+// Al mover un control: recalcula un ratito después (sin consultar nada, salvo que los datos
+// sean de otra agencia o tengan más de 10 minutos)
+function programarRevisionTamanos() {
+  clearTimeout(revisionTimer);
+  revisionTimer = setTimeout(() => {
+    const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
+    if (revisionTrayendo === agencia) return; // ya se está trayendo: calcula al terminar
+    if (!revisionDatos) return;               // todavía no se trajo nada (se trae al abrir Visual)
+    revisarTamanos(false);
+  }, 250);
+}
+
+function calcularYPintarRevision() {
+  const seccion = document.getElementById('revision-tamanos');
+  if (!seccion || !seccion.offsetParent || !revisionDatos) return; // oculta: se calcula al volver
+  let r = null;
+  try { r = calcularRevision(revisionDatos); }
+  catch (e) { console.error('Revisión de tamaños:', e); }
+  pintarRevisionTamanos(r, r ? '' : '⚠️ No se pudo revisar. Tocá "Revisar de nuevo".');
+}
+
+// Los tamaños tal como están en los controles, con lo guardado de base
+function revisionConfigActual(d) {
+  const cfg = { ...d.cfg };
+  Object.keys(DEFAULTS_VISUAL).forEach(k => {
+    const el = document.getElementById(`slider-${k}`);
+    if (el) cfg[k] = el.value + 'px';
+  });
+  Object.keys(OPCIONES_VISUAL).forEach(k => { cfg[k] = leerOpcionVisual(k) + 'px'; });
+  const nombres = { chaquena: 'Chaqueña', ciudad: 'Ciudad', provincia: 'Provincia', corrientes: 'Corrientes', cordoba: 'Córdoba' };
+  PROVINCIAS.forEach(p => {
+    const el = document.getElementById(`nombre_prov_${p.key}`);
+    if (el && el.value.trim() !== '') nombres[p.key] = el.value.trim();
+  });
+  return { ...d, cfg, nombres, conConfig: true, tamPanel: panelTamDesdeCfg(cfg), tamPoceada: poceadaTamDesdeCfg(cfg), mostrarMarca: parseInt(cfg['mostrar-marca'], 10) !== 0 };
+}
+
+// El mayor tamaño entre min y max con el que "entra()" da true (null si ni con min entra).
+// aplicar(px) pone ese tamaño en la copia de la pantalla.
+function revisionMaximoQueEntra(aplicar, entra, min, max) {
+  aplicar(min);
+  if (!entra()) return null;
+  let bien = min, mal = max + 1;
+  while (mal - bien > 1) {
+    const m = Math.floor((bien + mal) / 2);
+    aplicar(m);
+    if (entra()) bien = m; else mal = m;
+  }
+  return bien;
+}
+// Pone un tamaño de letra en todos esos elementos (gana sobre el estilo de la configuración)
+function revisionPonerTam(elementos, px) {
+  elementos.forEach(el => el.style.setProperty('font-size', px + 'px', 'important'));
+}
+function revisionSacarTam(elementos) {
+  elementos.forEach(el => el.style.removeProperty('font-size'));
+}
+// ¿El texto entra en un renglón a lo ancho de su lugar?
+function revisionEnUnRenglon(el) {
+  const antes = el.style.whiteSpace;
+  el.style.whiteSpace = 'nowrap';
+  const entra = el.scrollWidth <= el.clientWidth + 1;
+  el.style.whiteSpace = antes;
+  return entra;
+}
+
+function calcularRevision(datos) {
+  const d = revisionConfigActual(datos.d);
+  const tam = k => parseInt(d.cfg[k], 10);
+  const avisos = {};      // clave → texto del aviso
+  const noSeMuestra = {}; // clave → true (esa parte del panel hoy no se ve)
+  const cont = armarTableroEnPantalla(d);
+  try {
+    const rangoDe = k => { const el = document.getElementById(`slider-${k}`); return el ? [parseInt(el.min, 10), parseInt(el.max, 10)] : [8, 200]; };
+    // Lo que no se achica solo: si no entra, busca hasta qué tamaño entraría con lo demás como está.
+    // otros: los controles que también influyen (para decir cuál más hay que bajar)
+    const revisarCortado = (clave, elementos, entra, problema, otros) => {
+      if (!elementos.length || entra()) return;
+      const [min] = rangoDe(clave);
+      const maximo = revisionMaximoQueEntra(px => revisionPonerTam(elementos, px), entra, min, tam(clave));
+      revisionSacarTam(elementos);
+      avisos[clave] = maximo === null
+        ? `Hoy no entra: ${problema}. Aunque bajes solo este tamaño, no alcanza: bajá también ${otros.map(k => '«' + REVISION_ETIQUETAS[k] + '»').join(' o ')}.`
+        : `Hoy no entra: ${problema}. Con lo demás como está, entra hasta ${maximo} px (elegiste ${tam(clave)}).`;
+    };
+
+    // 1) Números de la tabla: si son muy grandes, las últimas filas quedan cortadas abajo o un
+    //    número no entra a lo ancho de su columna
+    const wrap = cont.querySelector('.tvc-nums-wrap');
+    const celdas = Array.from(cont.querySelectorAll('.tvc-num-cell:not(.filler):not(.empty)'));
+    const tablaCortes = () => {
+      const abajo = wrap.getBoundingClientRect().bottom;
+      return {
+        abajo: celdas.some(c => c.getBoundingClientRect().bottom > abajo + 1),
+        ancho: celdas.some(c => c.scrollWidth > c.clientWidth + 1)
+      };
+    };
+    const tablaEntra = () => { const t = tablaCortes(); return !t.abajo && !t.ancho; };
+    const cortes = tablaCortes();
+    const problemaTabla = [cortes.abajo && 'las últimas filas quedan cortadas abajo', cortes.ancho && 'un número no entra a lo ancho de su columna'].filter(Boolean).join(' y ');
+    revisarCortado('primero', celdas.filter(c => c.classList.contains('primero')), tablaEntra, problemaTabla, ['normal']);
+    revisarCortado('normal', celdas.filter(c => !c.classList.contains('primero')), tablaEntra, problemaTabla, ['primero']);
+
+    // 2) Nombres de las provincias (fila roja): cada uno en un renglón
+    const provCeldas = Array.from(cont.querySelectorAll('.tvc-prov-cell:not(.label)'));
+    const provLarga = provCeldas.find(c => !revisionEnUnRenglon(c));
+    revisarCortado('prov-header', provCeldas, () => provCeldas.every(revisionEnUnRenglon),
+      `«${provLarga ? provLarga.textContent : ''}» no entra en un renglón`, []);
+
+    // 3) Últimas cabezas: cada renglón (provincia y número) a lo ancho, los títulos en un renglón
+    //    y toda la columna a lo alto (si no, se cortan las de abajo)
+    const colCab = cont.querySelector('.tvc-cabezas');
+    const filasCab = Array.from(cont.querySelectorAll('.tvc-cab-row'));
+    const titulosCab = Array.from(cont.querySelectorAll('.tvc-cab-title'));
+    const encabezado = cont.querySelector('.tvc-cabezas-header');
+    const cabAlto = () => colCab.scrollHeight <= colCab.clientHeight + 1;
+    const filasAncho = () => filasCab.every(f => f.scrollWidth <= f.clientWidth + 1);
+    const problemaCab = (propio) => {
+      const partes = [];
+      if (!propio()) partes.push('no entra a lo ancho de la columna');
+      if (!cabAlto()) partes.push('la columna no entra a lo alto (se cortan las de abajo)');
+      return partes.join(' y ');
+    };
+    const clavesCab = ['cabeza', 'prov', 'titulo-sorteos', 'titulo-cabezas'];
+    [['cabeza', Array.from(cont.querySelectorAll('.tvc-cab-num')), filasAncho],
+     ['prov', Array.from(cont.querySelectorAll('.tvc-cab-prov')), filasAncho],
+     ['titulo-sorteos', titulosCab, () => titulosCab.every(revisionEnUnRenglon)],
+     ['titulo-cabezas', encabezado ? [encabezado] : [], () => !encabezado || revisionEnUnRenglon(encabezado)]
+    ].forEach(([clave, elementos, propio]) => {
+      revisarCortado(clave, elementos, () => propio() && cabAlto(), problemaCab(propio), clavesCab.filter(k => k !== clave));
+    });
+
+    // 4) Franja del sorteo: la TV la achica sola si no entra a lo ancho. Se prueba con cada
+    //    sorteo del día (cambian el nombre, el número y SORTEANDO / ✓ FINALIZADO)
+    const badge = cont.querySelector('.tvc-badge');
+    if (badge) {
+      const nombreEl = badge.querySelector('.tvc-badge-name'), nroEl = badge.querySelector('.tvc-nsorteo'), estadoEl = badge.lastElementChild;
+      const sorteosDia = TAB_SORTEOS.filter(k => tabActivoEn(d.mapa, d.fecha, k));
+      let peor = { escala: 1, sorteo: null, cortada: false };
+      sorteosDia.forEach(k => {
+        [['tvc-live', 'SORTEANDO'], ['tvc-done', '✓ FINALIZADO']].forEach(([clase, texto]) => {
+          nombreEl.textContent = TAB_LABELS[k];
+          // Si ese sorteo todavía no tiene número cargado, se prueba con uno de 5 cifras
+          nroEl.textContent = 'SORTEO N° ' + (datos.numerosSorteo[k] || d.nroSorteo || '00000');
+          estadoEl.className = clase; estadoEl.textContent = texto;
+          ajustarFranjaTablero(badge);
+          const escala = parseFloat(badge.style.getPropertyValue('--escala-franja')) || 1;
+          const cortada = badge.scrollWidth > badge.clientWidth + 1;
+          if (escala < peor.escala || (cortada && !peor.cortada)) peor = { escala, sorteo: k, cortada };
+        });
+      });
+      if (peor.escala < 1 || peor.cortada) {
+        ['franja-sorteo', 'franja-fecha', 'franja-numero', 'franja-estado'].forEach(clave => {
+          avisos[clave] = `Hoy la franja no entra a lo ancho (con ${TAB_LABELS[peor.sorteo]}): en la TV se ve en ${Math.round(tam(clave) * peor.escala)} px (elegiste ${tam(clave)})${peor.cortada ? ', y aun así queda cortada' : ''}.`;
+        });
+      }
+    }
+
+    // 5) Panel de la derecha: lo que la TV achicó sola
+    const bloques = Array.from(cont.querySelectorAll('.tvc-panel-bloque'));
+    const tipoDe = b => b.classList.contains('tvc-panel-bloque-poceada') ? 'poceada' : (b.classList.contains('tvc-panel-bloque-semana') ? 'semana' : 'dia');
+    const tamVisto = el => el ? Math.round(parseFloat(el.style.fontSize) || 0) : null;
+    const achicado = (clave, elegido, visto, que) => {
+      if (visto !== null && visto > 0 && visto < elegido) avisos[clave] = `Hoy ${que}: en la TV se ve en ${visto} px (elegiste ${elegido}).`;
+    };
+    Object.entries(REVISION_PARTES).forEach(([tipo, claves]) => {
+      const b = bloques.find(x => tipoDe(x) === tipo);
+      if (!b) { claves.forEach(c => { noSeMuestra[c] = true; }); return; }
+      const titulo = b.querySelector('.tvc-panel-titulo');
+      const claveTitulo = claves[0];
+      if (titulo) achicado(claveTitulo, panelTamTitulo(d.tamPanel, tipo), tamVisto(titulo), `«${titulo.textContent}» no entra en un renglón`);
+      if (tipo === 'poceada') {
+        achicado('poceada-numeros', d.tamPoceada.numeros, tamVisto(b.querySelector('.tvc-poceada-numeros')), 'los números no entran en su lugar');
+        const gan = b.querySelector('.tvc-poceada-ganadores');
+        if (gan) achicado('poceada-ganadores', d.tamPoceada.ganadores, tamVisto(gan), 'la línea de ganadores no entra en su lugar');
+        return;
+      }
+      const numero = b.querySelector('.tvc-panel-numero');
+      if (numero) achicado(claves[1], tipo === 'semana' ? d.tamPanel.numeroSemana : d.tamPanel.numeroDia, tamVisto(numero), `el número «${numero.textContent}» no entra en su lugar`);
+      const desc = b.querySelector('.tvc-panel-descripcion');
+      if (desc) achicado('panel-descripcion', d.tamPanel.descripcion, tamVisto(desc), 'la descripción no entra en su lugar');
+    });
+  } finally {
+    cont.remove();
+  }
+
+  // 6) Carteles que se ven hoy: si alguno no entra en la pantalla (la TV no los achica)
+  const carteles = revisarCartelesDeHoy(datos.carteles);
+  return { avisos, noSeMuestra, carteles, fecha: d.fecha, sorteo: d.sorteo };
+}
+
+// Cada cartel se arma igual que en la TV (pantalla completa de 1920 × 1080, con 60 px de margen)
+function revisarCartelesDeHoy(carteles) {
+  const problemas = [];
+  if (!carteles || !carteles.length) return problemas;
+  const caja = document.createElement('div');
+  caja.setAttribute('aria-hidden', 'true');
+  caja.style.cssText = 'position:fixed;left:-100000px;top:0;width:1920px;height:1080px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;padding:60px;text-align:center;word-break:break-word;line-height:1.3;overflow:hidden;pointer-events:none;';
+  document.body.appendChild(caja);
+  const ctx = document.createElement('canvas').getContext('2d');
+  try {
+    carteles.forEach((c, i) => {
+      const lineas = (c.lineas || []).filter(l => l.texto && l.texto.trim() !== '');
+      caja.innerHTML = lineas.map(l => {
+        const peso = l.negrita ? '700' : '400', estilo = l.cursiva ? 'italic' : 'normal';
+        return `<div style="font-size:${l.tamano || 32}px;font-family:'${tabEsc(l.fuente || 'Bebas Neue')}',sans-serif;font-weight:${peso};font-style:${estilo};">${tabEsc(l.texto)}</div>`;
+      }).join('');
+      const nombre = `Cartel ${i + 1} («${lineas[0].texto.trim().slice(0, 30)}${lineas[0].texto.trim().length > 30 ? '…' : ''}»)`;
+      const hijos = Array.from(caja.children);
+      const altoUsado = hijos[hijos.length - 1].getBoundingClientRect().bottom - hijos[0].getBoundingClientRect().top;
+      if (altoUsado > 1080 - 120 + 1) problemas.push(`${nombre}: no entra a lo alto de la pantalla, se corta arriba y abajo. Achicá la letra o sacá renglones.`);
+      // Una palabra más ancha que la pantalla se parte al medio
+      hijos.forEach((h, j) => {
+        const cs = getComputedStyle(h);
+        ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const larga = (lineas[j].texto.match(/\S+/g) || []).find(p => ctx.measureText(p).width > 1920 - 120);
+        if (larga) problemas.push(`${nombre}, renglón ${j + 1}: la palabra «${larga.slice(0, 25)}» no entra a lo ancho y se parte en dos. Achicá la letra de ese renglón.`);
+      });
+    });
+  } finally {
+    caja.remove();
+  }
+  return problemas;
+}
+
+// Muestra el resultado: un aviso al lado de cada control y el resumen arriba
+function pintarRevisionTamanos(r, mensaje) {
+  // Avisos al lado de cada control (debajo de su barrita)
+  Object.keys(REVISION_ETIQUETAS).forEach(clave => {
+    const slider = document.getElementById(`slider-${clave}`);
+    if (!slider) return;
+    let aviso = document.getElementById(`aviso-tam-${clave}`);
+    const texto = r && r.avisos[clave] ? '⚠️ ' + r.avisos[clave] : (r && r.noSeMuestra[clave] ? 'Hoy esta parte no se muestra: no hay nada para revisar.' : '');
+    if (!texto) { if (aviso) aviso.remove(); return; }
+    if (!aviso) {
+      aviso = document.createElement('div');
+      aviso.id = `aviso-tam-${clave}`;
+      aviso.className = 'aviso-tam';
+      slider.parentElement.insertAdjacentElement('afterend', aviso);
+    }
+    aviso.textContent = texto;
+    aviso.classList.toggle('aviso-tam-gris', !(r && r.avisos[clave]));
+  });
+  // Resumen
+  const res = document.getElementById('revision-tamanos-resultado');
+  if (!res) return;
+  if (!r) { res.innerHTML = `<span style="color:var(--muted);">${tabEsc(mensaje || '—')}</span>`; return; }
+  const claves = Object.keys(r.avisos);
+  const f = tabParse(r.fecha);
+  const sorteo = TAB_LABELS[r.sorteo].charAt(0) + TAB_LABELS[r.sorteo].slice(1).toLowerCase();
+  const cuando = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;">Revisado con lo que muestra la TV ahora: ${TAB_DIAS[f.getDay()]} ${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}, ${sorteo}.</div>`;
+  if (!claves.length && !r.carteles.length) {
+    res.innerHTML = cuando + '<div style="color:var(--green,#3ecf8e);font-weight:600;">✅ Con los datos de hoy entra todo con los tamaños elegidos.</div>';
+    return;
+  }
+  let h = cuando;
+  if (claves.length) {
+    h += `<div style="color:var(--gold);font-weight:600;margin-bottom:4px;">⚠️ Con los datos de hoy, ${claves.length === 1 ? '1 tamaño no coincide' : claves.length + ' tamaños no coinciden'} con lo elegido:</div>`;
+    h += '<ul style="margin:0 0 6px 18px;padding:0;">' + claves.map(k => `<li><b>${tabEsc(REVISION_ETIQUETAS[k])}</b>: ${tabEsc(r.avisos[k])}</li>`).join('') + '</ul>';
+  }
+  if (r.carteles.length) {
+    h += '<div style="color:var(--gold);font-weight:600;margin:6px 0 4px;">⚠️ Carteles de hoy:</div>';
+    h += '<ul style="margin:0 0 0 18px;padding:0;">' + r.carteles.map(t => `<li>${tabEsc(t)}</li>`).join('') + '</ul>';
+  }
+  res.innerHTML = h;
+}
 
 function buildProgProvinciasGrid() {
   const cont = document.getElementById('grid-prog-provincias');
@@ -5321,6 +5901,7 @@ function buildProgProvinciasGrid() {
 function buildNombresProvinciaGrid() {
   const cont = document.getElementById('grid-nombres-provincias');
   if (!cont) return;
+  cont.oninput = programarRevisionTamanos; // un nombre más largo puede no entrar: se vuelve a revisar
   cont.innerHTML = PROVINCIAS.map(p => `
     <div>
       <label class="form-label">${p.label} (nombre original)</label>
@@ -5335,6 +5916,10 @@ async function cargarConfigVisual() {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
     else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
   });
+  Object.entries(OPCIONES_VISUAL).forEach(([k, o]) => ponerOpcionVisual(k, o.defecto));
+  // Mientras se trae lo de esta agencia, los avisos de la anterior no valen
+  revisionDatos = null;
+  pintarRevisionTamanos(null, 'Revisando...');
   // Reset de duraciones de SORTEANDO a 60 min antes de traer lo guardado
   SORTEOS.forEach(s => { const el = document.getElementById(`sorteando_${s}`); if (el) el.value = 60; });
   // Reset de minutos en verde a 5 antes de traer lo guardado
@@ -5388,6 +5973,8 @@ async function cargarConfigVisual() {
             const el = document.getElementById(`nombre_prov_${k}`);
             if (el) el.value = v;
           });
+        } else if (OPCIONES_VISUAL[r.clave]) {
+          ponerOpcionVisual(r.clave, r.valor);
         } else if (!r.clave.startsWith('numeros_')) {
           const slider = document.getElementById(`slider-${r.clave}`);
           if (slider) { slider.value = r.valor; actualizarSlider(r.clave, r.valor); }
@@ -5408,17 +5995,24 @@ async function cargarConfigVisual() {
       });
     }
   } catch(e) { console.error(e); }
+  onCambioOpcionVisual();
+  revisarTamanos(true);
 }
 
 async function guardarVisual() {
   const agencia = document.getElementById('visual-agencia-sel')?.value || '670-00';
-  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-fecha','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel',
-    'panel-titulo-dia','panel-numero-dia','panel-descripcion','panel-titulo-semana','panel-numero-semana','panel-margen-semana','panel-titulo-poceada','panel-alto-poceada'];
+  const claves = ['primero','normal','cabeza','prov','titulo-cabezas','titulo-sorteos','prov-header','franja-sorteo','franja-fecha','franja-numero','franja-estado','poceada-numeros','poceada-ganadores','ancho-cabezas','ancho-panel',
+    'panel-titulo-dia','panel-numero-dia','panel-descripcion','panel-titulo-semana','panel-numero-semana','panel-margen-semana','panel-titulo-poceada','panel-margen-poceada','panel-alto-poceada'];
   const rows = claves.map(c => ({
     agencia_id: agencia, clave: c,
     valor: document.getElementById(`slider-${c}`).value,
     numeros_por_provincia: null,
     actualizado_por: usuarioActual.nombre
+  }));
+  // Opciones que no son barritas (Poceada: solo lo que necesita o porcentaje; marca arriba a la derecha)
+  Object.keys(OPCIONES_VISUAL).forEach(c => rows.push({
+    agencia_id: agencia, clave: c, valor: leerOpcionVisual(c),
+    numeros_por_provincia: null, actualizado_por: usuarioActual.nombre
   }));
   rows.push({ agencia_id: agencia, clave: 'tv',
     valor: document.getElementById('visual-tv-size').value,
@@ -5507,11 +6101,13 @@ async function guardarVisual() {
       showToast(`✅ Apariencia de ${agencia} guardada`,'ok');
       // Si la agencia configurada es la misma del usuario logueado, refrescamos
       // la cantidad de números y reconstruimos el formulario de carga al instante
+      // (sin tapar el aviso de "guardada" con "📋 Datos existentes cargados")
       if (usuarioActual && agencia === usuarioActual.agencia_id) {
         await cargarNumerosPorProvincia();
         await cargarConfigCarga();
         buildForm();
-        cargarExistentes();
+        if (await cargarExistentes(true) === false)
+          showToast(`✅ Apariencia de ${agencia} guardada, pero no se pudieron traer los datos publicados de la carga de números — tocá "🔄 Cargar existentes" en unos segundos`, 'err');
       }
     }
     else { showToast('Error al guardar','err'); }
@@ -5523,6 +6119,8 @@ async function resetearVisual() {
     if (k === 'tv') { const s = document.getElementById('visual-tv-size'); if(s) s.value = v; }
     else { const s = document.getElementById(`slider-${k}`); if (s) { s.value = v; actualizarSlider(k, v); } }
   });
+  Object.entries(OPCIONES_VISUAL).forEach(([k, o]) => ponerOpcionVisual(k, o.defecto));
+  onCambioOpcionVisual();
   await guardarVisual();
 }
 
